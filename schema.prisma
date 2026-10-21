@@ -11,70 +11,1762 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model DomainAuditEvent {
+  id            String     @id @default(cuid())
+  eventKey      String     @unique @default("")
+  brokerage     Brokerage? @relation("DomainAuditEvent_brokerage", fields: [brokerageId], references: [id])
+  brokerageId   String?    @map("brokerage")
+  aggregateType String     @default("")
+  aggregateId   String     @default("")
+  action        String     @default("")
+  actor         User?      @relation("DomainAuditEvent_actor", fields: [actorId], references: [id])
+  actorId       String?    @map("actor")
+  beforeState   Json?
+  afterState    Json?
+  occurredAt    DateTime
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([aggregateType])
+  @@index([aggregateId])
+  @@index([action])
+  @@index([actorId])
+  @@index([occurredAt])
+}
+
+model DomainOutboxEvent {
+  id            String                      @id @default(cuid())
+  eventKey      String                      @unique @default("")
+  eventType     String                      @default("")
+  brokerage     Brokerage?                  @relation("DomainOutboxEvent_brokerage", fields: [brokerageId], references: [id])
+  brokerageId   String?                     @map("brokerage")
+  aggregateType String                      @default("")
+  aggregateId   String                      @default("")
+  requestHash   String                      @default("")
+  payloadHash   String                      @default("")
+  payload       Json?
+  status        DomainOutboxEventStatusType @default(pending)
+  attempts      Int?                        @default(0)
+  replayCount   Int?                        @default(0)
+  availableAt   DateTime?                   @default(now())
+  occurredAt    DateTime
+  dispatchedAt  DateTime?
+  lastError     String                      @default("")
+  createdAt     DateTime                    @default(now())
+  updatedAt     DateTime                    @default(now()) @updatedAt
+
+  @@index([eventType])
+  @@index([brokerageId])
+  @@index([aggregateType])
+  @@index([aggregateId])
+  @@index([status])
+  @@index([availableAt])
+  @@index([occurredAt])
+}
+
+model Brokerage {
+  id                                  String                         @id @default(cuid())
+  name                                String                         @default("")
+  slug                                String                         @unique @default("")
+  status                              BrokerageStatusType            @default(active)
+  isPrimary                           Boolean                        @default(false)
+  settings                            BrokerageSettings[]            @relation("BrokerageSettings_brokerage")
+  activeUsers                         User[]                         @relation("User_activeBrokerage")
+  memberships                         BrokerageMembership[]          @relation("BrokerageMembership_brokerage")
+  teams                               AgentTeam[]                    @relation("AgentTeam_brokerage")
+  properties                          Property[]                     @relation("Property_brokerage")
+  leads                               Lead[]                         @relation("Lead_brokerage")
+  leadActivities                      LeadActivity[]                 @relation("LeadActivity_brokerage")
+  leadRoutingRules                    LeadRoutingRule[]              @relation("LeadRoutingRule_brokerage")
+  showings                            Showing[]                      @relation("Showing_brokerage")
+  deals                               Deal[]                         @relation("Deal_brokerage")
+  offers                              Offer[]                        @relation("Offer_brokerage")
+  commissions                         Commission[]                   @relation("Commission_brokerage")
+  listingSyndications                 ListingSyndication[]           @relation("ListingSyndication_brokerage")
+  listingEngagementAuthorities        ListingEngagementAuthority[]   @relation("ListingEngagementAuthority_brokerage")
+  listingPublicationAuthorities       ListingPublicationAuthority[]  @relation("ListingPublicationAuthority_brokerage")
+  practitionerLicenseAuthorities      PractitionerLicenseAuthority[] @relation("PractitionerLicenseAuthority_brokerage")
+  representationAuthorities           RepresentationAuthority[]      @relation("RepresentationAuthority_brokerage")
+  documentEvidenceEvents              DocumentEvidenceEvent[]        @relation("DocumentEvidenceEvent_brokerage")
+  commissionLedgerEntries             CommissionLedgerEntry[]        @relation("CommissionLedgerEntry_brokerage")
+  retentionPolicies                   RetentionPolicy[]              @relation("RetentionPolicy_brokerage")
+  transactionFileEvents               TransactionFileEvent[]         @relation("TransactionFileEvent_brokerage")
+  auditEvents                         DomainAuditEvent[]             @relation("DomainAuditEvent_brokerage")
+  outboxEvents                        DomainOutboxEvent[]            @relation("DomainOutboxEvent_brokerage")
+  createdAt                           DateTime                       @default(now())
+  updatedAt                           DateTime                       @default(now()) @updatedAt
+  from_DealDocument_brokerage         DealDocument[]                 @relation("DealDocument_brokerage")
+  from_SavedSearch_brokerage          SavedSearch[]                  @relation("SavedSearch_brokerage")
+  from_AgentTask_brokerage            AgentTask[]                    @relation("AgentTask_brokerage")
+  from_SavedSearchAlert_brokerage     SavedSearchAlert[]             @relation("SavedSearchAlert_brokerage")
+  from_TransactionMilestone_brokerage TransactionMilestone[]         @relation("TransactionMilestone_brokerage")
+  from_SourceFeed_brokerage           SourceFeed[]                   @relation("SourceFeed_brokerage")
+}
+
+model BrokerageMembership {
+  id             String                                @id @default(cuid())
+  membershipKey  String                                @unique @default("")
+  brokerage      Brokerage?                            @relation("BrokerageMembership_brokerage", fields: [brokerageId], references: [id])
+  brokerageId    String?                               @map("brokerage")
+  user           User?                                 @relation("BrokerageMembership_user", fields: [userId], references: [id])
+  userId         String?                               @map("user")
+  membershipRole BrokerageMembershipMembershipRoleType @default(agent)
+  status         BrokerageMembershipStatusType         @default(invited)
+  isPrimary      Boolean                               @default(false)
+  joinedAt       DateTime?
+  createdAt      DateTime                              @default(now())
+  updatedAt      DateTime                              @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([userId])
+}
+
+model BrokerageSettings {
+  id                     Int        @id @default(autoincrement())
+  brokerage              Brokerage? @relation("BrokerageSettings_brokerage", fields: [brokerageId], references: [id])
+  brokerageId            String?    @map("brokerage")
+  key                    String     @unique @default("")
+  businessName           String     @default("")
+  marketLabel            String     @default("")
+  city                   String     @default("")
+  state                  String     @default("")
+  tagline                String     @default("")
+  description            String     @default("")
+  equalHousingNotice     String     @default("")
+  publicPhone            String     @default("")
+  publicEmail            String     @default("")
+  showingDurationMinutes Int?       @default(60)
+  brandHue               Int        @default(151)
+  logoIcon               String     @default("")
+  logoColor              String     @default("0")
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @default(now()) @updatedAt
+
+  @@index([brokerageId])
+}
+
 model User {
-  id                      String    @id @default(cuid())
-  name                    String    @default("")
-  email                   String    @unique @default("")
-  password                String
-  role                    Role?     @relation("User_role", fields: [roleId], references: [id])
-  roleId                  String?   @map("role")
-  tasks                   Todo[]    @relation("Todo_assignedTo")
-  passwordResetToken      String?
-  passwordResetIssuedAt   DateTime?
-  passwordResetRedeemedAt DateTime?
+  id                                    String                         @id @default(cuid())
+  name                                  String                         @default("")
+  email                                 String                         @unique @default("")
+  phone                                 String                         @default("")
+  licenseNumber                         String                         @default("")
+  brokerageTitle                        String                         @default("")
+  bio                                   String                         @default("")
+  avatarUrl                             String                         @default("")
+  password                              String
+  role                                  Role?                          @relation("User_role", fields: [roleId], references: [id])
+  roleId                                String?                        @map("role")
+  assignedProperties                    Property[]                     @relation("Property_assignedAgent")
+  assignedLeads                         Lead[]                         @relation("Lead_assignedAgent")
+  assignedShowings                      Showing[]                      @relation("Showing_assignedAgent")
+  assignedDeals                         Deal[]                         @relation("Deal_assignedAgent")
+  leadRoutingRules                      LeadRoutingRule[]              @relation("LeadRoutingRule_assignedAgent")
+  customerShowings                      Showing[]                      @relation("Showing_customer")
+  savedProperties                       SavedProperty[]                @relation("SavedProperty_user")
+  practitionerLicenseAuthorities        PractitionerLicenseAuthority[] @relation("PractitionerLicenseAuthority_practitioner")
+  verifiedPractitionerLicenses          PractitionerLicenseAuthority[] @relation("PractitionerLicenseAuthority_verifiedBy")
+  listingEngagementAuthorities          ListingEngagementAuthority[]   @relation("ListingEngagementAuthority_assignedPractitioner")
+  recordedListingEngagementAuthorities  ListingEngagementAuthority[]   @relation("ListingEngagementAuthority_recordedBy")
+  recordedListingPublicationAuthorities ListingPublicationAuthority[]  @relation("ListingPublicationAuthority_recordedBy")
+  representationAuthorities             RepresentationAuthority[]      @relation("RepresentationAuthority_practitioner")
+  recordedRepresentationAuthorities     RepresentationAuthority[]      @relation("RepresentationAuthority_recordedBy")
+  recordedDocumentEvidenceEvents        DocumentEvidenceEvent[]        @relation("DocumentEvidenceEvent_actor")
+  commissionLedgerEntries               CommissionLedgerEntry[]        @relation("CommissionLedgerEntry_payeeUser")
+  preparedCommissionLedgerEntries       CommissionLedgerEntry[]        @relation("CommissionLedgerEntry_preparedBy")
+  approvedCommissionLedgerEntries       CommissionLedgerEntry[]        @relation("CommissionLedgerEntry_approvedBy")
+  approvedRetentionPolicies             RetentionPolicy[]              @relation("RetentionPolicy_approvedBy")
+  recordedTransactionFileEvents         TransactionFileEvent[]         @relation("TransactionFileEvent_actor")
+  approvedTransactionFileEvents         TransactionFileEvent[]         @relation("TransactionFileEvent_approvedBy")
+  activeBrokerage                       Brokerage?                     @relation("User_activeBrokerage", fields: [activeBrokerageId], references: [id])
+  activeBrokerageId                     String?                        @map("activeBrokerage")
+  brokerageMemberships                  BrokerageMembership[]          @relation("BrokerageMembership_user")
+  onboardingStatus                      UserOnboardingStatusType?      @default(not_started)
+  createdAt                             DateTime                       @default(now())
+  updatedAt                             DateTime                       @default(now()) @updatedAt
+  passwordResetToken                    String?
+  passwordResetIssuedAt                 DateTime?
+  passwordResetRedeemedAt               DateTime?
+  from_DomainAuditEvent_actor           DomainAuditEvent[]             @relation("DomainAuditEvent_actor")
+  from_LeadActivity_agent               LeadActivity[]                 @relation("LeadActivity_agent")
+  from_Offer_assignedAgent              Offer[]                        @relation("Offer_assignedAgent")
+  from_DealDocument_uploadedBy          DealDocument[]                 @relation("DealDocument_uploadedBy")
+  from_Commission_agent                 Commission[]                   @relation("Commission_agent")
+  from_SavedSearch_user                 SavedSearch[]                  @relation("SavedSearch_user")
+  from_AgentTeam_leadAgent              AgentTeam[]                    @relation("AgentTeam_leadAgent")
+  from_AgentTeam_members                AgentTeam[]                    @relation("AgentTeam_members")
+  from_AgentTask_assignedAgent          AgentTask[]                    @relation("AgentTask_assignedAgent")
+  from_SavedSearchAlert_user            SavedSearchAlert[]             @relation("SavedSearchAlert_user")
+  from_PropertyValuation_performedBy    PropertyValuation[]            @relation("PropertyValuation_performedBy")
+  from_TransactionMilestone_assignedTo  TransactionMilestone[]         @relation("TransactionMilestone_assignedTo")
+  from_OpenHouse_hostAgent              OpenHouse[]                    @relation("OpenHouse_hostAgent")
 
   @@index([roleId])
+  @@index([activeBrokerageId])
 }
 
 model Role {
-  id                 String  @id @default(cuid())
-  name               String  @default("")
-  canCreateTodos     Boolean @default(false)
-  canManageAllTodos  Boolean @default(false)
-  canSeeOtherPeople  Boolean @default(false)
-  canEditOtherPeople Boolean @default(false)
-  canManagePeople    Boolean @default(false)
-  canManageRoles     Boolean @default(false)
-  canAccessDashboard Boolean @default(false)
-  assignedTo         User[]  @relation("User_role")
+  id                  String   @id @default(cuid())
+  name                String   @default("")
+  canSeeOtherPeople   Boolean  @default(false)
+  canEditOtherPeople  Boolean  @default(false)
+  canManagePeople     Boolean  @default(false)
+  canManageRoles      Boolean  @default(false)
+  canAccessDashboard  Boolean  @default(false)
+  canManageListings   Boolean  @default(false)
+  canManageLeads      Boolean  @default(false)
+  canManageShowings   Boolean  @default(false)
+  canManageDeals      Boolean  @default(false)
+  canViewReports      Boolean  @default(false)
+  canManageOnboarding Boolean  @default(false)
+  assignedTo          User[]   @relation("User_role")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now()) @updatedAt
 }
 
-model Todo {
-  id                   String      @id @default(cuid())
-  label                String      @default("")
-  description          Json        @default("[{\"type\":\"paragraph\",\"children\":[{\"text\":\"\"}]}]")
-  isComplete           Boolean     @default(false)
-  status               String?     @default("todo")
-  priority             Int?        @default(1)
-  tags                 Json        @default("[]")
-  dueDate              DateTime?
-  weight               Float?      @default(1)
-  budget               Decimal?    @default("0.00") @postgresql.Decimal(10, 2)
-  isPrivate            Boolean     @default(false)
-  largeNumber          BigInt?
-  metadata             Json?
-  secretNote           String?
-  coverImage_id        String?
-  coverImage_filesize  Int?
-  coverImage_width     Int?
-  coverImage_height    Int?
-  coverImage_extension String?
-  todoImages           TodoImage[] @relation("Todo_todoImages")
-  assignedTo           User?       @relation("Todo_assignedTo", fields: [assignedToId], references: [id])
-  assignedToId         String?     @map("assignedTo")
+model Property {
+  id                               String                        @id @default(cuid())
+  brokerage                        Brokerage?                    @relation("Property_brokerage", fields: [brokerageId], references: [id])
+  brokerageId                      String?                       @map("brokerage")
+  title                            String                        @default("")
+  slug                             String                        @unique @default("")
+  status                           PropertyStatusType            @default(draft)
+  listingType                      PropertyListingTypeType       @default(sale)
+  propertyType                     PropertyPropertyTypeType?     @default(house)
+  shortDescription                 String                        @default("")
+  description                      String                        @default("")
+  addressLine1                     String                        @default("")
+  addressLine2                     String                        @default("")
+  city                             String                        @default("")
+  state                            String                        @default("")
+  postalCode                       String                        @default("")
+  neighborhood                     String                        @default("")
+  latitude                         Decimal?                      @postgresql.Decimal(10, 7)
+  longitude                        Decimal?                      @postgresql.Decimal(10, 7)
+  price                            BigInt                        @default(0) @map("priceMinor")
+  bedrooms                         Int?                          @default(0)
+  bathrooms                        Decimal?                      @default("0.0") @postgresql.Decimal(4, 1)
+  squareFeet                       Int?
+  lotSizeSquareFeet                Int?
+  yearBuilt                        Int?
+  hoaFee                           BigInt?                       @map("hoaFeeMinor")
+  availableAt                      DateTime?
+  isFeatured                       Boolean                       @default(false)
+  virtualTourUrl                   String                        @default("")
+  primaryImageUrl                  String                        @default("")
+  assignedAgent                    User?                         @relation("Property_assignedAgent", fields: [assignedAgentId], references: [id])
+  assignedAgentId                  String?                       @map("assignedAgent")
+  leads                            Lead[]                        @relation("Lead_property")
+  showings                         Showing[]                     @relation("Showing_property")
+  savedBy                          SavedProperty[]               @relation("SavedProperty_property")
+  listingEngagementAuthorities     ListingEngagementAuthority[]  @relation("ListingEngagementAuthority_property")
+  listingPublicationAuthorities    ListingPublicationAuthority[] @relation("ListingPublicationAuthority_property")
+  representationAuthorities        RepresentationAuthority[]     @relation("RepresentationAuthority_property")
+  createdAt                        DateTime                      @default(now())
+  updatedAt                        DateTime                      @default(now()) @updatedAt
+  from_Deal_property               Deal[]                        @relation("Deal_property")
+  from_LeadActivity_property       LeadActivity[]                @relation("LeadActivity_property")
+  from_PropertyMedia_property      PropertyMedia[]               @relation("PropertyMedia_property")
+  from_PropertyInspection_property PropertyInspection[]          @relation("PropertyInspection_property")
+  from_Offer_property              Offer[]                       @relation("Offer_property")
+  from_DealDocument_property       DealDocument[]                @relation("DealDocument_property")
+  from_Commission_property         Commission[]                  @relation("Commission_property")
+  from_MarketComp_subjectProperty  MarketComp[]                  @relation("MarketComp_subjectProperty")
+  from_AgentTask_property          AgentTask[]                   @relation("AgentTask_property")
+  from_Disclosure_property         Disclosure[]                  @relation("Disclosure_property")
+  from_PropertyValuation_property  PropertyValuation[]           @relation("PropertyValuation_property")
+  from_TitleOrder_property         TitleOrder[]                  @relation("TitleOrder_property")
+  from_Escrow_property             Escrow[]                      @relation("Escrow_property")
+  from_ShowingFeedback_property    ShowingFeedback[]             @relation("ShowingFeedback_property")
+  from_OpenHouse_property          OpenHouse[]                   @relation("OpenHouse_property")
+  from_ListingSyndication_property ListingSyndication[]          @relation("ListingSyndication_property")
+  legacyPrice                      Decimal                       @default("0.00") @map("price") @ignore @postgresql.Decimal(12, 2)
+  legacyHoaFee                     Decimal?                      @map("hoaFee") @ignore @postgresql.Decimal(10, 2)
 
+  @@index([brokerageId])
+  @@index([assignedAgentId])
+}
+
+model Lead {
+  id                            String                    @id @default(cuid())
+  brokerage                     Brokerage?                @relation("Lead_brokerage", fields: [brokerageId], references: [id])
+  brokerageId                   String?                   @map("brokerage")
+  name                          String                    @default("")
+  identityKey                   String                    @default("")
+  email                         String                    @default("")
+  phone                         String                    @default("")
+  status                        LeadStatusType            @default(new)
+  intent                        LeadIntentType?           @default(unknown)
+  source                        LeadSourceType?           @default(website)
+  budgetMin                     BigInt?                   @map("budgetMinMinor")
+  budgetMax                     BigInt?                   @map("budgetMaxMinor")
+  preferredLocation             String                    @default("")
+  timeline                      String                    @default("")
+  message                       String                    @default("")
+  lastContactedAt               DateTime?
+  property                      Property?                 @relation("Lead_property", fields: [propertyId], references: [id])
+  propertyId                    String?                   @map("property")
+  assignedAgent                 User?                     @relation("Lead_assignedAgent", fields: [assignedAgentId], references: [id])
+  assignedAgentId               String?                   @map("assignedAgent")
+  assignedTeam                  AgentTeam?                @relation("Lead_assignedTeam", fields: [assignedTeamId], references: [id])
+  assignedTeamId                String?                   @map("assignedTeam")
+  showings                      Showing[]                 @relation("Showing_lead")
+  activities                    LeadActivity[]            @relation("LeadActivity_lead")
+  representationAuthorities     RepresentationAuthority[] @relation("RepresentationAuthority_lead")
+  createdAt                     DateTime                  @default(now())
+  updatedAt                     DateTime                  @default(now()) @updatedAt
+  from_Deal_lead                Deal[]                    @relation("Deal_lead")
+  from_Offer_lead               Offer[]                   @relation("Offer_lead")
+  from_AgentTask_lead           AgentTask[]               @relation("AgentTask_lead")
+  from_MortgageApplication_lead MortgageApplication[]     @relation("MortgageApplication_lead")
+  from_ShowingFeedback_lead     ShowingFeedback[]         @relation("ShowingFeedback_lead")
+  legacyBudgetMin               String                    @default("") @map("budgetMin") @ignore
+  legacyBudgetMax               String                    @default("") @map("budgetMax") @ignore
+
+  @@index([brokerageId])
+  @@index([identityKey])
+  @@index([propertyId])
+  @@index([assignedAgentId])
+  @@index([assignedTeamId])
+}
+
+model Showing {
+  id                           String                  @id @default(cuid())
+  brokerage                    Brokerage?              @relation("Showing_brokerage", fields: [brokerageId], references: [id])
+  brokerageId                  String?                 @map("brokerage")
+  status                       ShowingStatusType       @default(requested)
+  customer                     User?                   @relation("Showing_customer", fields: [customerId], references: [id])
+  customerId                   String?                 @map("customer")
+  requestSnapshot              Json?
+  showingType                  ShowingShowingTypeType? @default(in_person)
+  scheduledStart               DateTime
+  scheduledEnd                 DateTime?
+  notes                        String                  @default("")
+  feedback                     String                  @default("")
+  property                     Property?               @relation("Showing_property", fields: [propertyId], references: [id])
+  propertyId                   String?                 @map("property")
+  lead                         Lead?                   @relation("Showing_lead", fields: [leadId], references: [id])
+  leadId                       String?                 @map("lead")
+  assignedAgent                User?                   @relation("Showing_assignedAgent", fields: [assignedAgentId], references: [id])
+  assignedAgentId              String?                 @map("assignedAgent")
+  createdAt                    DateTime                @default(now())
+  updatedAt                    DateTime                @default(now()) @updatedAt
+  from_LeadActivity_showing    LeadActivity[]          @relation("LeadActivity_showing")
+  from_ShowingFeedback_showing ShowingFeedback[]       @relation("ShowingFeedback_showing")
+
+  @@index([brokerageId])
+  @@index([customerId])
+  @@index([propertyId])
+  @@index([leadId])
+  @@index([assignedAgentId])
+}
+
+model Deal {
+  id                             String                    @id @default(cuid())
+  brokerage                      Brokerage?                @relation("Deal_brokerage", fields: [brokerageId], references: [id])
+  brokerageId                    String?                   @map("brokerage")
+  title                          String                    @default("")
+  stage                          DealStageType             @default(prospecting)
+  transactionType                DealTransactionTypeType?  @default(buyer)
+  offerAmount                    BigInt?                   @map("offerAmountMinor")
+  commissionAmount               BigInt?                   @map("commissionAmountMinor")
+  expectedCloseDate              DateTime?
+  closedAt                       DateTime?
+  closedSnapshot                 Json?
+  nextStep                       String                    @default("")
+  notes                          String                    @default("")
+  property                       Property?                 @relation("Deal_property", fields: [propertyId], references: [id])
+  propertyId                     String?                   @map("property")
+  lead                           Lead?                     @relation("Deal_lead", fields: [leadId], references: [id])
+  leadId                         String?                   @map("lead")
+  assignedAgent                  User?                     @relation("Deal_assignedAgent", fields: [assignedAgentId], references: [id])
+  assignedAgentId                String?                   @map("assignedAgent")
+  assignedTeam                   AgentTeam?                @relation("Deal_assignedTeam", fields: [assignedTeamId], references: [id])
+  assignedTeamId                 String?                   @map("assignedTeam")
+  representationAuthorities      RepresentationAuthority[] @relation("RepresentationAuthority_deal")
+  documentEvidenceEvents         DocumentEvidenceEvent[]   @relation("DocumentEvidenceEvent_deal")
+  commissionLedgerEntries        CommissionLedgerEntry[]   @relation("CommissionLedgerEntry_deal")
+  transactionFileEvents          TransactionFileEvent[]    @relation("TransactionFileEvent_deal")
+  createdAt                      DateTime                  @default(now())
+  updatedAt                      DateTime                  @default(now()) @updatedAt
+  from_PropertyInspection_deal   PropertyInspection[]      @relation("PropertyInspection_deal")
+  from_Offer_deal                Offer[]                   @relation("Offer_deal")
+  from_DealDocument_deal         DealDocument[]            @relation("DealDocument_deal")
+  from_Commission_deal           Commission[]              @relation("Commission_deal")
+  from_AgentTask_deal            AgentTask[]               @relation("AgentTask_deal")
+  from_Disclosure_deal           Disclosure[]              @relation("Disclosure_deal")
+  from_TransactionMilestone_deal TransactionMilestone[]    @relation("TransactionMilestone_deal")
+  from_MortgageApplication_deal  MortgageApplication[]     @relation("MortgageApplication_deal")
+  from_TitleOrder_deal           TitleOrder[]              @relation("TitleOrder_deal")
+  from_Escrow_deal               Escrow[]                  @relation("Escrow_deal")
+  legacyOfferAmount              Decimal?                  @map("offerAmount") @ignore @postgresql.Decimal(12, 2)
+  legacyCommissionAmount         Decimal?                  @map("commissionAmount") @ignore @postgresql.Decimal(12, 2)
+
+  @@index([brokerageId])
+  @@index([propertyId])
+  @@index([leadId])
+  @@index([assignedAgentId])
+  @@index([assignedTeamId])
+}
+
+model SavedProperty {
+  id         String                   @id @default(cuid())
+  status     SavedPropertyStatusType? @default(saved)
+  notes      String                   @default("")
+  property   Property?                @relation("SavedProperty_property", fields: [propertyId], references: [id])
+  propertyId String?                  @map("property")
+  user       User?                    @relation("SavedProperty_user", fields: [userId], references: [id])
+  userId     String?                  @map("user")
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @default(now()) @updatedAt
+
+  @@index([propertyId])
+  @@index([userId])
+}
+
+model LeadActivity {
+  id           String                       @id @default(cuid())
+  brokerage    Brokerage?                   @relation("LeadActivity_brokerage", fields: [brokerageId], references: [id])
+  brokerageId  String?                      @map("brokerage")
+  activityType LeadActivityActivityTypeType @default(note)
+  direction    LeadActivityDirectionType?   @default(internal)
+  channel      LeadActivityChannelType?     @default(crm)
+  subject      String                       @default("")
+  body         String                       @default("")
+  occurredAt   DateTime                     @default(now())
+  lead         Lead?                        @relation("LeadActivity_lead", fields: [leadId], references: [id])
+  leadId       String?                      @map("lead")
+  property     Property?                    @relation("LeadActivity_property", fields: [propertyId], references: [id])
+  propertyId   String?                      @map("property")
+  showing      Showing?                     @relation("LeadActivity_showing", fields: [showingId], references: [id])
+  showingId    String?                      @map("showing")
+  agent        User?                        @relation("LeadActivity_agent", fields: [agentId], references: [id])
+  agentId      String?                      @map("agent")
+  createdAt    DateTime                     @default(now())
+  updatedAt    DateTime                     @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([leadId])
+  @@index([propertyId])
+  @@index([showingId])
+  @@index([agentId])
+}
+
+model LeadRoutingRule {
+  id              String                     @id @default(cuid())
+  brokerage       Brokerage?                 @relation("LeadRoutingRule_brokerage", fields: [brokerageId], references: [id])
+  brokerageId     String?                    @map("brokerage")
+  name            String                     @default("")
+  status          LeadRoutingRuleStatusType? @default(active)
+  priority        Int?                       @default(100)
+  intent          LeadRoutingRuleIntentType? @default(any)
+  source          LeadRoutingRuleSourceType? @default(any)
+  city            String                     @default("")
+  state           String                     @default("")
+  postalCode      String                     @default("")
+  isFallback      Boolean                    @default(false)
+  assignedAgent   User?                      @relation("LeadRoutingRule_assignedAgent", fields: [assignedAgentId], references: [id])
+  assignedAgentId String?                    @map("assignedAgent")
+  assignedTeam    AgentTeam?                 @relation("LeadRoutingRule_assignedTeam", fields: [assignedTeamId], references: [id])
+  assignedTeamId  String?                    @map("assignedTeam")
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([assignedAgentId])
+  @@index([assignedTeamId])
+}
+
+model PropertyMedia {
+  id         String                     @id @default(cuid())
+  title      String                     @default("")
+  mediaType  PropertyMediaMediaTypeType @default(photo)
+  url        String                     @default("")
+  altText    String                     @default("")
+  caption    String                     @default("")
+  sortOrder  Int?                       @default(0)
+  isHero     Boolean                    @default(false)
+  property   Property?                  @relation("PropertyMedia_property", fields: [propertyId], references: [id])
+  propertyId String?                    @map("property")
+  createdAt  DateTime                   @default(now())
+  updatedAt  DateTime                   @default(now()) @updatedAt
+
+  @@index([propertyId])
+}
+
+model PropertyInspection {
+  id                  String                                @id @default(cuid())
+  title               String                                @default("")
+  inspectionType      PropertyInspectionInspectionTypeType? @default(general)
+  status              PropertyInspectionStatusType?         @default(scheduled)
+  scheduledAt         DateTime?
+  completedAt         DateTime?
+  inspectorName       String                                @default("")
+  inspectorEmail      String                                @default("")
+  estimatedCost       BigInt?                               @map("estimatedCostMinor")
+  summary             String                                @default("")
+  findings            String                                @default("")
+  property            Property?                             @relation("PropertyInspection_property", fields: [propertyId], references: [id])
+  propertyId          String?                               @map("property")
+  deal                Deal?                                 @relation("PropertyInspection_deal", fields: [dealId], references: [id])
+  dealId              String?                               @map("deal")
+  createdAt           DateTime                              @default(now())
+  updatedAt           DateTime                              @default(now()) @updatedAt
+  legacyEstimatedCost Decimal?                              @map("estimatedCost") @ignore @postgresql.Decimal(10, 2)
+
+  @@index([propertyId])
+  @@index([dealId])
+}
+
+model Offer {
+  id                     String                  @id @default(cuid())
+  brokerage              Brokerage?              @relation("Offer_brokerage", fields: [brokerageId], references: [id])
+  brokerageId            String?                 @map("brokerage")
+  offerNumber            String                  @unique @default("")
+  version                Int                     @default(1)
+  parentOffer            Offer?                  @relation("Offer_parentOffer", fields: [parentOfferId], references: [id])
+  parentOfferId          String?                 @map("parentOffer")
+  counterOffers          Offer[]                 @relation("Offer_parentOffer")
+  status                 OfferStatusType         @default(draft)
+  amount                 BigInt                  @default(0) @map("amountMinor")
+  earnestMoney           BigInt?                 @map("earnestMoneyMinor")
+  financingType          OfferFinancingTypeType? @default(conventional)
+  contingencies          String                  @default("")
+  submittedAt            DateTime?
+  responseDueAt          DateTime?
+  acceptedAt             DateTime?
+  acceptedSnapshot       Json?
+  property               Property?               @relation("Offer_property", fields: [propertyId], references: [id])
+  propertyId             String?                 @map("property")
+  deal                   Deal?                   @relation("Offer_deal", fields: [dealId], references: [id])
+  dealId                 String?                 @map("deal")
+  lead                   Lead?                   @relation("Offer_lead", fields: [leadId], references: [id])
+  leadId                 String?                 @map("lead")
+  assignedAgent          User?                   @relation("Offer_assignedAgent", fields: [assignedAgentId], references: [id])
+  assignedAgentId        String?                 @map("assignedAgent")
+  documentEvidenceEvents DocumentEvidenceEvent[] @relation("DocumentEvidenceEvent_offer")
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @default(now()) @updatedAt
+  legacyAmount           Decimal                 @default("0.00") @map("amount") @ignore @postgresql.Decimal(12, 2)
+  legacyEarnestMoney     Decimal?                @map("earnestMoney") @ignore @postgresql.Decimal(12, 2)
+
+  @@index([brokerageId])
+  @@index([parentOfferId])
+  @@index([propertyId])
+  @@index([dealId])
+  @@index([leadId])
+  @@index([assignedAgentId])
+}
+
+model DealDocument {
+  id                    String                        @id @default(cuid())
+  brokerage             Brokerage                     @relation("DealDocument_brokerage", fields: [brokerageId], references: [id])
+  brokerageId           String                        @map("brokerage")
+  title                 String                        @default("")
+  documentType          DealDocumentDocumentTypeType? @default(other)
+  status                DealDocumentStatusType?       @default(draft)
+  fileUrl               String                        @default("")
+  requiresSignature     Boolean                       @default(false)
+  sentAt                DateTime?
+  signedAt              DateTime?
+  expiresAt             DateTime?
+  notes                 String                        @default("")
+  deal                  Deal?                         @relation("DealDocument_deal", fields: [dealId], references: [id])
+  dealId                String?                       @map("deal")
+  property              Property?                     @relation("DealDocument_property", fields: [propertyId], references: [id])
+  propertyId            String?                       @map("property")
+  uploadedBy            User?                         @relation("DealDocument_uploadedBy", fields: [uploadedById], references: [id])
+  uploadedById          String?                       @map("uploadedBy")
+  evidenceEvents        DocumentEvidenceEvent[]       @relation("DocumentEvidenceEvent_document")
+  transactionFileEvents TransactionFileEvent[]        @relation("TransactionFileEvent_document")
+  createdAt             DateTime                      @default(now())
+  updatedAt             DateTime                      @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([dealId])
+  @@index([propertyId])
+  @@index([uploadedById])
+}
+
+model Commission {
+  id                    String                  @id @default(cuid())
+  brokerage             Brokerage?              @relation("Commission_brokerage", fields: [brokerageId], references: [id])
+  brokerageId           String?                 @map("brokerage")
+  title                 String                  @default("")
+  status                CommissionStatusType?   @default(projected)
+  side                  CommissionSideType?     @default(listing)
+  grossCommission       BigInt?                 @default(0) @map("grossCommissionMinor")
+  brokerageSplitPercent Decimal?                @default("0.00") @postgresql.Decimal(5, 2)
+  agentSplitPercent     Decimal?                @default("0.00") @postgresql.Decimal(5, 2)
+  netCommission         BigInt?                 @default(0) @map("netCommissionMinor")
+  paidAt                DateTime?
+  notes                 String                  @default("")
+  deal                  Deal?                   @relation("Commission_deal", fields: [dealId], references: [id])
+  dealId                String?                 @map("deal")
+  property              Property?               @relation("Commission_property", fields: [propertyId], references: [id])
+  propertyId            String?                 @map("property")
+  agent                 User?                   @relation("Commission_agent", fields: [agentId], references: [id])
+  agentId               String?                 @map("agent")
+  ledgerEntries         CommissionLedgerEntry[] @relation("CommissionLedgerEntry_commission")
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @default(now()) @updatedAt
+  legacyGrossCommission Decimal?                @default("0.00") @map("grossCommission") @ignore @postgresql.Decimal(12, 2)
+  legacyNetCommission   Decimal?                @default("0.00") @map("netCommission") @ignore @postgresql.Decimal(12, 2)
+
+  @@index([brokerageId])
+  @@index([dealId])
+  @@index([propertyId])
+  @@index([agentId])
+}
+
+model SavedSearch {
+  id                                String             @id @default(cuid())
+  brokerage                         Brokerage          @relation("SavedSearch_brokerage", fields: [brokerageId], references: [id])
+  brokerageId                       String             @map("brokerage")
+  name                              String             @default("")
+  city                              String             @default("")
+  state                             String             @default("")
+  propertyType                      String             @default("")
+  minPrice                          BigInt?            @map("minPriceMinor")
+  maxPrice                          BigInt?            @map("maxPriceMinor")
+  minBedrooms                       Int?
+  minBathrooms                      Decimal?           @postgresql.Decimal(4, 1)
+  minSquareFeet                     Int?
+  keywords                          String             @default("")
+  alertsEnabled                     Boolean            @default(true)
+  lastNotifiedAt                    DateTime?
+  user                              User?              @relation("SavedSearch_user", fields: [userId], references: [id])
+  userId                            String?            @map("user")
+  createdAt                         DateTime           @default(now())
+  updatedAt                         DateTime           @default(now()) @updatedAt
+  from_SavedSearchAlert_savedSearch SavedSearchAlert[] @relation("SavedSearchAlert_savedSearch")
+  legacyMinPrice                    Decimal?           @map("minPrice") @ignore @postgresql.Decimal(12, 2)
+  legacyMaxPrice                    Decimal?           @map("maxPrice") @ignore @postgresql.Decimal(12, 2)
+
+  @@index([brokerageId])
+  @@index([userId])
+}
+
+model MarketComp {
+  id                String                @id @default(cuid())
+  addressLine1      String                @default("")
+  city              String                @default("")
+  state             String                @default("")
+  postalCode        String                @default("")
+  status            MarketCompStatusType? @default(sold)
+  listPrice         BigInt?               @map("listPriceMinor")
+  salePrice         BigInt?               @map("salePriceMinor")
+  soldAt            DateTime?
+  bedrooms          Int?
+  bathrooms         Decimal?              @postgresql.Decimal(4, 1)
+  squareFeet        Int?
+  distanceMiles     Decimal?              @postgresql.Decimal(6, 2)
+  sourceUrl         String                @default("")
+  notes             String                @default("")
+  subjectProperty   Property?             @relation("MarketComp_subjectProperty", fields: [subjectPropertyId], references: [id])
+  subjectPropertyId String?               @map("subjectProperty")
+  neighborhood      Neighborhood?         @relation("MarketComp_neighborhood", fields: [neighborhoodId], references: [id])
+  neighborhoodId    String?               @map("neighborhood")
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @default(now()) @updatedAt
+  legacyListPrice   Decimal?              @map("listPrice") @ignore @postgresql.Decimal(12, 2)
+  legacySalePrice   Decimal?              @map("salePrice") @ignore @postgresql.Decimal(12, 2)
+
+  @@index([subjectPropertyId])
+  @@index([neighborhoodId])
+}
+
+model Neighborhood {
+  id                    String       @id @default(cuid())
+  name                  String       @default("")
+  slug                  String       @unique @default("")
+  city                  String       @default("")
+  state                 String       @default("")
+  overview              String       @default("")
+  schoolDistrict        String       @default("")
+  walkScore             Int?
+  transitScore          Int?
+  medianSalePrice       BigInt?      @map("medianSalePriceMinor")
+  medianRent            BigInt?      @map("medianRentMinor")
+  activeListings        Int?         @default(0)
+  averageDaysOnMarket   Int?
+  marketComps           MarketComp[] @relation("MarketComp_neighborhood")
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @default(now()) @updatedAt
+  legacyMedianSalePrice Decimal?     @map("medianSalePrice") @ignore @postgresql.Decimal(12, 2)
+  legacyMedianRent      Decimal?     @map("medianRent") @ignore @postgresql.Decimal(12, 2)
+}
+
+model AgentTeam {
+  id               String                 @id @default(cuid())
+  brokerage        Brokerage?             @relation("AgentTeam_brokerage", fields: [brokerageId], references: [id])
+  brokerageId      String?                @map("brokerage")
+  name             String                 @default("")
+  slug             String                 @unique @default("")
+  teamType         AgentTeamTeamTypeType? @default(listing)
+  status           AgentTeamStatusType?   @default(active)
+  description      String                 @default("")
+  leadAgent        User?                  @relation("AgentTeam_leadAgent", fields: [leadAgentId], references: [id])
+  leadAgentId      String?                @map("leadAgent")
+  members          User[]                 @relation("AgentTeam_members")
+  leads            Lead[]                 @relation("Lead_assignedTeam")
+  leadRoutingRules LeadRoutingRule[]      @relation("LeadRoutingRule_assignedTeam")
+  deals            Deal[]                 @relation("Deal_assignedTeam")
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([leadAgentId])
+}
+
+model AgentTask {
+  id              String                 @id @default(cuid())
+  brokerage       Brokerage              @relation("AgentTask_brokerage", fields: [brokerageId], references: [id])
+  brokerageId     String                 @map("brokerage")
+  title           String                 @default("")
+  status          AgentTaskStatusType?   @default(open)
+  priority        AgentTaskPriorityType? @default(normal)
+  dueAt           DateTime?
+  completedAt     DateTime?
+  notes           String                 @default("")
+  assignedAgent   User?                  @relation("AgentTask_assignedAgent", fields: [assignedAgentId], references: [id])
+  assignedAgentId String?                @map("assignedAgent")
+  property        Property?              @relation("AgentTask_property", fields: [propertyId], references: [id])
+  propertyId      String?                @map("property")
+  lead            Lead?                  @relation("AgentTask_lead", fields: [leadId], references: [id])
+  leadId          String?                @map("lead")
+  deal            Deal?                  @relation("AgentTask_deal", fields: [dealId], references: [id])
+  dealId          String?                @map("deal")
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([assignedAgentId])
+  @@index([propertyId])
+  @@index([leadId])
+  @@index([dealId])
+}
+
+model SavedSearchAlert {
+  id            String                       @id @default(cuid())
+  brokerage     Brokerage                    @relation("SavedSearchAlert_brokerage", fields: [brokerageId], references: [id])
+  brokerageId   String                       @map("brokerage")
+  savedSearch   SavedSearch?                 @relation("SavedSearchAlert_savedSearch", fields: [savedSearchId], references: [id])
+  savedSearchId String?                      @map("savedSearch")
+  user          User?                        @relation("SavedSearchAlert_user", fields: [userId], references: [id])
+  userId        String?                      @map("user")
+  status        SavedSearchAlertStatusType?  @default(active)
+  cadence       SavedSearchAlertCadenceType? @default(daily)
+  lastSentAt    DateTime?
+  sentCount     Int?                         @default(0)
+  metadata      Json?
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([savedSearchId])
+  @@index([userId])
+}
+
+model Disclosure {
+  id             String                        @id @default(cuid())
+  title          String                        @default("")
+  property       Property?                     @relation("Disclosure_property", fields: [propertyId], references: [id])
+  propertyId     String?                       @map("property")
+  deal           Deal?                         @relation("Disclosure_deal", fields: [dealId], references: [id])
+  dealId         String?                       @map("deal")
+  disclosureType DisclosureDisclosureTypeType? @default(other)
+  status         DisclosureStatusType?         @default(draft)
+  documentUrl    String                        @default("")
+  sentAt         DateTime?
+  acknowledgedAt DateTime?
+  metadata       Json?
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @default(now()) @updatedAt
+
+  @@index([propertyId])
+  @@index([dealId])
+}
+
+model PropertyValuation {
+  id                   String                              @id @default(cuid())
+  valuationNumber      String                              @unique @default("")
+  property             Property?                           @relation("PropertyValuation_property", fields: [propertyId], references: [id])
+  propertyId           String?                             @map("property")
+  valuationType        PropertyValuationValuationTypeType? @default(cma)
+  lowValue             BigInt?                             @map("lowValueMinor")
+  estimatedValue       BigInt?                             @map("estimatedValueMinor")
+  highValue            BigInt?                             @map("highValueMinor")
+  performedBy          User?                               @relation("PropertyValuation_performedBy", fields: [performedById], references: [id])
+  performedById        String?                             @map("performedBy")
+  valuedAt             DateTime?
+  notes                String                              @default("")
+  metadata             Json?
+  createdAt            DateTime                            @default(now())
+  updatedAt            DateTime                            @default(now()) @updatedAt
+  legacyLowValue       Decimal?                            @map("lowValue") @ignore @postgresql.Decimal(12, 2)
+  legacyEstimatedValue Decimal?                            @map("estimatedValue") @ignore @postgresql.Decimal(12, 2)
+  legacyHighValue      Decimal?                            @map("highValue") @ignore @postgresql.Decimal(12, 2)
+
+  @@index([propertyId])
+  @@index([performedById])
+}
+
+model TransactionMilestone {
+  id           String                          @id @default(cuid())
+  brokerage    Brokerage                       @relation("TransactionMilestone_brokerage", fields: [brokerageId], references: [id])
+  brokerageId  String                          @map("brokerage")
+  name         String                          @default("")
+  deal         Deal?                           @relation("TransactionMilestone_deal", fields: [dealId], references: [id])
+  dealId       String?                         @map("deal")
+  status       TransactionMilestoneStatusType? @default(not_started)
+  dueAt        DateTime?
+  completedAt  DateTime?
+  assignedTo   User?                           @relation("TransactionMilestone_assignedTo", fields: [assignedToId], references: [id])
+  assignedToId String?                         @map("assignedTo")
+  sortOrder    Int?                            @default(0)
+  notes        String                          @default("")
+  metadata     Json?
+  createdAt    DateTime                        @default(now())
+  updatedAt    DateTime                        @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([dealId])
   @@index([assignedToId])
 }
 
-model TodoImage {
-  id              String  @id @default(cuid())
-  image_id        String?
-  image_filesize  Int?
-  image_width     Int?
-  image_height    Int?
-  image_extension String?
-  imagePath       String  @default("")
-  altText         String  @default("")
-  todos           Todo[]  @relation("Todo_todoImages")
+model MortgageApplication {
+  id                String                         @id @default(cuid())
+  applicationNumber String                         @unique @default("")
+  deal              Deal?                          @relation("MortgageApplication_deal", fields: [dealId], references: [id])
+  dealId            String?                        @map("deal")
+  lead              Lead?                          @relation("MortgageApplication_lead", fields: [leadId], references: [id])
+  leadId            String?                        @map("lead")
+  lenderName        String                         @default("")
+  status            MortgageApplicationStatusType? @default(started)
+  loanAmount        BigInt?                        @map("loanAmountMinor")
+  interestRate      Decimal?                       @postgresql.Decimal(6, 3)
+  submittedAt       DateTime?
+  decisionAt        DateTime?
+  metadata          Json?
+  createdAt         DateTime                       @default(now())
+  updatedAt         DateTime                       @default(now()) @updatedAt
+  legacyLoanAmount  Decimal?                       @map("loanAmount") @ignore @postgresql.Decimal(12, 2)
+
+  @@index([dealId])
+  @@index([leadId])
+}
+
+model TitleOrder {
+  id           String                @id @default(cuid())
+  orderNumber  String                @unique @default("")
+  deal         Deal?                 @relation("TitleOrder_deal", fields: [dealId], references: [id])
+  dealId       String?               @map("deal")
+  property     Property?             @relation("TitleOrder_property", fields: [propertyId], references: [id])
+  propertyId   String?               @map("property")
+  titleCompany String                @default("")
+  status       TitleOrderStatusType? @default(ordered)
+  orderedAt    DateTime?
+  clearedAt    DateTime?
+  exceptions   String                @default("")
+  metadata     Json?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @default(now()) @updatedAt
+
+  @@index([dealId])
+  @@index([propertyId])
+}
+
+model Escrow {
+  id                  String            @id @default(cuid())
+  escrowNumber        String            @unique @default("")
+  deal                Deal?             @relation("Escrow_deal", fields: [dealId], references: [id])
+  dealId              String?           @map("deal")
+  property            Property?         @relation("Escrow_property", fields: [propertyId], references: [id])
+  propertyId          String?           @map("property")
+  status              EscrowStatusType? @default(opened)
+  escrowCompany       String            @default("")
+  officerName         String            @default("")
+  officerEmail        String            @default("")
+  openedAt            DateTime?
+  scheduledCloseAt    DateTime?
+  closedAt            DateTime?
+  depositAmount       BigInt?           @map("depositAmountMinor")
+  metadata            Json?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @default(now()) @updatedAt
+  legacyDepositAmount Decimal?          @map("depositAmount") @ignore @postgresql.Decimal(12, 2)
+
+  @@index([dealId])
+  @@index([propertyId])
+}
+
+model ShowingFeedback {
+  id                 String                            @id @default(cuid())
+  showing            Showing?                          @relation("ShowingFeedback_showing", fields: [showingId], references: [id])
+  showingId          String?                           @map("showing")
+  lead               Lead?                             @relation("ShowingFeedback_lead", fields: [leadId], references: [id])
+  leadId             String?                           @map("lead")
+  property           Property?                         @relation("ShowingFeedback_property", fields: [propertyId], references: [id])
+  propertyId         String?                           @map("property")
+  rating             Int?
+  interestLevel      ShowingFeedbackInterestLevelType? @default(medium)
+  comments           String                            @default("")
+  priceOpinion       BigInt?                           @map("priceOpinionMinor")
+  followUpRequired   Boolean                           @default(false)
+  metadata           Json?
+  createdAt          DateTime                          @default(now())
+  updatedAt          DateTime                          @default(now()) @updatedAt
+  legacyPriceOpinion Decimal?                          @map("priceOpinion") @ignore @postgresql.Decimal(12, 2)
+
+  @@index([showingId])
+  @@index([leadId])
+  @@index([propertyId])
+}
+
+model OpenHouse {
+  id            String               @id @default(cuid())
+  title         String               @default("")
+  property      Property?            @relation("OpenHouse_property", fields: [propertyId], references: [id])
+  propertyId    String?              @map("property")
+  hostAgent     User?                @relation("OpenHouse_hostAgent", fields: [hostAgentId], references: [id])
+  hostAgentId   String?              @map("hostAgent")
+  status        OpenHouseStatusType? @default(scheduled)
+  startsAt      DateTime
+  endsAt        DateTime
+  attendeeCount Int?                 @default(0)
+  notes         String               @default("")
+  metadata      Json?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @default(now()) @updatedAt
+
+  @@index([propertyId])
+  @@index([hostAgentId])
+}
+
+model SourceFeed {
+  id              String                  @id @default(cuid())
+  brokerage       Brokerage               @relation("SourceFeed_brokerage", fields: [brokerageId], references: [id])
+  brokerageId     String                  @map("brokerage")
+  name            String                  @default("")
+  provider        String                  @default("")
+  feedType        SourceFeedFeedTypeType? @default(manual)
+  status          SourceFeedStatusType?   @default(active)
+  lastImportedAt  DateTime?
+  recordsImported Int?                    @default(0)
+  credentials     Json?
   metadata        Json?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @default(now()) @updatedAt
+
+  @@index([brokerageId])
+}
+
+model ListingSyndication {
+  id                String                         @id @default(cuid())
+  brokerage         Brokerage?                     @relation("ListingSyndication_brokerage", fields: [brokerageId], references: [id])
+  brokerageId       String?                        @map("brokerage")
+  channel           ListingSyndicationChannelType? @default(website)
+  property          Property?                      @relation("ListingSyndication_property", fields: [propertyId], references: [id])
+  propertyId        String?                        @map("property")
+  status            ListingSyndicationStatusType?  @default(draft)
+  externalListingId String                         @default("")
+  listingUrl        String                         @default("")
+  publishedAt       DateTime?
+  lastSyncedAt      DateTime?
+  errorMessage      String                         @default("")
+  metadata          Json?
+  createdAt         DateTime                       @default(now())
+  updatedAt         DateTime                       @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([propertyId])
+}
+
+model ListingEngagementAuthority {
+  id                                          String                               @id @default(cuid())
+  brokerage                                   Brokerage?                           @relation("ListingEngagementAuthority_brokerage", fields: [brokerageId], references: [id])
+  brokerageId                                 String?                              @map("brokerage")
+  authorityNumber                             String                               @unique @default("")
+  property                                    Property?                            @relation("ListingEngagementAuthority_property", fields: [propertyId], references: [id])
+  propertyId                                  String?                              @map("property")
+  assignedPractitioner                        User?                                @relation("ListingEngagementAuthority_assignedPractitioner", fields: [assignedPractitionerId], references: [id])
+  assignedPractitionerId                      String?                              @map("assignedPractitioner")
+  status                                      ListingEngagementAuthorityStatusType
+  jurisdictionCode                            String                               @default("")
+  effectiveFrom                               DateTime
+  effectiveThrough                            DateTime
+  exclusive                                   Boolean                              @default(false)
+  marketingAuthorized                         Boolean                              @default(false)
+  showingAuthorized                           Boolean                              @default(false)
+  sellerPartySummary                          Json?
+  signatoryCapacity                           String                               @default("")
+  documentSha256                              String                               @default("")
+  documentProviderReference                   String                               @default("")
+  supersedes                                  ListingEngagementAuthority?          @relation("ListingEngagementAuthority_supersedes", fields: [supersedesId], references: [id])
+  supersedesId                                String?                              @map("supersedes")
+  supersededBy                                ListingEngagementAuthority[]         @relation("ListingEngagementAuthority_supersedes")
+  reason                                      String                               @default("")
+  recordedBy                                  User?                                @relation("ListingEngagementAuthority_recordedBy", fields: [recordedById], references: [id])
+  recordedById                                String?                              @map("recordedBy")
+  recordedAt                                  DateTime
+  createdAt                                   DateTime                             @default(now())
+  updatedAt                                   DateTime                             @default(now()) @updatedAt
+  from_ListingPublicationAuthority_engagement ListingPublicationAuthority[]        @relation("ListingPublicationAuthority_engagement")
+
+  @@index([brokerageId])
+  @@index([propertyId])
+  @@index([assignedPractitionerId])
+  @@index([supersedesId])
+  @@index([recordedById])
+}
+
+model ListingPublicationAuthority {
+  id                    String                                     @id @default(cuid())
+  brokerage             Brokerage?                                 @relation("ListingPublicationAuthority_brokerage", fields: [brokerageId], references: [id])
+  brokerageId           String?                                    @map("brokerage")
+  authorityNumber       String                                     @unique @default("")
+  property              Property?                                  @relation("ListingPublicationAuthority_property", fields: [propertyId], references: [id])
+  propertyId            String?                                    @map("property")
+  engagement            ListingEngagementAuthority?                @relation("ListingPublicationAuthority_engagement", fields: [engagementId], references: [id])
+  engagementId          String?                                    @map("engagement")
+  destination           ListingPublicationAuthorityDestinationType
+  status                ListingPublicationAuthorityStatusType
+  effectiveFrom         DateTime
+  effectiveThrough      DateTime
+  authorityBasis        String                                     @default("")
+  localRuleReference    String                                     @default("")
+  dataUseGrantReference String                                     @default("")
+  supersedes            ListingPublicationAuthority?               @relation("ListingPublicationAuthority_supersedes", fields: [supersedesId], references: [id])
+  supersedesId          String?                                    @map("supersedes")
+  supersededBy          ListingPublicationAuthority[]              @relation("ListingPublicationAuthority_supersedes")
+  reason                String                                     @default("")
+  recordedBy            User?                                      @relation("ListingPublicationAuthority_recordedBy", fields: [recordedById], references: [id])
+  recordedById          String?                                    @map("recordedBy")
+  recordedAt            DateTime
+  createdAt             DateTime                                   @default(now())
+  updatedAt             DateTime                                   @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([propertyId])
+  @@index([engagementId])
+  @@index([supersedesId])
+  @@index([recordedById])
+}
+
+model PractitionerLicenseAuthority {
+  id                 String                                      @id @default(cuid())
+  brokerage          Brokerage?                                  @relation("PractitionerLicenseAuthority_brokerage", fields: [brokerageId], references: [id])
+  brokerageId        String?                                     @map("brokerage")
+  practitioner       User?                                       @relation("PractitionerLicenseAuthority_practitioner", fields: [practitionerId], references: [id])
+  practitionerId     String?                                     @map("practitioner")
+  licenseNumber      String                                      @default("")
+  licenseType        PractitionerLicenseAuthorityLicenseTypeType
+  jurisdictionCode   String                                      @default("")
+  status             PractitionerLicenseAuthorityStatusType
+  effectiveFrom      DateTime
+  effectiveThrough   DateTime
+  verifiedAt         DateTime
+  verificationSource String                                      @default("")
+  restrictions       String                                      @default("")
+  supersedes         PractitionerLicenseAuthority?               @relation("PractitionerLicenseAuthority_supersedes", fields: [supersedesId], references: [id])
+  supersedesId       String?                                     @map("supersedes")
+  supersededBy       PractitionerLicenseAuthority[]              @relation("PractitionerLicenseAuthority_supersedes")
+  reason             String                                      @default("")
+  verifiedBy         User?                                       @relation("PractitionerLicenseAuthority_verifiedBy", fields: [verifiedById], references: [id])
+  verifiedById       String?                                     @map("verifiedBy")
+  createdAt          DateTime                                    @default(now())
+  updatedAt          DateTime                                    @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([practitionerId])
+  @@index([supersedesId])
+  @@index([verifiedById])
+}
+
+model RepresentationAuthority {
+  id                String                                      @id @default(cuid())
+  brokerage         Brokerage?                                  @relation("RepresentationAuthority_brokerage", fields: [brokerageId], references: [id])
+  brokerageId       String?                                     @map("brokerage")
+  authorityNumber   String                                      @unique @default("")
+  lead              Lead?                                       @relation("RepresentationAuthority_lead", fields: [leadId], references: [id])
+  leadId            String?                                     @map("lead")
+  property          Property?                                   @relation("RepresentationAuthority_property", fields: [propertyId], references: [id])
+  propertyId        String?                                     @map("property")
+  deal              Deal?                                       @relation("RepresentationAuthority_deal", fields: [dealId], references: [id])
+  dealId            String?                                     @map("deal")
+  practitioner      User?                                       @relation("RepresentationAuthority_practitioner", fields: [practitionerId], references: [id])
+  practitionerId    String?                                     @map("practitioner")
+  side              RepresentationAuthoritySideType
+  relationshipType  RepresentationAuthorityRelationshipTypeType
+  jurisdictionCode  String                                      @default("")
+  status            RepresentationAuthorityStatusType
+  effectiveFrom     DateTime
+  effectiveThrough  DateTime
+  scopeSummary      String                                      @default("")
+  documentSha256    String                                      @default("")
+  disclosureVersion String                                      @default("")
+  consentRecordedAt DateTime
+  supersedes        RepresentationAuthority?                    @relation("RepresentationAuthority_supersedes", fields: [supersedesId], references: [id])
+  supersedesId      String?                                     @map("supersedes")
+  supersededBy      RepresentationAuthority[]                   @relation("RepresentationAuthority_supersedes")
+  reason            String                                      @default("")
+  recordedBy        User?                                       @relation("RepresentationAuthority_recordedBy", fields: [recordedById], references: [id])
+  recordedById      String?                                     @map("recordedBy")
+  recordedAt        DateTime
+  createdAt         DateTime                                    @default(now())
+  updatedAt         DateTime                                    @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([leadId])
+  @@index([propertyId])
+  @@index([dealId])
+  @@index([practitionerId])
+  @@index([supersedesId])
+  @@index([recordedById])
+}
+
+model DocumentEvidenceEvent {
+  id                       String                             @id @default(cuid())
+  brokerage                Brokerage?                         @relation("DocumentEvidenceEvent_brokerage", fields: [brokerageId], references: [id])
+  brokerageId              String?                            @map("brokerage")
+  eventKey                 String                             @unique @default("")
+  document                 DealDocument?                      @relation("DocumentEvidenceEvent_document", fields: [documentId], references: [id])
+  documentId               String?                            @map("document")
+  deal                     Deal?                              @relation("DocumentEvidenceEvent_deal", fields: [dealId], references: [id])
+  dealId                   String?                            @map("deal")
+  offer                    Offer?                             @relation("DocumentEvidenceEvent_offer", fields: [offerId], references: [id])
+  offerId                  String?                            @map("offer")
+  eventType                DocumentEvidenceEventEventTypeType
+  documentSha256           String                             @default("")
+  templateSha256           String                             @default("")
+  certificateSha256        String                             @default("")
+  recipients               Json?
+  channel                  DocumentEvidenceEventChannelType
+  provider                 String                             @default("")
+  providerReference        String                             @default("")
+  occurredAt               DateTime
+  providerReportedAt       DateTime?
+  acknowledgedAt           DateTime?
+  acknowledgementReference String                             @default("")
+  reason                   String                             @default("")
+  actor                    User?                              @relation("DocumentEvidenceEvent_actor", fields: [actorId], references: [id])
+  actorId                  String?                            @map("actor")
+  createdAt                DateTime                           @default(now())
+  updatedAt                DateTime                           @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([documentId])
+  @@index([dealId])
+  @@index([offerId])
+  @@index([actorId])
+}
+
+model CommissionLedgerEntry {
+  id                   String                                   @id @default(cuid())
+  brokerage            Brokerage?                               @relation("CommissionLedgerEntry_brokerage", fields: [brokerageId], references: [id])
+  brokerageId          String?                                  @map("brokerage")
+  entryKey             String                                   @unique @default("")
+  batchKey             String                                   @default("")
+  commission           Commission?                              @relation("CommissionLedgerEntry_commission", fields: [commissionId], references: [id])
+  commissionId         String?                                  @map("commission")
+  deal                 Deal?                                    @relation("CommissionLedgerEntry_deal", fields: [dealId], references: [id])
+  dealId               String?                                  @map("deal")
+  entryType            CommissionLedgerEntryEntryTypeType
+  allocationType       CommissionLedgerEntryAllocationTypeType?
+  amountCents          BigInt
+  currencyCode         String                                   @default("")
+  payeeUser            User?                                    @relation("CommissionLedgerEntry_payeeUser", fields: [payeeUserId], references: [id])
+  payeeUserId          String?                                  @map("payeeUser")
+  payeeLabel           String                                   @default("")
+  externalReference    String                                   @default("")
+  sourceDocumentSha256 String                                   @default("")
+  ledgerStateHash      String                                   @default("")
+  reverses             CommissionLedgerEntry?                   @relation("CommissionLedgerEntry_reverses", fields: [reversesId], references: [id])
+  reversesId           String?                                  @map("reverses")
+  reversedBy           CommissionLedgerEntry[]                  @relation("CommissionLedgerEntry_reverses")
+  reason               String                                   @default("")
+  preparedBy           User?                                    @relation("CommissionLedgerEntry_preparedBy", fields: [preparedById], references: [id])
+  preparedById         String?                                  @map("preparedBy")
+  approvedBy           User?                                    @relation("CommissionLedgerEntry_approvedBy", fields: [approvedById], references: [id])
+  approvedById         String?                                  @map("approvedBy")
+  occurredAt           DateTime
+  createdAt            DateTime                                 @default(now())
+  updatedAt            DateTime                                 @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([commissionId])
+  @@index([dealId])
+  @@index([payeeUserId])
+  @@index([reversesId])
+  @@index([preparedById])
+  @@index([approvedById])
+}
+
+model RetentionPolicy {
+  id                               String                            @id @default(cuid())
+  brokerage                        Brokerage?                        @relation("RetentionPolicy_brokerage", fields: [brokerageId], references: [id])
+  brokerageId                      String?                           @map("brokerage")
+  policyKey                        String                            @unique @default("")
+  retentionClass                   RetentionPolicyRetentionClassType
+  jurisdictionCode                 String                            @default("")
+  triggerType                      RetentionPolicyTriggerTypeType
+  retentionDays                    Int
+  disposition                      RetentionPolicyDispositionType
+  legalBasis                       String                            @default("")
+  effectiveFrom                    DateTime
+  effectiveThrough                 DateTime?
+  supersedes                       RetentionPolicy?                  @relation("RetentionPolicy_supersedes", fields: [supersedesId], references: [id])
+  supersedesId                     String?                           @map("supersedes")
+  supersededBy                     RetentionPolicy[]                 @relation("RetentionPolicy_supersedes")
+  approvedBy                       User?                             @relation("RetentionPolicy_approvedBy", fields: [approvedById], references: [id])
+  approvedById                     String?                           @map("approvedBy")
+  approvedAt                       DateTime
+  reason                           String                            @default("")
+  createdAt                        DateTime                          @default(now())
+  updatedAt                        DateTime                          @default(now()) @updatedAt
+  from_TransactionFileEvent_policy TransactionFileEvent[]            @relation("TransactionFileEvent_policy")
+
+  @@index([brokerageId])
+  @@index([supersedesId])
+  @@index([approvedById])
+}
+
+model TransactionFileEvent {
+  id                        String                            @id @default(cuid())
+  brokerage                 Brokerage?                        @relation("TransactionFileEvent_brokerage", fields: [brokerageId], references: [id])
+  brokerageId               String?                           @map("brokerage")
+  eventKey                  String                            @unique @default("")
+  deal                      Deal?                             @relation("TransactionFileEvent_deal", fields: [dealId], references: [id])
+  dealId                    String?                           @map("deal")
+  document                  DealDocument?                     @relation("TransactionFileEvent_document", fields: [documentId], references: [id])
+  documentId                String?                           @map("document")
+  policy                    RetentionPolicy?                  @relation("TransactionFileEvent_policy", fields: [policyId], references: [id])
+  policyId                  String?                           @map("policy")
+  eventType                 TransactionFileEventEventTypeType
+  triggerAt                 DateTime?
+  disposeAfter              DateTime?
+  holdKey                   String                            @default("")
+  manifestKey               String                            @default("")
+  manifestSha256            String                            @default("")
+  manifestItems             Json?
+  documentSha256            String                            @default("")
+  externalDeletionReference String                            @default("")
+  reverses                  TransactionFileEvent?             @relation("TransactionFileEvent_reverses", fields: [reversesId], references: [id])
+  reversesId                String?                           @map("reverses")
+  reversedBy                TransactionFileEvent[]            @relation("TransactionFileEvent_reverses")
+  reason                    String                            @default("")
+  actor                     User?                             @relation("TransactionFileEvent_actor", fields: [actorId], references: [id])
+  actorId                   String?                           @map("actor")
+  approvedBy                User?                             @relation("TransactionFileEvent_approvedBy", fields: [approvedById], references: [id])
+  approvedById              String?                           @map("approvedBy")
+  occurredAt                DateTime
+  createdAt                 DateTime                          @default(now())
+  updatedAt                 DateTime                          @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([dealId])
+  @@index([documentId])
+  @@index([policyId])
+  @@index([reversesId])
+  @@index([actorId])
+  @@index([approvedById])
+}
+
+enum DomainOutboxEventStatusType {
+  pending
+  processing
+  dispatched
+  failed
+}
+
+enum BrokerageStatusType {
+  active
+  suspended
+  archived
+}
+
+enum BrokerageMembershipMembershipRoleType {
+  owner
+  admin
+  team_lead
+  agent
+  coordinator
+  analyst
+}
+
+enum BrokerageMembershipStatusType {
+  invited
+  active
+  suspended
+}
+
+enum UserOnboardingStatusType {
+  not_started
+  in_progress
+  completed
+  dismissed
+}
+
+enum PropertyStatusType {
+  draft
+  coming_soon
+  active
+  pending
+  sold
+  rented
+  off_market
+}
+
+enum PropertyListingTypeType {
+  sale
+  rent
+}
+
+enum PropertyPropertyTypeType {
+  house
+  condo
+  townhome
+  multi_family
+  land
+  commercial
+}
+
+enum LeadStatusType {
+  new
+  attempted_contact
+  qualified
+  tour_scheduled
+  offer
+  closed
+  lost
+}
+
+enum LeadIntentType {
+  buy
+  rent
+  sell
+  invest
+  unknown
+}
+
+enum LeadSourceType {
+  website
+  zillow
+  referral
+  open_house
+  phone
+  import
+}
+
+enum ShowingStatusType {
+  requested
+  scheduled
+  completed
+  no_show
+  cancelled
+}
+
+enum ShowingShowingTypeType {
+  in_person
+  virtual
+  open_house
+}
+
+enum DealStageType {
+  prospecting
+  active_search
+  offer_drafted
+  under_contract
+  inspection
+  financing
+  closed_won
+  closed_lost
+}
+
+enum DealTransactionTypeType {
+  buyer
+  seller
+  tenant
+  landlord
+}
+
+enum SavedPropertyStatusType {
+  saved
+  interested
+  hidden
+}
+
+enum LeadActivityActivityTypeType {
+  inquiry
+  call
+  email
+  text
+  note
+  status_change
+  showing_requested
+  showing_scheduled
+  showing_feedback
+  system
+}
+
+enum LeadActivityDirectionType {
+  inbound
+  outbound
+  internal
+}
+
+enum LeadActivityChannelType {
+  website
+  phone
+  email
+  sms
+  in_person
+  crm
+}
+
+enum LeadRoutingRuleStatusType {
+  active
+  paused
+}
+
+enum LeadRoutingRuleIntentType {
+  any
+  buy
+  rent
+  sell
+  invest
+}
+
+enum LeadRoutingRuleSourceType {
+  any
+  website
+  zillow
+  referral
+  open_house
+  phone
+  import
+}
+
+enum PropertyMediaMediaTypeType {
+  photo
+  floor_plan
+  virtual_tour
+  video
+  document
+}
+
+enum PropertyInspectionInspectionTypeType {
+  general
+  pest
+  roof
+  appraisal
+  walkthrough
+}
+
+enum PropertyInspectionStatusType {
+  scheduled
+  completed
+  needs_follow_up
+  waived
+}
+
+enum OfferStatusType {
+  draft
+  submitted
+  countered
+  accepted
+  rejected
+  withdrawn
+}
+
+enum OfferFinancingTypeType {
+  cash
+  conventional
+  fha
+  va
+  other
+}
+
+enum DealDocumentDocumentTypeType {
+  listing_agreement
+  offer
+  disclosure
+  inspection_report
+  closing_statement
+  other
+}
+
+enum DealDocumentStatusType {
+  draft
+  sent
+  signed
+  archived
+}
+
+enum CommissionStatusType {
+  projected
+  approved
+  paid
+  clawed_back
+}
+
+enum CommissionSideType {
+  listing
+  buyer
+  referral
+}
+
+enum MarketCompStatusType {
+  active
+  pending
+  sold
+  expired
+}
+
+enum AgentTeamTeamTypeType {
+  listing
+  buyer
+  rental
+  operations
+}
+
+enum AgentTeamStatusType {
+  active
+  paused
+  archived
+}
+
+enum AgentTaskStatusType {
+  open
+  in_progress
+  blocked
+  done
+}
+
+enum AgentTaskPriorityType {
+  low
+  normal
+  high
+  urgent
+}
+
+enum SavedSearchAlertStatusType {
+  active
+  paused
+  unsubscribed
+}
+
+enum SavedSearchAlertCadenceType {
+  instant
+  daily
+  weekly
+}
+
+enum DisclosureDisclosureTypeType {
+  seller_property
+  lead_paint
+  hoa
+  natural_hazard
+  other
+}
+
+enum DisclosureStatusType {
+  draft
+  sent
+  acknowledged
+  expired
+}
+
+enum PropertyValuationValuationTypeType {
+  cma
+  appraisal
+  avm
+}
+
+enum TransactionMilestoneStatusType {
+  not_started
+  in_progress
+  complete
+  blocked
+}
+
+enum MortgageApplicationStatusType {
+  started
+  preapproved
+  underwriting
+  approved
+  denied
+}
+
+enum TitleOrderStatusType {
+  ordered
+  in_review
+  clear
+  exception
+}
+
+enum EscrowStatusType {
+  opened
+  pending
+  closed
+  cancelled
+}
+
+enum ShowingFeedbackInterestLevelType {
+  low
+  medium
+  high
+  offer_likely
+}
+
+enum OpenHouseStatusType {
+  scheduled
+  completed
+  cancelled
+}
+
+enum SourceFeedFeedTypeType {
+  rets
+  reso
+  csv
+  manual
+}
+
+enum SourceFeedStatusType {
+  active
+  paused
+  error
+}
+
+enum ListingSyndicationChannelType {
+  mls
+  zillow
+  realtor
+  website
+  social
+}
+
+enum ListingSyndicationStatusType {
+  draft
+  published
+  error
+  removed
+}
+
+enum ListingEngagementAuthorityStatusType {
+  executed
+  revoked
+  expired
+}
+
+enum ListingPublicationAuthorityDestinationType {
+  public_site
+  mls
+  idx
+  syndication
+}
+
+enum ListingPublicationAuthorityStatusType {
+  authorized
+  revoked
+  expired
+}
+
+enum PractitionerLicenseAuthorityLicenseTypeType {
+  broker
+  associate_broker
+  sales_agent
+}
+
+enum PractitionerLicenseAuthorityStatusType {
+  verified_active
+  restricted
+  inactive
+  expired
+  suspended
+  revoked
+}
+
+enum RepresentationAuthoritySideType {
+  buyer
+  seller
+}
+
+enum RepresentationAuthorityRelationshipTypeType {
+  exclusive_agency
+  nonexclusive_agency
+  transaction_brokerage
+  customer_assistance
+}
+
+enum RepresentationAuthorityStatusType {
+  executed
+  terminated
+  expired
+}
+
+enum DocumentEvidenceEventEventTypeType {
+  generated
+  signed
+  delivered
+  received
+  presented
+  acknowledged
+  voided
+}
+
+enum DocumentEvidenceEventChannelType {
+  esign
+  email
+  portal
+  in_person
+  other
+}
+
+enum CommissionLedgerEntryEntryTypeType {
+  allocation
+  allocation_approval
+  receipt
+  reversal
+  reconciliation
+}
+
+enum CommissionLedgerEntryAllocationTypeType {
+  brokerage
+  agent
+  team
+  referral
+  fee
+  unallocated
+}
+
+enum RetentionPolicyRetentionClassType {
+  transaction_file
+  listing_no_close
+  consent_proof
+  security_incident
+}
+
+enum RetentionPolicyTriggerTypeType {
+  deal_closed
+  listing_ended
+  document_signed
+  manual_verified
+}
+
+enum RetentionPolicyDispositionType {
+  tombstone_delete
+  archive
+  review
+}
+
+enum TransactionFileEventEventTypeType {
+  retention_assigned
+  hold_placed
+  hold_released
+  export_manifested
+  disposition_requested
+  tombstoned
 }

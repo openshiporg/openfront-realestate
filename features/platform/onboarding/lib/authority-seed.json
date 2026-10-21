@@ -1,0 +1,57 @@
+{
+  "recorderEmail": "maya.chen@juniperrealty.com",
+  "jurisdictionCode": "TX",
+  "effectiveFrom": "2026-01-01T00:00:00.000Z",
+  "effectiveThrough": "2035-01-01T00:00:00.000Z",
+  "verifiedAt": "2026-01-01T00:00:00.000Z",
+  "practitioners": [
+    {
+      "key": "maya-chen",
+      "email": "maya.chen@juniperrealty.com",
+      "licenseType": "broker",
+      "licenseNumber": "TX-0423118"
+    },
+    {
+      "key": "omar-patel",
+      "email": "omar.patel@juniperrealty.com",
+      "licenseType": "sales_agent",
+      "licenseNumber": "TX-0687452"
+    },
+    {
+      "key": "evelyn-brooks",
+      "email": "evelyn.brooks@juniperrealty.com",
+      "licenseType": "sales_agent",
+      "licenseNumber": "TX-0719306"
+    }
+  ],
+  "listings": [
+    {
+      "key": "riverfront-loft-austin",
+      "propertySlug": "riverfront-loft-austin",
+      "practitionerKey": "maya-chen",
+      "engagementNumber": "LA-2026-0001",
+      "publicationNumber": "PUB-2026-0001"
+    },
+    {
+      "key": "hill-country-estate",
+      "propertySlug": "hill-country-estate",
+      "practitionerKey": "maya-chen",
+      "engagementNumber": "LA-2026-0002",
+      "publicationNumber": "PUB-2026-0002"
+    },
+    {
+      "key": "eastside-townhome-rental",
+      "propertySlug": "eastside-townhome-rental",
+      "practitionerKey": "omar-patel",
+      "engagementNumber": "LA-2026-0003",
+      "publicationNumber": "PUB-2026-0003"
+    },
+    {
+      "key": "mueller-bungalow",
+      "propertySlug": "mueller-bungalow",
+      "practitionerKey": "evelyn-brooks",
+      "engagementNumber": "LA-2026-0004",
+      "publicationNumber": "PUB-2026-0004"
+    }
+  ]
+}

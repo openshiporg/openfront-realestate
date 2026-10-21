@@ -1,0 +1,1053 @@
+{
+  "version": 1,
+  "vertical": "openfront-real-estate",
+  "description": "Dependency-ordered starter data for a brokerage: agents, listings, lead routing, leads, showings, and deal pipeline.",
+  "templateModes": {
+    "minimal": "One agent, one active listing, one routing rule, one lead, one showing, and one deal.",
+    "full": "A complete brokerage across buyer, renter, seller, investor, showing, and pipeline workflows."
+  },
+  "dependencyOrder": [
+    "brokerages",
+    "brokerageSettings",
+    "roles",
+    "agents",
+    "brokerageMemberships",
+    "properties",
+    "routingRules",
+    "leads",
+    "leadActivities",
+    "showings",
+    "deals"
+  ],
+  "sections": {
+    "brokerages": {
+      "listKey": "Brokerage",
+      "description": "Brokerage name applied to the signed-in owner's active brokerage.",
+      "items": [
+        {
+          "key": "primary",
+          "label": "Juniper Realty",
+          "templates": [
+            "minimal",
+            "full"
+          ],
+          "data": {
+            "name": "Juniper Realty"
+          }
+        }
+      ]
+    },
+    "brokerageSettings": {
+      "listKey": "BrokerageSettings",
+      "description": "Public and dashboard identity for the brokerage.",
+      "items": [
+        {
+          "key": "primary",
+          "label": "Juniper Realty",
+          "templates": [
+            "minimal",
+            "full"
+          ],
+          "data": {
+            "brokerage": {
+              "connect": {
+                "$ref": "brokerages:primary"
+              }
+            },
+            "key": "primary",
+            "businessName": "Juniper Realty",
+            "marketLabel": "Austin brokerage",
+            "city": "Austin",
+            "state": "TX",
+            "tagline": "Residences across Austin, chosen with care.",
+            "description": "Boutique representation for buyers, renters, and sellers across Austin.",
+            "equalHousingNotice": "Equal housing opportunity.",
+            "publicPhone": "+1 512 555 0100",
+            "publicEmail": "hello@juniperrealty.com",
+            "showingDurationMinutes": 60,
+            "logoColor": "0"
+          }
+        }
+      ]
+    },
+    "roles": {
+      "listKey": "Role",
+      "description": "Brokerage operator roles used by seeded agents.",
+      "items": [
+        {
+          "key": "brokerage-admin",
+          "label": "Brokerage Admin",
+          "templates": [
+            "minimal",
+            "full"
+          ],
+          "data": {
+            "name": "Brokerage Admin",
+            "canSeeOtherPeople": true,
+            "canEditOtherPeople": true,
+            "canManagePeople": true,
+            "canManageRoles": true,
+            "canAccessDashboard": true,
+            "canManageListings": true,
+            "canManageLeads": true,
+            "canManageShowings": true,
+            "canManageDeals": true,
+            "canViewReports": true,
+            "canManageOnboarding": true
+          }
+        },
+        {
+          "key": "listing-agent",
+          "label": "Listing Agent",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "name": "Listing Agent",
+            "canSeeOtherPeople": true,
+            "canEditOtherPeople": false,
+            "canManagePeople": false,
+            "canManageRoles": false,
+            "canAccessDashboard": true,
+            "canManageListings": true,
+            "canManageLeads": true,
+            "canManageShowings": true,
+            "canManageDeals": true,
+            "canViewReports": false,
+            "canManageOnboarding": false
+          }
+        },
+        {
+          "key": "brokerage-analyst",
+          "label": "Brokerage Analyst",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "name": "Brokerage Analyst",
+            "canSeeOtherPeople": true,
+            "canEditOtherPeople": false,
+            "canManagePeople": false,
+            "canManageRoles": false,
+            "canAccessDashboard": true,
+            "canManageListings": false,
+            "canManageLeads": false,
+            "canManageShowings": false,
+            "canManageDeals": false,
+            "canViewReports": true,
+            "canManageOnboarding": false
+          }
+        }
+      ]
+    },
+    "agents": {
+      "listKey": "User",
+      "description": "Brokerage agents. Sign-in passwords are generated at setup; agents reset them by email.",
+      "items": [
+        {
+          "key": "maya-chen",
+          "label": "Maya Chen",
+          "templates": [
+            "minimal",
+            "full"
+          ],
+          "data": {
+            "name": "Maya Chen",
+            "email": "maya.chen@juniperrealty.com",
+            "phone": "+1 512 555 0101",
+            "licenseNumber": "TX-0423118",
+            "brokerageTitle": "Managing Broker",
+            "bio": "Luxury listing specialist and speed-to-lead owner for web inquiries.",
+            "avatarUrl": "/images/real-estate/agents/maya-chen.svg",
+            "activeBrokerage": {
+              "connect": {
+                "$ref": "brokerages:primary"
+              }
+            },
+            "role": {
+              "connect": {
+                "$ref": "roles:brokerage-admin"
+              }
+            }
+          }
+        },
+        {
+          "key": "omar-patel",
+          "label": "Omar Patel",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "name": "Omar Patel",
+            "email": "omar.patel@juniperrealty.com",
+            "phone": "+1 512 555 0102",
+            "licenseNumber": "TX-0687452",
+            "brokerageTitle": "Buyer & Rental Specialist",
+            "bio": "First-time buyer and rental conversion specialist for Austin neighborhoods.",
+            "avatarUrl": "/images/real-estate/agents/omar-patel.svg",
+            "activeBrokerage": {
+              "connect": {
+                "$ref": "brokerages:primary"
+              }
+            },
+            "role": {
+              "connect": {
+                "$ref": "roles:listing-agent"
+              }
+            }
+          }
+        },
+        {
+          "key": "evelyn-brooks",
+          "label": "Evelyn Brooks",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "name": "Evelyn Brooks",
+            "email": "evelyn.brooks@juniperrealty.com",
+            "phone": "+1 512 555 0103",
+            "licenseNumber": "TX-0719306",
+            "brokerageTitle": "Listing Advisor",
+            "bio": "Seller intake, pricing strategy, and listing launch operations.",
+            "avatarUrl": "/images/real-estate/agents/evelyn-brooks.svg",
+            "activeBrokerage": {
+              "connect": {
+                "$ref": "brokerages:primary"
+              }
+            },
+            "role": {
+              "connect": {
+                "$ref": "roles:listing-agent"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "brokerageMemberships": {
+      "listKey": "BrokerageMembership",
+      "description": "Active memberships in the brokerage.",
+      "items": [
+        {
+          "key": "maya-admin",
+          "label": "Maya Chen administrator membership",
+          "templates": [
+            "minimal",
+            "full"
+          ],
+          "data": {
+            "membershipKey": "maya.chen@juniperrealty.com",
+            "brokerage": {
+              "connect": {
+                "$ref": "brokerages:primary"
+              }
+            },
+            "user": {
+              "connect": {
+                "$ref": "agents:maya-chen"
+              }
+            },
+            "membershipRole": "admin",
+            "status": "active",
+            "isPrimary": true,
+            "joinedAt": "2026-01-01T00:00:00.000Z"
+          }
+        },
+        {
+          "key": "omar-agent",
+          "label": "Omar Patel agent membership",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "membershipKey": "omar.patel@juniperrealty.com",
+            "brokerage": {
+              "connect": {
+                "$ref": "brokerages:primary"
+              }
+            },
+            "user": {
+              "connect": {
+                "$ref": "agents:omar-patel"
+              }
+            },
+            "membershipRole": "agent",
+            "status": "active",
+            "isPrimary": true,
+            "joinedAt": "2026-01-01T00:00:00.000Z"
+          }
+        },
+        {
+          "key": "evelyn-agent",
+          "label": "Evelyn Brooks agent membership",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "membershipKey": "evelyn.brooks@juniperrealty.com",
+            "brokerage": {
+              "connect": {
+                "$ref": "brokerages:primary"
+              }
+            },
+            "user": {
+              "connect": {
+                "$ref": "agents:evelyn-brooks"
+              }
+            },
+            "membershipRole": "agent",
+            "status": "active",
+            "isPrimary": true,
+            "joinedAt": "2026-01-01T00:00:00.000Z"
+          }
+        }
+      ]
+    },
+    "properties": {
+      "listKey": "Property",
+      "description": "Listing inventory for storefront search, listing pages, showings, and the deal pipeline.",
+      "items": [
+        {
+          "key": "riverfront-loft-austin",
+          "label": "Riverfront Loft",
+          "templates": [
+            "minimal",
+            "full"
+          ],
+          "data": {
+            "title": "Riverfront Loft with Skyline Views",
+            "slug": "riverfront-loft-austin",
+            "status": "active",
+            "listingType": "sale",
+            "propertyType": "condo",
+            "shortDescription": "Turnkey downtown loft with river views, concierge access, and a walkable entertainment district.",
+            "description": "A bright two-bedroom residence with floor-to-ceiling glass, covered balcony, chef kitchen, secured parking, and an owner suite facing the river trail.",
+            "addressLine1": "1428 Water Street",
+            "addressLine2": "Unit 1704",
+            "city": "Austin",
+            "state": "TX",
+            "postalCode": "78701",
+            "neighborhood": "Rainey Street Historic District",
+            "latitude": "30.2568000",
+            "longitude": "-97.7383000",
+            "price": "825000.00",
+            "bedrooms": 2,
+            "bathrooms": "2.0",
+            "squareFeet": 1450,
+            "lotSizeSquareFeet": 0,
+            "yearBuilt": 2018,
+            "hoaFee": "684.00",
+            "availableAt": "2026-07-15T15:00:00.000Z",
+            "isFeatured": true,
+            "virtualTourUrl": "",
+            "primaryImageUrl": "/images/real-estate/properties/riverfront-loft-austin.svg",
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:maya-chen"
+              }
+            }
+          }
+        },
+        {
+          "key": "hill-country-estate",
+          "label": "Hill Country Estate",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "title": "Hill Country Estate on Two Acres",
+            "slug": "hill-country-estate",
+            "status": "active",
+            "listingType": "sale",
+            "propertyType": "house",
+            "shortDescription": "Private hilltop home with guest casita, pool, and panoramic sunset views.",
+            "description": "Designed for indoor-outdoor entertaining with limestone terraces, a detached guest casita, three-car garage, office, media room, and resort-style pool.",
+            "addressLine1": "8801 Mesa Ridge Drive",
+            "city": "Austin",
+            "state": "TX",
+            "postalCode": "78733",
+            "neighborhood": "Westlake Hills",
+            "latitude": "30.3152000",
+            "longitude": "-97.8870000",
+            "price": "1450000.00",
+            "bedrooms": 5,
+            "bathrooms": "4.5",
+            "squareFeet": 4210,
+            "lotSizeSquareFeet": 87120,
+            "yearBuilt": 2015,
+            "hoaFee": "225.00",
+            "availableAt": "2026-08-01T15:00:00.000Z",
+            "isFeatured": true,
+            "virtualTourUrl": "",
+            "primaryImageUrl": "/images/real-estate/properties/hill-country-estate.svg",
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:maya-chen"
+              }
+            }
+          }
+        },
+        {
+          "key": "eastside-townhome-rental",
+          "label": "Eastside Townhome Rental",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "title": "Eastside Townhome Near Coffee Row",
+            "slug": "eastside-townhome-rental",
+            "status": "coming_soon",
+            "listingType": "rent",
+            "propertyType": "townhome",
+            "shortDescription": "Low-maintenance townhome minutes from transit, restaurants, and the lake trail.",
+            "description": "Three-level townhome with rooftop deck, attached garage, dedicated office nook, and pet-friendly lease terms.",
+            "addressLine1": "2409 East 6th Street",
+            "city": "Austin",
+            "state": "TX",
+            "postalCode": "78702",
+            "neighborhood": "East Cesar Chavez",
+            "latitude": "30.2601000",
+            "longitude": "-97.7170000",
+            "price": "3800.00",
+            "bedrooms": 3,
+            "bathrooms": "2.5",
+            "squareFeet": 1825,
+            "lotSizeSquareFeet": 1400,
+            "yearBuilt": 2021,
+            "availableAt": "2026-08-15T15:00:00.000Z",
+            "isFeatured": false,
+            "virtualTourUrl": "",
+            "primaryImageUrl": "/images/real-estate/properties/eastside-townhome-rental.svg",
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:omar-patel"
+              }
+            }
+          }
+        },
+        {
+          "key": "mueller-bungalow",
+          "label": "Mueller Bungalow",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "title": "Updated Bungalow Near Mueller Lake",
+            "slug": "mueller-bungalow",
+            "status": "pending",
+            "listingType": "sale",
+            "propertyType": "house",
+            "shortDescription": "Charming renovated bungalow with ADU potential and walkable parks.",
+            "description": "Restored 1940s bungalow with updated systems, screened porch, mature pecan trees, and a detached studio foundation ready for expansion.",
+            "addressLine1": "4112 Threadgill Avenue",
+            "city": "Austin",
+            "state": "TX",
+            "postalCode": "78723",
+            "neighborhood": "Mueller",
+            "latitude": "30.2986000",
+            "longitude": "-97.7052000",
+            "price": "645000.00",
+            "bedrooms": 3,
+            "bathrooms": "2.0",
+            "squareFeet": 1560,
+            "lotSizeSquareFeet": 6250,
+            "yearBuilt": 1948,
+            "availableAt": "2026-07-30T15:00:00.000Z",
+            "isFeatured": false,
+            "primaryImageUrl": "/images/real-estate/properties/mueller-bungalow.svg",
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:evelyn-brooks"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "routingRules": {
+      "listKey": "LeadRoutingRule",
+      "description": "Lead assignment rules by intent, source, and geography.",
+      "items": [
+        {
+          "key": "austin-buyer-web-leads",
+          "label": "Austin Buyer Web Leads",
+          "templates": [
+            "minimal",
+            "full"
+          ],
+          "data": {
+            "name": "Austin buyer web leads",
+            "status": "active",
+            "priority": 10,
+            "intent": "buy",
+            "source": "website",
+            "city": "Austin",
+            "state": "TX",
+            "postalCode": "",
+            "isFallback": false,
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:maya-chen"
+              }
+            }
+          }
+        },
+        {
+          "key": "rental-leads",
+          "label": "Rental Leads",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "name": "Austin rental leads",
+            "status": "active",
+            "priority": 20,
+            "intent": "rent",
+            "source": "any",
+            "city": "Austin",
+            "state": "TX",
+            "postalCode": "",
+            "isFallback": false,
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:omar-patel"
+              }
+            }
+          }
+        },
+        {
+          "key": "seller-referrals",
+          "label": "Seller Referrals",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "name": "Seller referral intake",
+            "status": "active",
+            "priority": 30,
+            "intent": "sell",
+            "source": "referral",
+            "city": "",
+            "state": "TX",
+            "postalCode": "",
+            "isFallback": false,
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:evelyn-brooks"
+              }
+            }
+          }
+        },
+        {
+          "key": "brokerage-fallback",
+          "label": "Brokerage Fallback",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "name": "Brokerage fallback",
+            "status": "active",
+            "priority": 900,
+            "intent": "any",
+            "source": "any",
+            "city": "",
+            "state": "",
+            "postalCode": "",
+            "isFallback": true,
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:maya-chen"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "leads": {
+      "listKey": "Lead",
+      "description": "Buyer, renter, seller, and investor leads for CRM queues and reporting.",
+      "items": [
+        {
+          "key": "sofia-ramirez",
+          "label": "Sofia Ramirez",
+          "templates": [
+            "minimal",
+            "full"
+          ],
+          "data": {
+            "name": "Sofia Ramirez",
+            "email": "sofia.ramirez@gmail.com",
+            "phone": "+1 512 555 0201",
+            "status": "qualified",
+            "intent": "buy",
+            "source": "website",
+            "budgetMin": "750000",
+            "budgetMax": "900000",
+            "preferredLocation": "Downtown Austin, riverfront",
+            "timeline": "30-45 days",
+            "message": "Interested in the Riverfront Loft and comparable downtown condos with balcony views.",
+            "lastContactedAt": "2026-07-08T15:30:00.000Z",
+            "property": {
+              "connect": {
+                "$ref": "properties:riverfront-loft-austin"
+              }
+            },
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:maya-chen"
+              }
+            }
+          }
+        },
+        {
+          "key": "jordan-lee",
+          "label": "Jordan Lee",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "name": "Jordan Lee",
+            "email": "jordan.lee@gmail.com",
+            "phone": "+1 512 555 0202",
+            "status": "new",
+            "intent": "rent",
+            "source": "website",
+            "budgetMin": "3200",
+            "budgetMax": "4200",
+            "preferredLocation": "East Austin",
+            "timeline": "Move in by September",
+            "message": "Needs a pet-friendly rental with a garage and office space.",
+            "lastContactedAt": "2026-07-08T16:15:00.000Z",
+            "property": {
+              "connect": {
+                "$ref": "properties:eastside-townhome-rental"
+              }
+            },
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:omar-patel"
+              }
+            }
+          }
+        },
+        {
+          "key": "priya-shah",
+          "label": "Priya Shah",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "name": "Priya Shah",
+            "email": "priya.shah@gmail.com",
+            "phone": "+1 512 555 0203",
+            "status": "attempted_contact",
+            "intent": "sell",
+            "source": "referral",
+            "budgetMin": null,
+            "budgetMax": null,
+            "preferredLocation": "Mueller",
+            "timeline": "List in 60 days",
+            "message": "Referral from a past client; wants pricing strategy for a Mueller bungalow.",
+            "lastContactedAt": "2026-07-07T18:00:00.000Z",
+            "property": {
+              "connect": {
+                "$ref": "properties:mueller-bungalow"
+              }
+            },
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:evelyn-brooks"
+              }
+            }
+          }
+        },
+        {
+          "key": "marcus-green",
+          "label": "Marcus Green",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "name": "Marcus Green",
+            "email": "marcus.green@gmail.com",
+            "phone": "+1 512 555 0204",
+            "status": "tour_scheduled",
+            "intent": "invest",
+            "source": "zillow",
+            "budgetMin": "1200000",
+            "budgetMax": "1600000",
+            "preferredLocation": "West Austin",
+            "timeline": "This quarter",
+            "message": "Evaluating luxury rental yield and long-term appreciation near Westlake.",
+            "lastContactedAt": "2026-07-08T14:00:00.000Z",
+            "property": {
+              "connect": {
+                "$ref": "properties:hill-country-estate"
+              }
+            },
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:maya-chen"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "leadActivities": {
+      "listKey": "LeadActivity",
+      "description": "Timeline entries that make the lead command center useful immediately after seeding.",
+      "items": [
+        {
+          "key": "sofia-inquiry",
+          "label": "Sofia inquiry captured",
+          "templates": [
+            "minimal",
+            "full"
+          ],
+          "data": {
+            "activityType": "inquiry",
+            "direction": "inbound",
+            "channel": "website",
+            "subject": "Listing inquiry",
+            "body": "Sofia requested a showing for the Riverfront Loft from the public listing page.",
+            "occurredAt": "2026-07-08T14:55:00.000Z",
+            "lead": {
+              "connect": {
+                "$ref": "leads:sofia-ramirez"
+              }
+            },
+            "property": {
+              "connect": {
+                "$ref": "properties:riverfront-loft-austin"
+              }
+            },
+            "agent": {
+              "connect": {
+                "$ref": "agents:maya-chen"
+              }
+            }
+          }
+        },
+        {
+          "key": "jordan-rental-note",
+          "label": "Jordan rental note",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "activityType": "note",
+            "direction": "internal",
+            "channel": "crm",
+            "subject": "Rental criteria logged",
+            "body": "Needs a three-bedroom rental, accepts rooftop stairs, and prefers East Austin restaurants nearby.",
+            "occurredAt": "2026-07-08T16:20:00.000Z",
+            "lead": {
+              "connect": {
+                "$ref": "leads:jordan-lee"
+              }
+            },
+            "property": {
+              "connect": {
+                "$ref": "properties:eastside-townhome-rental"
+              }
+            },
+            "agent": {
+              "connect": {
+                "$ref": "agents:omar-patel"
+              }
+            }
+          }
+        },
+        {
+          "key": "marcus-showing-scheduled",
+          "label": "Marcus showing scheduled",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "activityType": "showing_scheduled",
+            "direction": "outbound",
+            "channel": "email",
+            "subject": "Estate tour confirmed",
+            "body": "Confirmed private tour for Saturday morning with investment analysis follow-up.",
+            "occurredAt": "2026-07-08T14:05:00.000Z",
+            "lead": {
+              "connect": {
+                "$ref": "leads:marcus-green"
+              }
+            },
+            "property": {
+              "connect": {
+                "$ref": "properties:hill-country-estate"
+              }
+            },
+            "agent": {
+              "connect": {
+                "$ref": "agents:maya-chen"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "showings": {
+      "listKey": "Showing",
+      "description": "Tour schedule and feedback data for the showings board.",
+      "items": [
+        {
+          "key": "sofia-riverfront-tour",
+          "label": "Sofia Riverfront Loft Tour",
+          "templates": [
+            "minimal",
+            "full"
+          ],
+          "data": {
+            "status": "scheduled",
+            "showingType": "in_person",
+            "scheduledStart": "2026-07-10T20:00:00.000Z",
+            "scheduledEnd": "2026-07-10T20:45:00.000Z",
+            "notes": "Meet in lobby; client cares most about noise level and parking access.",
+            "feedback": "",
+            "property": {
+              "connect": {
+                "$ref": "properties:riverfront-loft-austin"
+              }
+            },
+            "lead": {
+              "connect": {
+                "$ref": "leads:sofia-ramirez"
+              }
+            },
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:maya-chen"
+              }
+            }
+          }
+        },
+        {
+          "key": "jordan-eastside-preview",
+          "label": "Jordan Eastside Rental Preview",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "status": "requested",
+            "showingType": "virtual",
+            "scheduledStart": "2026-07-11T17:30:00.000Z",
+            "scheduledEnd": "2026-07-11T18:00:00.000Z",
+            "notes": "Send FaceTime walkthrough link after owner approves pre-market showing.",
+            "feedback": "",
+            "property": {
+              "connect": {
+                "$ref": "properties:eastside-townhome-rental"
+              }
+            },
+            "lead": {
+              "connect": {
+                "$ref": "leads:jordan-lee"
+              }
+            },
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:omar-patel"
+              }
+            }
+          }
+        },
+        {
+          "key": "marcus-hill-country-tour",
+          "label": "Marcus Hill Country Tour",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "status": "completed",
+            "showingType": "in_person",
+            "scheduledStart": "2026-07-06T16:00:00.000Z",
+            "scheduledEnd": "2026-07-06T17:15:00.000Z",
+            "notes": "Private showing with rental pro-forma packet.",
+            "feedback": "Interested if seller will include furniture package and short-term-rental projections.",
+            "property": {
+              "connect": {
+                "$ref": "properties:hill-country-estate"
+              }
+            },
+            "lead": {
+              "connect": {
+                "$ref": "leads:marcus-green"
+              }
+            },
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:maya-chen"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "deals": {
+      "listKey": "Deal",
+      "description": "Pipeline cards for buyer, seller, and investor follow-through.",
+      "items": [
+        {
+          "key": "sofia-riverfront-offer",
+          "label": "Sofia Riverfront Offer",
+          "templates": [
+            "minimal",
+            "full"
+          ],
+          "data": {
+            "title": "Sofia Ramirez · Riverfront Loft",
+            "stage": "offer_drafted",
+            "transactionType": "buyer",
+            "offerAmount": "805000.00",
+            "commissionAmount": "24150.00",
+            "expectedCloseDate": "2026-08-18T15:00:00.000Z",
+            "nextStep": "Review HOA docs and submit strongest-and-best offer after tour.",
+            "notes": "Client is pre-approved and can close quickly if parking terms are acceptable.",
+            "property": {
+              "connect": {
+                "$ref": "properties:riverfront-loft-austin"
+              }
+            },
+            "lead": {
+              "connect": {
+                "$ref": "leads:sofia-ramirez"
+              }
+            },
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:maya-chen"
+              }
+            }
+          }
+        },
+        {
+          "key": "marcus-hill-country-investment",
+          "label": "Marcus Hill Country Investment",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "title": "Marcus Green · Hill Country Estate",
+            "stage": "active_search",
+            "transactionType": "buyer",
+            "offerAmount": "1375000.00",
+            "commissionAmount": "41250.00",
+            "expectedCloseDate": "2026-09-01T15:00:00.000Z",
+            "nextStep": "Send short-term-rental restrictions summary and furniture package estimate.",
+            "notes": "Investor wants cap-rate confidence before drafting offer.",
+            "property": {
+              "connect": {
+                "$ref": "properties:hill-country-estate"
+              }
+            },
+            "lead": {
+              "connect": {
+                "$ref": "leads:marcus-green"
+              }
+            },
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:maya-chen"
+              }
+            }
+          }
+        },
+        {
+          "key": "priya-mueller-listing",
+          "label": "Priya Mueller Listing Prep",
+          "templates": [
+            "full"
+          ],
+          "data": {
+            "title": "Priya Shah · Mueller Listing Prep",
+            "stage": "prospecting",
+            "transactionType": "seller",
+            "offerAmount": "645000.00",
+            "commissionAmount": "19350.00",
+            "expectedCloseDate": "2026-10-15T15:00:00.000Z",
+            "nextStep": "Schedule valuation consult and prepare pricing packet.",
+            "notes": "Potential seller; listing goes live once the listing agreement is signed.",
+            "property": {
+              "connect": {
+                "$ref": "properties:mueller-bungalow"
+              }
+            },
+            "lead": {
+              "connect": {
+                "$ref": "leads:priya-shah"
+              }
+            },
+            "assignedAgent": {
+              "connect": {
+                "$ref": "agents:evelyn-brooks"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "imagePack": {
+    "description": "Public image paths for the starter listings, agents, and neighborhoods.",
+    "properties": [
+      {
+        "key": "riverfront-loft-austin",
+        "imagePath": "/images/real-estate/properties/riverfront-loft-austin.svg"
+      },
+      {
+        "key": "hill-country-estate",
+        "imagePath": "/images/real-estate/properties/hill-country-estate.svg"
+      },
+      {
+        "key": "eastside-townhome-rental",
+        "imagePath": "/images/real-estate/properties/eastside-townhome-rental.svg"
+      },
+      {
+        "key": "mueller-bungalow",
+        "imagePath": "/images/real-estate/properties/mueller-bungalow.svg"
+      }
+    ],
+    "agents": [
+      {
+        "key": "maya-chen",
+        "imagePath": "/images/real-estate/agents/maya-chen.svg"
+      },
+      {
+        "key": "omar-patel",
+        "imagePath": "/images/real-estate/agents/omar-patel.svg"
+      },
+      {
+        "key": "evelyn-brooks",
+        "imagePath": "/images/real-estate/agents/evelyn-brooks.svg"
+      }
+    ],
+    "neighborhoods": [
+      {
+        "key": "rainey-street",
+        "name": "Rainey Street Historic District",
+        "imagePath": "/images/real-estate/neighborhoods/rainey-street.svg"
+      },
+      {
+        "key": "westlake-hills",
+        "name": "Westlake Hills",
+        "imagePath": "/images/real-estate/neighborhoods/westlake-hills.svg"
+      },
+      {
+        "key": "east-cesar-chavez",
+        "name": "East Cesar Chavez",
+        "imagePath": "/images/real-estate/neighborhoods/east-cesar-chavez.svg"
+      },
+      {
+        "key": "mueller",
+        "name": "Mueller",
+        "imagePath": "/images/real-estate/neighborhoods/mueller.svg"
+      }
+    ]
+  }
+}

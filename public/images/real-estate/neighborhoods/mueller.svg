@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="720" viewBox="0 0 520 360" role="img" aria-labelledby="title desc">
+  <title id="title">Mueller</title>
+  <desc id="desc">Parks / lake / bungalows image from the Openfront Real Estate demo image pack.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#27354a"/>
+      <stop offset="1" stop-color="#f4efe6"/>
+    </linearGradient>
+    <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 0.10"/></feComponentTransfer></filter>
+  </defs>
+  <rect width="520" height="360" fill="url(#sky)"/>
+  <circle cx="426" cy="76" r="42" fill="#a5c894" opacity="0.72"/>
+  <path d="M 0 260 C 120 215 190 275 300 225 C 385 188 445 215 520 175 V 360 H 0 Z M 90 235 L 155 160 L 220 235 Z" fill="#a5c894" opacity="0.88"/>
+  <path d="M0 290 C110 260 180 310 270 280 C365 250 430 280 520 250 V360 H0 Z" fill="#111827" opacity="0.30"/>
+  <rect x="28" y="246" width="332" height="68" rx="2" fill="#fff8ed" opacity="0.92"/>
+  <text x="46" y="276" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Mueller</text>
+  <text x="46" y="299" fill="#384252" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="600" letter-spacing="1.4">PARKS / LAKE / BUNGALOWS</text>
+  <rect width="520" height="360" filter="url(#grain)" opacity="0.45"/>
+</svg>

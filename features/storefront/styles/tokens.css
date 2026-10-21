@@ -1,0 +1,22 @@
+.storefront-root {
+  --sf-brand-hue: 151;
+  --sf-paper: oklch(97% 0.012 90);
+  --sf-paper-deep: oklch(91% 0.025 86);
+  --sf-ink: oklch(20% 0.022 var(--sf-brand-hue));
+  --sf-ink-soft: oklch(40% 0.024 var(--sf-brand-hue));
+  --sf-muted: oklch(57% 0.018 115);
+  --sf-rule: oklch(84% 0.025 100);
+  --sf-green: oklch(34% 0.06 var(--sf-brand-hue));
+  --sf-green-light: oklch(76% 0.07 var(--sf-brand-hue));
+  --sf-brass: oklch(62% 0.1 78);
+  --sf-white: oklch(99% 0.004 90);
+  --sf-error: oklch(48% 0.16 28);
+  --sf-success: oklch(39% 0.09 148);
+  --sf-shadow: 0 24px 64px color-mix(in oklch, var(--sf-ink) 14%, transparent);
+
+  --sf-display: var(--font-cormorant), Georgia, serif;
+  --sf-body: var(--font-source-sans), system-ui, sans-serif;
+  --sf-container: 76rem;
+  --sf-radius: 0.25rem;
+  --sf-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}

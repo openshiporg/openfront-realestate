@@ -1,6 +1,7 @@
 'use server' 
 
 import { createTransport, getTestMessageUrl } from "nodemailer";
+import { basePath } from "..";
 
 // Utility function to get base URL for emails
 function getBaseUrlForEmails(): string {
@@ -68,7 +69,7 @@ export async function sendPasswordResetEmail(resetToken: string, to: string, bas
     from: process.env.SMTP_FROM,
     subject: "Your password reset token!",
     html: passwordResetEmail({
-      url: `${frontendUrl}/dashboard/reset?token=${resetToken}`,
+      url: `${frontendUrl}${basePath && basePath}/reset?token=${encodeURIComponent(resetToken)}`,
     }),
   });
   if (process.env.MAIL_USER?.includes("ethereal.email")) {

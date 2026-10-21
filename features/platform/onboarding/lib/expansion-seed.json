@@ -1,0 +1,557 @@
+{
+  "version": 1,
+  "description": "Operations data layered onto the core brokerage setup.",
+  "anchors": {
+    "agentEmail": "maya.chen@juniperrealty.com",
+    "propertySlug": "riverfront-loft-austin",
+    "leadEmail": "sofia.ramirez@gmail.com",
+    "dealTitle": "Sofia Ramirez · Riverfront Loft",
+    "showingNotes": "Meet in lobby; client cares most about noise level and parking access."
+  },
+  "records": [
+    {
+      "listKey": "Neighborhood",
+      "id": "seed-neighborhood-downtown-harbor",
+      "data": {
+        "name": "Downtown Harbor",
+        "slug": "downtown-harbor",
+        "city": "Austin",
+        "state": "TX",
+        "overview": "Walkable waterfront district with mixed-use residences and strong buyer demand.",
+        "schoolDistrict": "Austin Independent School District",
+        "walkScore": 91,
+        "transitScore": 72,
+        "medianSalePrice": "925000.00",
+        "medianRent": "4200.00",
+        "activeListings": 18,
+        "averageDaysOnMarket": 21
+      }
+    },
+    {
+      "listKey": "PropertyMedia",
+      "id": "seed-media-harbor-hero",
+      "lookup": {
+        "title": "Riverfront Loft Hero Photo"
+      },
+      "data": {
+        "title": "Riverfront Loft Hero Photo",
+        "mediaType": "photo",
+        "url": "/images/real-estate/properties/riverfront-loft-austin.svg",
+        "altText": "Living room of the Riverfront Loft with floor-to-ceiling windows",
+        "caption": "Riverfront Loft living room and skyline view.",
+        "sortOrder": 1,
+        "isHero": true,
+        "property": {
+          "$anchor": "property"
+        }
+      }
+    },
+    {
+      "listKey": "PropertyInspection",
+      "id": "seed-inspection-harbor-general",
+      "lookup": {
+        "title": "General Inspection - Riverfront Loft"
+      },
+      "data": {
+        "title": "General Inspection - Riverfront Loft",
+        "inspectionType": "general",
+        "status": "completed",
+        "scheduledAt": "2026-06-28T18:56:48.359Z",
+        "completedAt": "2026-06-29T18:56:48.359Z",
+        "inspectorName": "Marta Ruiz",
+        "inspectorEmail": "marta@centraltexasinspections.com",
+        "estimatedCost": "650.00",
+        "summary": "Overall good condition with a minor HVAC service recommendation.",
+        "findings": "HVAC filter overdue; balcony railing has cosmetic wear.",
+        "property": {
+          "$anchor": "property"
+        },
+        "deal": {
+          "$anchor": "deal"
+        }
+      }
+    },
+    {
+      "listKey": "Offer",
+      "id": "seed-offer-harbor-001",
+      "data": {
+        "offerNumber": "OFFER-HARBOR-001",
+        "status": "accepted",
+        "amount": "910000.00",
+        "earnestMoney": "25000.00",
+        "financingType": "conventional",
+        "contingencies": "Inspection and financing contingencies with a 21-day close.",
+        "submittedAt": "2026-06-24T18:56:48.359Z",
+        "responseDueAt": "2026-06-26T18:56:48.359Z",
+        "acceptedAt": "2026-06-27T18:56:48.359Z",
+        "acceptedSnapshot": {
+          "version": 1,
+          "capturedAt": "2026-06-27T18:56:48.359Z",
+          "offerNumber": "OFFER-HARBOR-001",
+          "amount": "910000.00",
+          "earnestMoney": "25000.00",
+          "financingType": "conventional",
+          "contingencies": "Inspection and financing contingencies with a 21-day close.",
+          "submittedAt": "2026-06-24T18:56:48.359Z",
+          "responseDueAt": "2026-06-26T18:56:48.359Z",
+          "property": {
+            "title": "Riverfront Loft with Skyline Views",
+            "slug": "riverfront-loft-austin",
+            "addressLine1": "1428 Water Street",
+            "city": "Austin",
+            "state": "TX"
+          },
+          "deal": {
+            "title": "Sofia Ramirez · Riverfront Loft"
+          },
+          "lead": {
+            "name": "Sofia Ramirez",
+            "email": "sofia.ramirez@gmail.com"
+          },
+          "assignedAgent": {
+            "name": "Maya Chen"
+          }
+        },
+        "property": {
+          "$anchor": "property"
+        },
+        "deal": {
+          "$anchor": "deal"
+        },
+        "lead": {
+          "$anchor": "lead"
+        },
+        "assignedAgent": {
+          "$anchor": "agent"
+        }
+      }
+    },
+    {
+      "listKey": "DealDocument",
+      "id": "seed-doc-harbor-disclosure",
+      "lookup": {
+        "title": "Riverfront Loft Seller Disclosure"
+      },
+      "data": {
+        "title": "Riverfront Loft Seller Disclosure",
+        "documentType": "disclosure",
+        "status": "signed",
+        "fileUrl": "/documents/real-estate/riverfront-loft-disclosure.pdf",
+        "requiresSignature": true,
+        "sentAt": "2026-06-25T18:56:48.359Z",
+        "signedAt": "2026-06-26T18:56:48.359Z",
+        "expiresAt": "2026-09-06T18:56:48.359Z",
+        "notes": "Signed seller disclosure package.",
+        "deal": {
+          "$anchor": "deal"
+        },
+        "property": {
+          "$anchor": "property"
+        },
+        "uploadedBy": {
+          "$anchor": "agent"
+        }
+      }
+    },
+    {
+      "listKey": "Commission",
+      "id": "seed-commission-harbor-buy-side",
+      "lookup": {
+        "title": "Riverfront Loft Buyer Side Commission"
+      },
+      "data": {
+        "title": "Riverfront Loft Buyer Side Commission",
+        "status": "approved",
+        "side": "buyer",
+        "grossCommission": "27300.00",
+        "brokerageSplitPercent": "30.00",
+        "agentSplitPercent": "70.00",
+        "netCommission": "19110.00",
+        "notes": "Projected buyer-side commission split.",
+        "deal": {
+          "$anchor": "deal"
+        },
+        "property": {
+          "$anchor": "property"
+        },
+        "agent": {
+          "$anchor": "agent"
+        }
+      }
+    },
+    {
+      "listKey": "SavedSearch",
+      "id": "seed-saved-search-downtown-condos",
+      "lookup": {
+        "name": "Downtown Austin residences under 1M"
+      },
+      "data": {
+        "name": "Downtown Austin residences under 1M",
+        "city": "Austin",
+        "state": "TX",
+        "propertyType": "Condo",
+        "minPrice": "650000.00",
+        "maxPrice": "1000000.00",
+        "minBedrooms": 2,
+        "minBathrooms": "2.0",
+        "minSquareFeet": 900,
+        "keywords": "waterfront, walkable, balcony",
+        "alertsEnabled": true,
+        "lastNotifiedAt": "2026-07-07T18:56:48.359Z",
+        "brokerage": {
+          "$anchor": "brokerage"
+        },
+        "user": {
+          "$anchor": "agent"
+        }
+      }
+    },
+    {
+      "listKey": "SavedProperty",
+      "id": "seed-saved-property-riverfront",
+      "lookup": {
+        "property": {
+          "$anchor": "property"
+        },
+        "user": {
+          "$anchor": "agent"
+        }
+      },
+      "data": {
+        "status": "interested",
+        "notes": "Shortlisted for Sofia Ramirez; compare against downtown comps.",
+        "property": {
+          "$anchor": "property"
+        },
+        "user": {
+          "$anchor": "agent"
+        }
+      }
+    },
+    {
+      "listKey": "MarketComp",
+      "id": "seed-comp-waterfront-12b",
+      "lookup": {
+        "addressLine1": "1200 Waterfront Avenue #12B"
+      },
+      "data": {
+        "addressLine1": "1200 Waterfront Avenue #12B",
+        "city": "Austin",
+        "state": "TX",
+        "postalCode": "78701",
+        "status": "sold",
+        "listPrice": "899000.00",
+        "salePrice": "912000.00",
+        "soldAt": "2026-05-24T18:56:48.359Z",
+        "bedrooms": 2,
+        "bathrooms": "2.0",
+        "squareFeet": 1120,
+        "distanceMiles": "0.40",
+        "sourceUrl": "/listings/riverfront-loft-austin",
+        "notes": "Closest recent sale in the same waterfront micro-market.",
+        "subjectProperty": {
+          "$anchor": "property"
+        },
+        "neighborhood": {
+          "$record": "seed-neighborhood-downtown-harbor"
+        }
+      }
+    },
+    {
+      "listKey": "AgentTeam",
+      "id": "seed-agent-team-harbor",
+      "data": {
+        "brokerage": {
+          "$anchor": "brokerage"
+        },
+        "name": "Waterfront Buyer Team",
+        "slug": "waterfront-buyer-team",
+        "teamType": "buyer",
+        "status": "active",
+        "description": "Buyer agents focused on downtown and waterfront residences.",
+        "leadAgent": {
+          "$anchor": "agent"
+        }
+      }
+    },
+    {
+      "listKey": "AgentTask",
+      "id": "seed-agent-task-title-followup",
+      "lookup": {
+        "title": "Confirm title exceptions cleared"
+      },
+      "data": {
+        "title": "Confirm title exceptions cleared",
+        "status": "in_progress",
+        "priority": "high",
+        "dueAt": "2026-07-10T18:56:48.359Z",
+        "notes": "Call the title officer and update the closing checklist.",
+        "assignedAgent": {
+          "$anchor": "agent"
+        },
+        "property": {
+          "$anchor": "property"
+        },
+        "lead": {
+          "$anchor": "lead"
+        },
+        "deal": {
+          "$anchor": "deal"
+        }
+      }
+    },
+    {
+      "listKey": "ListingSyndication",
+      "id": "seed-syndication-harbor-mls",
+      "lookup": {
+        "externalListingId": "MLS-HARBOR-001"
+      },
+      "data": {
+        "channel": "mls",
+        "property": {
+          "$anchor": "property"
+        },
+        "status": "published",
+        "externalListingId": "MLS-HARBOR-001",
+        "listingUrl": "/listings/riverfront-loft-austin",
+        "publishedAt": "2026-06-18T18:56:48.359Z",
+        "lastSyncedAt": "2026-07-08T17:56:48.359Z",
+        "errorMessage": "",
+        "metadata": {
+          "feed": "reso-web-api"
+        }
+      }
+    },
+    {
+      "listKey": "SourceFeed",
+      "id": "seed-sourcefeed-austin-reso",
+      "lookup": {
+        "name": "Austin RESO Feed"
+      },
+      "data": {
+        "name": "Austin RESO Feed",
+        "provider": "Austin Board of REALTORS",
+        "feedType": "reso",
+        "status": "active",
+        "lastImportedAt": "2026-07-08T18:26:48.359Z",
+        "recordsImported": 128,
+        "credentials": {},
+        "metadata": {
+          "region": "Austin"
+        },
+        "brokerage": {
+          "$anchor": "brokerage"
+        }
+      }
+    },
+    {
+      "listKey": "OpenHouse",
+      "id": "seed-openhouse-harbor-saturday",
+      "lookup": {
+        "title": "Saturday Riverfront Loft Open House"
+      },
+      "data": {
+        "title": "Saturday Riverfront Loft Open House",
+        "property": {
+          "$anchor": "property"
+        },
+        "hostAgent": {
+          "$anchor": "agent"
+        },
+        "status": "completed",
+        "startsAt": "2026-07-02T18:56:48.359Z",
+        "endsAt": "2026-07-02T20:56:48.359Z",
+        "attendeeCount": 18,
+        "notes": "Strong traffic; two repeat visitors requested disclosures.",
+        "metadata": {
+          "weather": "sunny"
+        }
+      }
+    },
+    {
+      "listKey": "ShowingFeedback",
+      "id": "seed-feedback-harbor-showing",
+      "lookup": {
+        "showing": {
+          "$anchor": "showing"
+        }
+      },
+      "data": {
+        "showing": {
+          "$anchor": "showing"
+        },
+        "lead": {
+          "$anchor": "lead"
+        },
+        "property": {
+          "$anchor": "property"
+        },
+        "rating": 5,
+        "interestLevel": "offer_likely",
+        "comments": "Loved the balcony and walkability; requested the HOA documents.",
+        "priceOpinion": "905000.00",
+        "followUpRequired": true,
+        "metadata": {
+          "source": "agent_app"
+        }
+      }
+    },
+    {
+      "listKey": "Escrow",
+      "id": "seed-escrow-harbor",
+      "data": {
+        "escrowNumber": "ESC-HARBOR-001",
+        "deal": {
+          "$anchor": "deal"
+        },
+        "property": {
+          "$anchor": "property"
+        },
+        "status": "pending",
+        "escrowCompany": "Lone Star Escrow",
+        "officerName": "Nina Patel",
+        "officerEmail": "nina.patel@lonestarescrow.com",
+        "openedAt": "2026-06-27T18:56:48.359Z",
+        "scheduledCloseAt": "2026-07-18T18:56:48.359Z",
+        "depositAmount": "25000.00",
+        "metadata": {
+          "branch": "downtown"
+        }
+      }
+    },
+    {
+      "listKey": "TitleOrder",
+      "id": "seed-title-harbor",
+      "data": {
+        "orderNumber": "TITLE-HARBOR-001",
+        "deal": {
+          "$anchor": "deal"
+        },
+        "property": {
+          "$anchor": "property"
+        },
+        "titleCompany": "Austin Title Company",
+        "status": "in_review",
+        "orderedAt": "2026-06-28T18:56:48.359Z",
+        "exceptions": "Pending HOA lien release confirmation.",
+        "metadata": {
+          "escrow": "seed-escrow-harbor"
+        }
+      }
+    },
+    {
+      "listKey": "MortgageApplication",
+      "id": "seed-mortgage-harbor",
+      "data": {
+        "applicationNumber": "MORT-HARBOR-001",
+        "deal": {
+          "$anchor": "deal"
+        },
+        "lead": {
+          "$anchor": "lead"
+        },
+        "lenderName": "Austin Community Credit Union",
+        "status": "underwriting",
+        "loanAmount": "728000.00",
+        "interestRate": "6.375",
+        "submittedAt": "2026-06-29T18:56:48.359Z",
+        "metadata": {
+          "loanType": "conventional"
+        }
+      }
+    },
+    {
+      "listKey": "TransactionMilestone",
+      "id": "seed-milestone-harbor-title",
+      "lookup": {
+        "name": "Title review complete"
+      },
+      "data": {
+        "name": "Title review complete",
+        "deal": {
+          "$anchor": "deal"
+        },
+        "status": "in_progress",
+        "dueAt": "2026-07-11T18:56:48.359Z",
+        "assignedTo": {
+          "$anchor": "agent"
+        },
+        "sortOrder": 30,
+        "notes": "Waiting on HOA lien release confirmation.",
+        "metadata": {
+          "escrowId": "seed-escrow-harbor"
+        }
+      }
+    },
+    {
+      "listKey": "PropertyValuation",
+      "id": "seed-valuation-harbor-cma",
+      "data": {
+        "valuationNumber": "VAL-HARBOR-001",
+        "property": {
+          "$anchor": "property"
+        },
+        "valuationType": "cma",
+        "lowValue": "885000.00",
+        "estimatedValue": "915000.00",
+        "highValue": "940000.00",
+        "performedBy": {
+          "$anchor": "agent"
+        },
+        "valuedAt": "2026-06-20T18:56:48.359Z",
+        "notes": "CMA based on three waterfront residence comps.",
+        "metadata": {
+          "compCount": 3
+        }
+      }
+    },
+    {
+      "listKey": "Disclosure",
+      "id": "seed-disclosure-harbor-hoa",
+      "lookup": {
+        "title": "HOA Disclosure Packet"
+      },
+      "data": {
+        "title": "HOA Disclosure Packet",
+        "property": {
+          "$anchor": "property"
+        },
+        "deal": {
+          "$anchor": "deal"
+        },
+        "disclosureType": "hoa",
+        "status": "acknowledged",
+        "documentUrl": "/documents/real-estate/riverfront-loft-hoa.pdf",
+        "sentAt": "2026-06-30T18:56:48.359Z",
+        "acknowledgedAt": "2026-07-01T18:56:48.359Z",
+        "metadata": {
+          "pages": 42
+        }
+      }
+    },
+    {
+      "listKey": "SavedSearchAlert",
+      "id": "seed-alert-downtown-condos",
+      "lookup": {
+        "savedSearch": {
+          "$record": "seed-saved-search-downtown-condos"
+        }
+      },
+      "data": {
+        "savedSearch": {
+          "$record": "seed-saved-search-downtown-condos"
+        },
+        "user": {
+          "$anchor": "agent"
+        },
+        "status": "active",
+        "cadence": "daily",
+        "lastSentAt": "2026-07-07T18:56:48.359Z",
+        "sentCount": 7,
+        "metadata": {
+          "lastMatch": "seed-media-harbor-hero"
+        }
+      }
+    }
+  ]
+}

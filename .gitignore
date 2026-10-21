@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# Local runtime evidence, credentials, and test artifacts are not deploy source
+.runtime/
+
 # production
 /build
 
