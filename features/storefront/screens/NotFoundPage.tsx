@@ -8,9 +8,10 @@ export default function NotFoundPage() {
   return <AccountShell>
     <main className="sf-container sf-section">
       <div className="sf-state">
-        <h1>Page not found.</h1>
+        <p className="sf-eyebrow">404</p>
+        <h1>Page not found</h1>
         <p>This home or page is no longer available.</p>
-        <Link href="/#homes" className="sf-btn sf-btn--dark">Browse homes</Link>
+        <Link href="/#homes" className="sf-btn sf-btn--primary">Browse homes</Link>
       </div>
     </main>
   </AccountShell>

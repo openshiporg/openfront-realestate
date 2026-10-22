@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { pillClass } from '../../components/styles'
 import { inviteBrokerageMember, suspendBrokerageMember, type PeopleCommandState } from '../actions/people'
 
 const initial: PeopleCommandState = { ok: false, message: '' }
@@ -36,10 +37,9 @@ export function InviteMemberForm({ brokerageId }: { brokerageId: string }) {
   const id = useId()
   useResultToast(state, () => formRef.current?.reset())
   return (
-    <form ref={formRef} action={action} className="rounded-lg border border-border bg-card p-4">
+    <form ref={formRef} action={action}>
       <input type="hidden" name="brokerageId" value={brokerageId} />
-      <h2 className="text-base font-semibold text-foreground">Add member</h2>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-name`}>Full name</Label>
           <Input id={`${id}-name`} name="name" required maxLength={120} autoComplete="off" />
@@ -50,7 +50,7 @@ export function InviteMemberForm({ brokerageId }: { brokerageId: string }) {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-password`}>Temporary password</Label>
-          <Input id={`${id}-password`} name="temporaryPassword" type="password" required minLength={12} autoComplete="new-password" placeholder="At least 12 characters" />
+          <Input id={`${id}-password`} name="temporaryPassword" type="password" required minLength={12} autoComplete="new-password" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-role`}>Role</Label>
@@ -77,7 +77,7 @@ export function InviteMemberForm({ brokerageId }: { brokerageId: string }) {
           </Select>
         </div>
       </div>
-      <Button type="submit" size="sm" className="mt-4" disabled={pending}>{pending ? 'Adding…' : 'Add member'}</Button>
+      <Button type="submit" size="sm" className="mt-4 rounded-full" disabled={pending}>{pending ? 'Adding…' : 'Add member'}</Button>
     </form>
   )
 }
@@ -87,11 +87,11 @@ export function SuspendMemberButton({ membershipId, memberName }: { membershipId
   const formRef = useRef<HTMLFormElement>(null)
   useResultToast(state)
   return (
-    <form ref={formRef} action={action} className="mt-3">
+    <form ref={formRef} action={action} className="shrink-0">
       <input type="hidden" name="membershipId" value={membershipId} />
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button type="button" variant="outline" size="sm" disabled={pending}>{pending ? 'Suspending…' : 'Suspend access'}</Button>
+          <Button type="button" variant="ghost" size="sm" className={pillClass} disabled={pending}>{pending ? 'Suspending…' : 'Suspend'}</Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>

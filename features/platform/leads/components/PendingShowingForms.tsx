@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { pillClass, trackClass } from '../../components/styles'
 import { submitRetainedShowing, verifyRetainedShowing, type LeadQuickActionState } from '../actions/leads'
 import { PENDING_SHOWING_KEY, parsePendingShowing, recoverPendingShowing, submitNewPendingShowing, type PendingShowing } from '../lib/pendingShowing'
 import type { OperatorViewer } from '../lib/leadDetail'
@@ -44,7 +45,7 @@ export function OriginalShowingRecovery({ viewer }: { viewer: OperatorViewer }) 
     finally { setBusy(false) }
   }
   return (
-    <section className="rounded-lg border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30" aria-label="Unconfirmed showing request">
+    <section className="rounded-xl border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30" aria-label="Unconfirmed showing request">
       <h2 className="text-sm font-semibold text-foreground">Showing request not confirmed</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         {owned
@@ -52,9 +53,9 @@ export function OriginalShowingRecovery({ viewer }: { viewer: OperatorViewer }) 
           : 'An earlier showing request on this browser hasn’t been confirmed. Sign in with the account that sent it to resolve it.'}
       </p>
       {owned ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => recover(false)}>Check status</Button>
-          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => recover(true)}>Send again</Button>
+        <div className={`mt-3 ${trackClass}`}>
+          <Button type="button" variant="ghost" size="sm" className={pillClass} disabled={busy} onClick={() => recover(false)}>Check status</Button>
+          <Button type="button" variant="ghost" size="sm" className={pillClass} disabled={busy} onClick={() => recover(true)}>Send again</Button>
         </div>
       ) : null}
       {state.message ? <p role="status" className={`mt-3 text-sm ${messageTone(state)}`}>{state.message}</p> : null}
@@ -82,7 +83,7 @@ export function ScheduleShowingForm({ leadId, propertyId, assignedAgentId, viewe
         }, dependencies(viewer)))
       } catch { setState({ ok: false, uncertain: true, message: 'We couldn’t confirm the showing request. Refresh the page to check before trying again.' }) }
       finally { setBusy(false) }
-    }} className="mt-4 space-y-3 rounded-lg border border-border bg-muted/40 p-3">
+    }} className="space-y-3">
       <div className="space-y-1.5">
         <Label htmlFor={`${id}-start`}>Showing time</Label>
         <Input id={`${id}-start`} name="scheduledStart" type="datetime-local" required disabled={blocked} />
@@ -91,8 +92,8 @@ export function ScheduleShowingForm({ leadId, propertyId, assignedAgentId, viewe
         <Label htmlFor={`${id}-notes`}>Notes</Label>
         <Textarea id={`${id}-notes`} name="notes" rows={2} disabled={blocked} />
       </div>
-      {!propertyId ? <p className="text-xs text-muted-foreground">Add a listing to this lead to schedule a showing.</p> : null}
-      <Button type="submit" size="sm" className="w-full" disabled={blocked}>{busy ? 'Scheduling…' : bytes !== null ? 'Resolve the earlier request first' : 'Schedule showing'}</Button>
+      {!propertyId ? <p className="text-xs text-muted-foreground">No listing on this lead</p> : null}
+      <Button type="submit" size="sm" className="w-full rounded-full" disabled={blocked}>{busy ? 'Scheduling…' : bytes !== null ? 'Earlier request unresolved' : 'Schedule showing'}</Button>
       {state.message ? <p role="status" className={`text-xs ${messageTone(state)}`}>{state.message}</p> : null}
     </form>
   )

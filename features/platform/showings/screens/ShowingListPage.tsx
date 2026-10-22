@@ -1,7 +1,6 @@
 import Link from 'next/link'
-import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { EmptyState, ErrorBanner, Pager, PlatformPage, SearchField } from '../../components/PlatformUI'
 import { FilterTabs } from '../../listings/components/FilterTabs'
 import { getPlatformShowings, type ShowingStats } from '../actions/showings'
 import { ShowingBoard } from '../components/ShowingBoard'
@@ -18,8 +17,8 @@ const statusTabs: Array<{ value: string; label: string; stat: keyof ShowingStats
 const rangeTabs = [
   ['upcoming', 'Upcoming'],
   ['today', 'Today'],
-  ['week', 'Next 7 days'],
-  ['month', 'Next 30 days'],
+  ['week', '7 days'],
+  ['month', '30 days'],
   ['past', 'Past'],
   ['all', 'All time'],
 ]
@@ -48,54 +47,33 @@ export async function ShowingListPage({ searchParams }: PageProps) {
   const { showings, stats, pageInfo, error } = await getPlatformShowings(status, range, q, after, before)
 
   return (
-    <section className="overflow-hidden flex flex-col">
-      <PageBreadcrumbs
-        items={[
-          { type: 'link', label: 'Dashboard', href: '/' },
-          { type: 'page', label: 'Platform' },
-          { type: 'page', label: 'Showings' },
-        ]}
-      />
-      <div className="flex flex-col gap-4 px-4 pt-4 md:px-6 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Showings</h1>
-          <p className="text-muted-foreground">Confirm tours and record feedback</p>
+    <PlatformPage
+      crumbs={[{ label: 'Showings' }]}
+      title="Showings"
+      meta={stats ? `${stats.requested} to confirm · ${stats.scheduled} scheduled` : null}
+      actions={<Button asChild variant="outline" className="rounded-full"><Link href="/dashboard/platform/leads">Schedule from a lead</Link></Button>}
+      toolbar={<>
+        <SearchField action="/dashboard/platform/showings" defaultValue={q} label="Search showings" placeholder="Listing, client or agent" hidden={{ status: status !== 'all' ? status : undefined, range: range !== 'upcoming' ? range : undefined }} />
+        <div className="flex flex-col gap-2 xl:flex-row">
+          <FilterTabs label="Date range" items={rangeTabs.map(([value, text]) => ({ label: text, href: buildHref(status, value, q), active: range === value }))} />
+          <FilterTabs label="Showing status" items={statusTabs.map((tab) => ({ label: tab.label, href: buildHref(tab.value, range, q), active: status === tab.value, count: stats ? stats[tab.stat] : null }))} />
         </div>
-        <Button asChild variant="outline">
-          <Link href="/dashboard/platform/leads">Schedule from a lead</Link>
-        </Button>
-      </div>
-      <form action="/dashboard/platform/showings" className="flex flex-wrap gap-2 px-4 py-4 md:px-6">
-        {status !== 'all' ? <input type="hidden" name="status" value={status} /> : null}
-        {range !== 'upcoming' ? <input type="hidden" name="range" value={range} /> : null}
-        <Input name="q" defaultValue={q} aria-label="Search showings" placeholder="Search listing, client or agent" className="min-w-0 flex-1 sm:max-w-sm" />
-        <Button type="submit" variant="outline">Search</Button>
-      </form>
-      <FilterTabs label="Date range" items={rangeTabs.map(([value, text]) => ({ label: text, href: buildHref(status, value, q), active: range === value }))} />
-      <FilterTabs label="Showing status" items={statusTabs.map((tab) => ({ label: tab.label, href: buildHref(tab.value, range, q), active: status === tab.value, count: stats ? stats[tab.stat] : null }))} />
-
-      <div className="px-4 py-4 md:px-6">
-        {error ? (
-          <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>
-        ) : showings.length ? (
-          <ShowingBoard showings={showings} />
-        ) : (
-          <div className="rounded-lg border border-dashed border-border p-10 text-center">
-            <h2 className="text-base font-semibold text-foreground">No showings</h2>
-          </div>
-        )}
-
-        {!error && pageInfo && (pageInfo.hasPreviousPage || pageInfo.hasNextPage) ? (
-          <nav aria-label="Showing pages" className="mt-6 flex items-center justify-between gap-3">
-            {pageInfo.hasPreviousPage && pageInfo.previousCursor ? (
-              <Button asChild variant="outline"><Link href={buildHref(status, range, q, { direction: 'before', cursor: pageInfo.previousCursor })}>Previous</Link></Button>
-            ) : <span />}
-            {pageInfo.hasNextPage && pageInfo.nextCursor ? (
-              <Button asChild variant="outline"><Link href={buildHref(status, range, q, { direction: 'after', cursor: pageInfo.nextCursor })}>Next</Link></Button>
-            ) : <span />}
-          </nav>
-        ) : null}
-      </div>
-    </section>
+      </>}
+    >
+      {error ? (
+        <ErrorBanner>{error}</ErrorBanner>
+      ) : showings.length ? (
+        <ShowingBoard showings={showings} />
+      ) : (
+        <EmptyState title="No showings" />
+      )}
+      {!error && pageInfo ? (
+        <Pager
+          label="Showing pages"
+          previous={pageInfo.hasPreviousPage && pageInfo.previousCursor ? buildHref(status, range, q, { direction: 'before', cursor: pageInfo.previousCursor }) : null}
+          next={pageInfo.hasNextPage && pageInfo.nextCursor ? buildHref(status, range, q, { direction: 'after', cursor: pageInfo.nextCursor }) : null}
+        />
+      ) : null}
+    </PlatformPage>
   )
 }

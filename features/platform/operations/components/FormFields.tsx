@@ -139,7 +139,7 @@ export function RowsField({ name, label, columns, addLabel = 'Add row' }: { name
           </Button>
         </div>
       ))}
-      <Button type="button" variant="outline" size="sm" onClick={() => setRows((current) => [...current, blank()])}><Plus />{addLabel}</Button>
+      <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setRows((current) => [...current, blank()])}><Plus />{addLabel}</Button>
     </fieldset>
   )
 }

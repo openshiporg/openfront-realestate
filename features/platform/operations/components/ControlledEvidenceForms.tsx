@@ -38,7 +38,7 @@ function CommandForm({ action, title, submitLabel = 'Save', children }: { action
     else toast.error(state.message)
   }, [state])
   return (
-    <details className="rounded-lg border border-border bg-card">
+    <details className="rounded-xl border border-border bg-card shadow-xs">
       <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-foreground">{title}</summary>
       <form ref={formRef} action={formAction} className="grid gap-3 border-t border-border p-4 sm:grid-cols-2">
         {children}
@@ -47,7 +47,7 @@ function CommandForm({ action, title, submitLabel = 'Save', children }: { action
           <Textarea id={`${id}-reason`} required name="reason" rows={2} />
         </div>
         <div className="sm:col-span-2">
-          <Button type="submit" size="sm" disabled={pending}>{pending ? 'Saving…' : submitLabel}</Button>
+          <Button type="submit" size="sm" className="rounded-full" disabled={pending}>{pending ? 'Saving…' : submitLabel}</Button>
         </div>
       </form>
     </details>

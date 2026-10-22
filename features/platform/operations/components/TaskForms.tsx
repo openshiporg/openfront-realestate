@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { addChecklistItem, createCounterOffer, createOffer, queueAlert, queueImport, transitionCommissionWorkflow, transitionDisclosureWorkflow, transitionDocument, transitionInspection, transitionMilestoneWorkflow, transitionOpenHouse, transitionOfferWorkflow, transitionTask, updateAlert } from '../actions/operations'
+import { pillClass, trackClass } from '../../components/styles'
 
 type FormState = { ok: boolean; message: string; uncertain?: boolean }
 const initial: FormState = { ok: false, message: '' }
@@ -32,7 +33,7 @@ function WorkflowButton({ action, idName, id, status, label }: { action: (state:
     <form action={formAction} className="inline-flex flex-col items-start">
       <input type="hidden" name={idName} value={id} />
       <input type="hidden" name="status" value={status} />
-      <Button type="submit" variant="outline" size="sm" disabled={pending || state.uncertain}>{pending ? 'Updating…' : state.uncertain ? 'Refresh to check' : label}</Button>
+      <Button type="submit" variant="ghost" size="sm" className={pillClass} disabled={pending || state.uncertain}>{pending ? 'Updating…' : state.uncertain ? 'Refresh to check' : label}</Button>
       <UncertainNote state={state} />
     </form>
   )
@@ -51,7 +52,7 @@ export function OfferDraftForm({ dealId }: { dealId: string }) {
   const id = useId()
   useResultToast(state, () => formRef.current?.reset())
   return (
-    <form ref={formRef} action={action} className="mt-3 grid gap-3 rounded-md border border-border bg-muted/40 p-3 sm:grid-cols-2">
+    <form ref={formRef} action={action} className="mt-3 grid gap-3 rounded-lg border border-border bg-muted/40 p-3 sm:grid-cols-2">
       <input type="hidden" name="dealId" value={dealId} />
       <div className="space-y-1.5"><Label htmlFor={`${id}-amount`}>Offer amount</Label><Input id={`${id}-amount`} required name="amount" inputMode="decimal" placeholder="0.00" /></div>
       <div className="space-y-1.5"><Label htmlFor={`${id}-earnest`}>Earnest money</Label><Input id={`${id}-earnest`} name="earnestMoney" inputMode="decimal" placeholder="0.00" /></div>
@@ -68,7 +69,7 @@ export function OfferDraftForm({ dealId }: { dealId: string }) {
         </Select>
       </div>
       <div className="space-y-1.5"><Label htmlFor={`${id}-contingencies`}>Contingencies</Label><Input id={`${id}-contingencies`} name="contingencies" placeholder="Inspection, financing" /></div>
-      <div className="sm:col-span-2"><Button type="submit" size="sm" disabled={pending}>{pending ? 'Creating…' : 'Create offer'}</Button></div>
+      <div className="sm:col-span-2"><Button type="submit" size="sm" className="rounded-full" disabled={pending}>{pending ? 'Creating…' : 'Create offer'}</Button></div>
     </form>
   )
 }
@@ -83,7 +84,7 @@ export function CounterOfferForm({ offerId }: { offerId: string }) {
       <input type="hidden" name="offerId" value={offerId} />
       <div className="space-y-1.5"><Label htmlFor={`${id}-amount`}>Counter amount</Label><Input id={`${id}-amount`} required name="amount" inputMode="decimal" placeholder="0.00" /></div>
       <div className="space-y-1.5"><Label htmlFor={`${id}-terms`}>Terms</Label><Input id={`${id}-terms`} name="contingencies" /></div>
-      <Button type="submit" size="sm" disabled={pending}>{pending ? 'Creating…' : 'Counter'}</Button>
+      <Button type="submit" size="sm" className="rounded-full" disabled={pending}>{pending ? 'Creating…' : 'Counter'}</Button>
     </form>
   )
 }
@@ -102,7 +103,7 @@ export function ChecklistForm({ dealId }: { dealId: string }) {
       <input type="hidden" name="dealId" value={dealId} />
       <div className="space-y-1.5"><Label htmlFor={`${id}-name`}>New item</Label><Input id={`${id}-name`} required name="name" /></div>
       <div className="space-y-1.5"><Label htmlFor={`${id}-due`}>Due</Label><Input id={`${id}-due`} name="dueAt" type="datetime-local" /></div>
-      <Button type="submit" size="sm" disabled={pending}>{pending ? 'Adding…' : 'Add'}</Button>
+      <Button type="submit" size="sm" className="rounded-full" disabled={pending}>{pending ? 'Adding…' : 'Add'}</Button>
     </form>
   )
 }
@@ -115,10 +116,10 @@ export function DocumentAction({ documentId, currentStatus }: { documentId: stri
   const next = documentNext[currentStatus]
   if (!next) return null
   return (
-    <form action={action}>
+    <form action={action} className={trackClass}>
       <input type="hidden" name="documentId" value={documentId} />
       <input type="hidden" name="status" value={next[0]} />
-      <Button type="submit" variant="outline" size="sm" disabled={pending}>{pending ? 'Updating…' : next[1]}</Button>
+      <Button type="submit" variant="ghost" size="sm" className={pillClass} disabled={pending}>{pending ? 'Updating…' : next[1]}</Button>
     </form>
   )
 }
@@ -155,12 +156,12 @@ export function AlertActions({ alertId, status, cadence }: { alertId: string; st
             </SelectContent>
           </Select>
         </div>
-        <Button type="submit" size="sm" disabled={preferencePending}>{preferencePending ? 'Saving…' : 'Save'}</Button>
+        <Button type="submit" size="sm" className="rounded-full" disabled={preferencePending}>{preferencePending ? 'Saving…' : 'Save'}</Button>
       </form>
       {status === 'active' ? (
-        <form action={queueAction}>
+        <form action={queueAction} className={trackClass}>
           <input type="hidden" name="alertId" value={alertId} />
-          <Button type="submit" variant="outline" size="sm" disabled={queuePending}>{queuePending ? 'Sending…' : 'Send now'}</Button>
+          <Button type="submit" variant="ghost" size="sm" className={pillClass} disabled={queuePending}>{queuePending ? 'Sending…' : 'Send now'}</Button>
         </form>
       ) : null}
     </div>
@@ -185,7 +186,7 @@ export function ImportForm({ sourceFeedId }: { sourceFeedId: string }) {
           </SelectContent>
         </Select>
       </div>
-      <Button type="submit" size="sm" disabled={pending}>{pending ? 'Starting…' : 'Start import'}</Button>
+      <Button type="submit" size="sm" className="rounded-full" disabled={pending}>{pending ? 'Starting…' : 'Start import'}</Button>
     </form>
   )
 }

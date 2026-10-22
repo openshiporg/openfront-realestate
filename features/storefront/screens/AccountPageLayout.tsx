@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import Link from 'next/link'
 import { AccountShell } from '../components/AccountShell'
+import { AccountTabs } from '../components/AccountTabs'
 import { customerSignOut, getCustomer } from '../lib/data/account'
 
 export async function AccountPageLayout({ dashboard, login }: { children?: ReactNode; dashboard?: ReactNode; login?: ReactNode }) {
@@ -8,18 +8,16 @@ export async function AccountPageLayout({ dashboard, login }: { children?: React
 
   return (
     <AccountShell>
-      <main className="sf-container sf-section">
+      <main className="sf-container">
         {customer ? (
           <div className="sf-account">
-            <nav className="sf-account__nav" aria-label="Account">
-              <p className="sf-display">{customer.name}</p>
-              <Link href="/account">My showings</Link>
-              <Link href="/account/profile">Profile</Link>
-              <form action={customerSignOut}><button className="sf-btn sf-btn--outline">Sign out</button></form>
-            </nav>
-            <div className="sf-account__content">{dashboard}</div>
+            <div className="sf-account__bar">
+              <AccountTabs />
+              <form action={customerSignOut}><button className="sf-btn sf-btn--quiet">Sign out</button></form>
+            </div>
+            <div className="sf-account__body">{dashboard}</div>
           </div>
-        ) : login}
+        ) : <div className="sf-auth">{login}</div>}
       </main>
     </AccountShell>
   )

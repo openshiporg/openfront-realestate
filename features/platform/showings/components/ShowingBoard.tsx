@@ -2,16 +2,17 @@
 
 import Link from 'next/link'
 import { useSyncExternalStore } from 'react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { ChevronRight } from 'lucide-react'
 import { formatMoney as exactMoney, moneyToMinor } from '@/features/lib/money'
 import type { PlatformShowing } from '../actions/showings'
-import { label, leadIntentLabels, leadStatusLabels } from '../../leads/lib/labels'
+import { label, leadIntentLabels } from '../../leads/lib/labels'
 import { showingStatusColors, showingStatusLabels, showingTypeLabels } from '../lib/labels'
 
 const subscribe = () => () => {}
 const clientSnapshot = () => true
 const serverSnapshot = () => false
+
+const dotTones: Record<string, string> = { blue: 'bg-blue-500', violet: 'bg-violet-500', emerald: 'bg-emerald-500', amber: 'bg-amber-500', rose: 'bg-rose-500' }
 
 function formatMoney(value?: string | null, listingType?: string | null) {
   if (moneyToMinor(value || '0') <= 0n) return 'Price TBD'
@@ -19,36 +20,36 @@ function formatMoney(value?: string | null, listingType?: string | null) {
   return listingType === 'rent' ? `${formatted}/mo` : formatted
 }
 
-function ShowingCard({ showing, timeZone }: { showing: PlatformShowing; timeZone?: string }) {
+function ShowingRow({ showing, timeZone }: { showing: PlatformShowing; timeZone?: string }) {
   const { property, lead, assignedAgent: agent } = showing
-  const time = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone }).format(new Date(showing.scheduledStart))
+  const start = new Date(showing.scheduledStart)
+  const time = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone }).format(start)
+  const zone = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short', timeZone }).formatToParts(start).find(part => part.type === 'timeZoneName')?.value
+  const href = `/dashboard/platform/showings/${encodeURIComponent(showing.id)}`
 
   return (
-    <article className="rounded-lg border border-border bg-card p-4">
-      <div className="grid gap-4 lg:grid-cols-[10rem_1fr_auto]">
-        <div>
-          <p className="text-lg font-semibold text-foreground">{time}</p>
-          <p className="text-sm text-muted-foreground">{label(showingTypeLabels, showing.showingType, 'Showing')}</p>
-        </div>
-        <div className="min-w-0">
-          <div className="flex items-start gap-2">
-            <h3 className="min-w-0 flex-1 text-base font-semibold text-foreground">{property?.title || 'No listing'}</h3>
-            <Badge color={showingStatusColors[showing.status] || 'zinc'} className="shrink-0">{label(showingStatusLabels, showing.status)}</Badge>
-          </div>
-          {property ? <p className="mt-1 text-sm text-muted-foreground">{[property.addressLine1, property.city, property.state].filter(Boolean).join(', ')} · {formatMoney(property.price, property.listingType)}</p> : null}
-          <p className="mt-2 text-sm text-foreground">{lead?.name || 'No client'}{lead ? <span className="text-muted-foreground"> · {[lead.email, lead.phone].filter(Boolean).join(' · ') || 'No contact details'}</span> : null}</p>
-          {lead ? <p className="text-xs text-muted-foreground">{label(leadIntentLabels, lead.intent, 'Intent unknown')} · {label(leadStatusLabels, lead.status)}</p> : null}
-          <p className="mt-1 text-sm text-muted-foreground">Agent: {agent ? agent.name || 'Assigned' : 'Unassigned'}</p>
-          {showing.notes ? <p className="mt-2 line-clamp-3 text-sm text-foreground/90">{showing.notes}</p> : null}
-          {showing.feedback ? <p className="mt-2 rounded-md border border-border bg-muted/40 p-2 text-sm text-foreground/90"><span className="font-medium">Feedback:</span> {showing.feedback}</p> : null}
-        </div>
-        <div className="lg:self-start">
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/dashboard/platform/showings/${encodeURIComponent(showing.id)}`}>View showing</Link>
-          </Button>
-        </div>
+    <li className="group relative grid grid-cols-[4.75rem_minmax(0,1fr)] gap-x-4 gap-y-1 px-4 py-3.5 hover:bg-muted/40 sm:grid-cols-[6rem_minmax(0,1fr)_auto]">
+      <div className="row-span-2 sm:row-span-1">
+        <p className="text-base font-semibold tabular-nums text-foreground">{time}</p>
+        <p className="text-xs text-muted-foreground">{zone ? `${zone} · ` : ''}{label(showingTypeLabels, showing.showingType, 'Showing')}</p>
       </div>
-    </article>
+      <div className="min-w-0 space-y-1">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+          <h3 className="min-w-0 break-words text-sm font-semibold text-foreground">
+            <span aria-hidden className={`mr-2 inline-block size-2 -translate-y-px rounded-full align-middle ${dotTones[showingStatusColors[showing.status]] || 'bg-zinc-400'}`} />
+            <Link href={href} className="after:absolute after:inset-0">{property?.title || 'No listing'}</Link>
+          </h3>
+          <span className="text-xs font-medium text-muted-foreground">{label(showingStatusLabels, showing.status)}</span>
+        </div>
+        {property ? <p className="truncate text-sm text-muted-foreground">{[property.addressLine1, property.city].filter(Boolean).join(', ')} · <span className="tabular-nums">{formatMoney(property.price, property.listingType)}</span></p> : null}
+        <p className="text-sm text-foreground">
+          {lead?.name || 'No client'}
+          <span className="text-muted-foreground">{lead ? ` · ${label(leadIntentLabels, lead.intent, 'Intent unknown')}` : ''} · {agent ? agent.name || 'Assigned' : 'Unassigned'}</span>
+        </p>
+        {showing.feedback ? <p className="line-clamp-2 text-sm text-foreground/90"><span className="font-medium">Feedback:</span> {showing.feedback}</p> : showing.notes ? <p className="line-clamp-2 text-sm text-muted-foreground">{showing.notes}</p> : null}
+      </div>
+      <ChevronRight aria-hidden className="hidden size-4 self-center text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block" />
+    </li>
   )
 }
 
@@ -65,11 +66,14 @@ export function ShowingBoard({ showings }: { showings: PlatformShowing[] }) {
     else groups.push({ day, items: [showing] })
   }
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {groups.map((group) => (
-        <section key={group.day}>
-          <h2 className="mb-2 text-sm font-semibold text-muted-foreground">{group.day}</h2>
-          <div className="space-y-3">{group.items.map((showing) => <ShowingCard key={showing.id} showing={showing} timeZone={timeZone} />)}</div>
+        <section key={group.day} className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+          <h2 className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-2 text-sm font-semibold text-foreground">
+            {group.day}
+            <span className="text-xs font-medium tabular-nums text-muted-foreground">{group.items.length}</span>
+          </h2>
+          <ol className="divide-y divide-border">{group.items.map((showing) => <ShowingRow key={showing.id} showing={showing} timeZone={timeZone} />)}</ol>
         </section>
       ))}
     </div>

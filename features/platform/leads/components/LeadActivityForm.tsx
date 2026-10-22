@@ -36,9 +36,8 @@ export function LeadActivityForm({ leadId, propertyId }: { leadId: string; prope
   }, [state])
 
   return (
-    <form ref={formRef} action={action} className="space-y-3 rounded-lg border border-border bg-muted/40 p-4">
-      <h3 className="text-sm font-semibold text-foreground">Log activity</h3>
-      <input type="hidden" name="leadId" value={leadId} />
+    <form ref={formRef} action={action} className="space-y-3">
+            <input type="hidden" name="leadId" value={leadId} />
       <input type="hidden" name="propertyId" value={propertyId || ''} />
       <div className="grid gap-3 sm:grid-cols-3">
         <FieldSelect id={`${id}-type`} name="activityType" label="Type" defaultValue="note" options={[['note', 'Note'], ['call', 'Call'], ['email', 'Email'], ['text', 'Text']]} />
@@ -53,7 +52,7 @@ export function LeadActivityForm({ leadId, propertyId }: { leadId: string; prope
         <Label htmlFor={`${id}-body`}>Notes</Label>
         <Textarea id={`${id}-body`} name="body" required rows={3} />
       </div>
-      <Button type="submit" size="sm" disabled={pending}>{pending ? 'Saving…' : 'Add activity'}</Button>
+      <Button type="submit" size="sm" className="rounded-full" disabled={pending}>{pending ? 'Saving…' : 'Log activity'}</Button>
     </form>
   )
 }

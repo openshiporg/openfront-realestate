@@ -1,25 +1,31 @@
 import Link from 'next/link'
-import { ArrowUpRight } from 'lucide-react'
 import type { StorefrontProperty } from '@/features/storefront/lib/data/properties'
-import { formatLocation, formatPrice, propertyTypeLabel } from '@/features/storefront/lib/format'
+import { formatLocation, formatPrice, listingMarketLabel, listingTone, propertyTypeLabel } from '@/features/storefront/lib/format'
 
 export function ListingCard({ listing, priority = false }: { listing: StorefrontProperty; priority?: boolean }) {
+  const href = `/listings/${listing.slug}`
+  const land = listing.propertyType === 'land'
   return (
-    <article className="sf-listing-card">
-      <Link href={`/listings/${listing.slug}`} className="sf-listing-card__media" aria-label={`View ${listing.title}`}>
-        {listing.imagePath ? <img src={listing.imagePath} alt="" decoding="async" fetchPriority={priority ? 'high' : 'low'} /> : <span className="sf-listing-card__media-placeholder" aria-hidden="true">No photo</span>}
-        <span className="sf-listing-card__status">{listing.status === 'coming_soon' ? 'Coming soon' : listing.listingType === 'rent' ? 'For rent' : 'For sale'}</span>
-      </Link>
-      <div className="sf-listing-card__body">
-        <div className="sf-listing-card__topline"><p>{formatPrice(listing)}</p><span>{propertyTypeLabel(listing.propertyType)}</span></div>
-        <h3><span className="sf-status-dot" aria-hidden /><Link href={`/listings/${listing.slug}`}>{listing.title}</Link></h3>
-        <p className="sf-listing-card__location">{formatLocation(listing)}</p>
-        <dl>
-          <div><dt>Beds</dt><dd>{listing.bedrooms ?? '—'}</dd></div>
-          <div><dt>Baths</dt><dd>{listing.bathrooms || '—'}</dd></div>
-          <div><dt>Interior</dt><dd>{listing.squareFeet ? `${listing.squareFeet.toLocaleString()} sq ft` : '—'}</dd></div>
-        </dl>
-        <Link href={`/listings/${listing.slug}`} className="sf-text-link">View home <ArrowUpRight aria-hidden /></Link>
+    <article className="sf-card">
+      <div className="sf-card__media">
+        {listing.imagePath ? <img src={listing.imagePath} alt="" decoding="async" fetchPriority={priority ? 'high' : 'low'} loading={priority ? 'eager' : 'lazy'} /> : <span className="sf-card__placeholder" aria-hidden="true">No photo</span>}
+        <span className="sf-card__tag">{propertyTypeLabel(listing.propertyType)}</span>
+      </div>
+      <div className="sf-card__body">
+        <p className="sf-card__price">{formatPrice(listing)}</p>
+        <h3 className="sf-card__title">
+          <span className="sf-dot" data-tone={listingTone(listing.status)} aria-hidden />
+          <span className="sr-only">{listingMarketLabel(listing)}: </span>
+          <Link href={href}>{listing.title}</Link>
+        </h3>
+        <p className="sf-card__facts">
+          {!land && listing.bedrooms ? <span><b>{listing.bedrooms}</b> bd</span> : null}
+          {!land && Number(listing.bathrooms) > 0 ? <span><b>{Number(listing.bathrooms)}</b> ba</span> : null}
+          {listing.squareFeet ? <span><b>{listing.squareFeet.toLocaleString()}</b> sq ft</span> : null}
+          {land && listing.lotSizeSquareFeet ? <span><b>{listing.lotSizeSquareFeet.toLocaleString()}</b> sq ft lot</span> : null}
+          <span>{listingMarketLabel(listing)}</span>
+        </p>
+        <p className="sf-card__where">{formatLocation(listing)}</p>
       </div>
     </article>
   )

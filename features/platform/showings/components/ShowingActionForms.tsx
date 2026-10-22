@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { pillClass, pillPrimaryClass } from '../../components/styles'
 import { addShowingFeedback, updateShowingStatus, type ShowingActionState } from '../actions/showings'
 
 const initialState: ShowingActionState = { ok: false, message: '' }
@@ -26,14 +27,14 @@ export function ShowingStatusButton({ showingId, leadId, status, label, expected
   useResultToast(state)
 
   return (
-    <form action={action} className="inline-flex flex-col gap-1">
+    <form action={action} className="inline-flex shrink-0 flex-col gap-1">
       <input type="hidden" name="showingId" value={showingId} />
       <input type="hidden" name="leadId" value={leadId || ''} />
       <input type="hidden" name="status" value={status} />
       <input type="hidden" name="expectedRevision" value={expectedRevision} />
       <input type="hidden" name="expectedStatus" value={expectedStatus} />
       <input type="hidden" name="expectedUpdatedAt" value={expectedUpdatedAt} />
-      <Button type="submit" variant={status === 'scheduled' ? 'default' : 'outline'} size="sm" disabled={pending || state.uncertain}>
+      <Button type="submit" variant="ghost" size="sm" className={status === 'scheduled' ? pillPrimaryClass : pillClass} disabled={pending || state.uncertain}>
         {pending ? 'Updating…' : state.uncertain ? 'Refresh to check' : label}
       </Button>
       <UncertainNote state={state} />
@@ -47,7 +48,7 @@ export function ShowingFeedbackForm({ showingId, leadId, expectedStatus, expecte
   useResultToast(state)
 
   return (
-    <form action={action} className="mt-4 space-y-3 rounded-lg border border-border bg-muted/40 p-4">
+    <form action={action} className="space-y-3">
       <input type="hidden" name="showingId" value={showingId} />
       <input type="hidden" name="leadId" value={leadId || ''} />
       <input type="hidden" name="expectedStatus" value={expectedStatus} />
@@ -57,8 +58,8 @@ export function ShowingFeedbackForm({ showingId, leadId, expectedStatus, expecte
         <Label htmlFor={`${id}-feedback`}>Feedback</Label>
         <Textarea id={`${id}-feedback`} disabled={state.uncertain} name="feedback" rows={3} />
       </div>
-      <Button type="submit" size="sm" disabled={pending || state.uncertain}>
-        {pending ? 'Saving…' : state.uncertain ? 'Refresh to check' : 'Save feedback and complete'}
+      <Button type="submit" size="sm" className="rounded-full" disabled={pending || state.uncertain}>
+        {pending ? 'Saving…' : state.uncertain ? 'Refresh to check' : 'Complete with feedback'}
       </Button>
       <UncertainNote state={state} />
     </form>

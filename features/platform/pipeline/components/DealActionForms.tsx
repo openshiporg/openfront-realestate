@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { pillClass } from '../../components/styles'
 import { updateDealFinancialTerms, updateDealNextStep, updateDealStage, type DealActionState } from '../actions/deals'
 
 const initialState: DealActionState = { ok: false, message: '' }
@@ -34,13 +35,13 @@ export function DealStageButton({ dealId, stage, label, confirm }: { dealId: str
   const formRef = useRef<HTMLFormElement>(null)
   useResultToast(state)
   return (
-    <form ref={formRef} action={action}>
+    <form ref={formRef} action={action} className="shrink-0">
       <input type="hidden" name="dealId" value={dealId} />
       <input type="hidden" name="stage" value={stage} />
       {confirm ? (
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button type="button" variant="outline" size="sm" disabled={pending}>{pending ? 'Moving…' : label}</Button>
+            <Button type="button" variant="ghost" size="sm" className={pillClass} disabled={pending}>{pending ? 'Moving…' : label}</Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -54,7 +55,7 @@ export function DealStageButton({ dealId, stage, label, confirm }: { dealId: str
           </AlertDialogContent>
         </AlertDialog>
       ) : (
-        <Button type="submit" variant="outline" size="sm" disabled={pending}>{pending ? 'Moving…' : label}</Button>
+        <Button type="submit" variant="ghost" size="sm" className={pillClass} disabled={pending}>{pending ? 'Moving…' : label}</Button>
       )}
     </form>
   )
@@ -77,7 +78,7 @@ export function DealFinancialTermsForm({ dealId, offerAmount, commissionAmount }
           <Input id={`${id}-commission`} name="commissionAmount" inputMode="decimal" defaultValue={commissionAmount || ''} />
         </div>
       </div>
-      <Button type="submit" size="sm" disabled={pending}>{pending ? 'Saving…' : 'Save amounts'}</Button>
+      <Button type="submit" size="sm" className="rounded-full" disabled={pending}>{pending ? 'Saving…' : 'Save amounts'}</Button>
     </form>
   )
 }
@@ -97,7 +98,7 @@ export function DealNextStepForm({ dealId, nextStep, notes }: { dealId: string; 
         <Label htmlFor={`${id}-notes`}>Notes</Label>
         <Textarea id={`${id}-notes`} name="notes" defaultValue={notes || ''} rows={3} />
       </div>
-      <Button type="submit" size="sm" disabled={pending}>{pending ? 'Saving…' : 'Save next step'}</Button>
+      <Button type="submit" size="sm" className="rounded-full" disabled={pending}>{pending ? 'Saving…' : 'Save next step'}</Button>
     </form>
   )
 }

@@ -1,23 +1,20 @@
 import Link from 'next/link'
-import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
-import { Badge } from '@/components/ui/badge'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { formatMoney as money } from '@/features/lib/money'
+import { EmptyState, ErrorBanner, Pager, PlatformPage, SearchField, TitleLine, Track, pillClass, type Tone } from '../../components/PlatformUI'
 import { getPlatformListings, type PlatformListing, type PlatformListingStats } from '../actions/listings'
 import { ListingStatusButton } from '../components/ListingStatusButton'
 import { FilterTabs } from '../components/FilterTabs'
 
-type BadgeColor = 'zinc' | 'sky' | 'emerald' | 'amber' | 'indigo' | 'violet' | 'rose'
-
-const statuses: Array<{ value: string; label: string; color: BadgeColor; stat?: keyof PlatformListingStats }> = [
-  { value: 'draft', label: 'Draft', color: 'zinc' },
-  { value: 'coming_soon', label: 'Coming soon', color: 'sky', stat: 'comingSoon' },
-  { value: 'active', label: 'Active', color: 'emerald', stat: 'active' },
-  { value: 'pending', label: 'Pending', color: 'amber', stat: 'pending' },
-  { value: 'sold', label: 'Sold', color: 'indigo', stat: 'sold' },
-  { value: 'rented', label: 'Rented', color: 'violet' },
-  { value: 'off_market', label: 'Off market', color: 'rose', stat: 'offMarket' },
+const statuses: Array<{ value: string; label: string; tone: Tone; stat?: keyof PlatformListingStats }> = [
+  { value: 'active', label: 'Active', tone: 'emerald', stat: 'active' },
+  { value: 'coming_soon', label: 'Coming soon', tone: 'sky', stat: 'comingSoon' },
+  { value: 'pending', label: 'Pending', tone: 'amber', stat: 'pending' },
+  { value: 'draft', label: 'Draft', tone: 'zinc' },
+  { value: 'sold', label: 'Sold', tone: 'indigo', stat: 'sold' },
+  { value: 'rented', label: 'Rented', tone: 'violet' },
+  { value: 'off_market', label: 'Off market', tone: 'rose', stat: 'offMarket' },
 ]
 
 interface PageProps {
@@ -46,8 +43,8 @@ function priceLabel(item: PlatformListing) {
 
 function factsLabel(item: PlatformListing) {
   const facts: string[] = []
-  if (item.propertyType !== 'land' && item.bedrooms > 0) facts.push(`${item.bedrooms} ${item.bedrooms === 1 ? 'bed' : 'beds'}`)
-  if (item.propertyType !== 'land' && Number(item.bathrooms) > 0) facts.push(`${Number(item.bathrooms)} ${Number(item.bathrooms) === 1 ? 'bath' : 'baths'}`)
+  if (item.propertyType !== 'land' && item.bedrooms > 0) facts.push(`${item.bedrooms} bd`)
+  if (item.propertyType !== 'land' && Number(item.bathrooms) > 0) facts.push(`${Number(item.bathrooms)} ba`)
   if (item.squareFeet) facts.push(`${item.squareFeet.toLocaleString()} sq ft`)
   return facts.join(' · ')
 }
@@ -57,45 +54,47 @@ function ListingActions({ item }: { item: PlatformListing }) {
   const closeStatus = isRental ? 'rented' : 'sold'
   const closeLabel = isRental ? 'Mark rented' : 'Mark sold'
   return (
-    <div className="mt-4 flex flex-wrap gap-2">
-      {['draft', 'off_market'].includes(item.status) ? <ListingStatusButton propertyId={item.id} status="coming_soon" label="Mark coming soon" /> : null}
-      {['draft', 'coming_soon', 'off_market'].includes(item.status) ? <ListingStatusButton propertyId={item.id} status="active" label="Publish" /> : null}
+    <Track label={`${item.title} actions`}>
+      {['draft', 'coming_soon', 'off_market'].includes(item.status) ? <ListingStatusButton propertyId={item.id} status="active" label="Publish" primary /> : null}
+      {['draft', 'off_market'].includes(item.status) ? <ListingStatusButton propertyId={item.id} status="coming_soon" label="Coming soon" /> : null}
       {item.status === 'active' ? <ListingStatusButton propertyId={item.id} status="pending" label="Mark pending" /> : null}
       {item.status === 'pending' ? <ListingStatusButton propertyId={item.id} status="active" label="Back to active" /> : null}
       {['active', 'pending'].includes(item.status) ? <ListingStatusButton propertyId={item.id} status={closeStatus} label={closeLabel} /> : null}
       {['draft', 'active', 'coming_soon', 'pending', 'sold', 'rented'].includes(item.status) ? <ListingStatusButton propertyId={item.id} status="off_market" label="Withdraw" /> : null}
-      <Button asChild variant="outline" size="sm">
+      <Button asChild variant="ghost" size="sm" className={pillClass}>
         <Link href={`/dashboard/properties/${item.id}`}>Edit</Link>
       </Button>
-    </div>
+    </Track>
   )
 }
 
-function ListingCard({ item }: { item: PlatformListing }) {
+function ListingRow({ item }: { item: PlatformListing }) {
   const status = statuses.find((entry) => entry.value === item.status)
   const facts = factsLabel(item)
+  const address = [item.addressLine1, item.city, [item.state, item.postalCode].filter(Boolean).join(' ')].filter(Boolean).join(', ')
   return (
-    <article className="overflow-hidden rounded-lg border border-border bg-card">
-      <div className="grid md:grid-cols-[13rem_1fr]">
-        <div
-          className="min-h-44 bg-muted bg-cover bg-center"
-          style={item.primaryImageUrl ? { backgroundImage: `url(${item.primaryImageUrl})` } : undefined}
-          role="img"
-          aria-label={item.primaryImageUrl ? `${item.title} photo` : 'No photo'}
-        />
-        <div className="p-4">
-          <div className="flex items-start gap-3">
-            <h2 className="min-w-0 flex-1 text-base font-semibold text-foreground">{item.title}</h2>
-            <Badge color={status?.color || 'zinc'} className="shrink-0">{status?.label || item.status}</Badge>
-          </div>
-          <p className="mt-1 text-base font-semibold text-foreground">{priceLabel(item)}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{[item.addressLine1, item.city, [item.state, item.postalCode].filter(Boolean).join(' ')].filter(Boolean).join(', ')}</p>
-          {facts ? <p className="mt-2 text-sm text-muted-foreground">{facts}</p> : null}
-          <p className="mt-2 text-sm text-muted-foreground">{item.assignedAgent?.name || 'Unassigned'}</p>
-          <ListingActions item={item} />
-        </div>
+    <li className="grid gap-4 p-4 sm:grid-cols-[7.5rem_minmax(0,1fr)] lg:grid-cols-[7.5rem_minmax(0,1fr)_auto] lg:items-start">
+      <div
+        className="aspect-[4/3] w-full rounded-lg bg-muted bg-cover bg-center sm:w-30"
+        style={item.primaryImageUrl ? { backgroundImage: `url(${item.primaryImageUrl})` } : undefined}
+        role="img"
+        aria-label={item.primaryImageUrl ? `${item.title} photo` : 'No photo'}
+      />
+      <div className="min-w-0 space-y-1">
+        <TitleLine tone={status?.tone || 'zinc'} status={status?.label || item.status} headingClassName="text-base">
+          <Link href={`/dashboard/properties/${item.id}`} className="hover:underline">{item.title}</Link>
+        </TitleLine>
+        <p className="truncate text-sm text-muted-foreground">{address || 'No address'}</p>
+        <p className="text-sm text-muted-foreground">
+          {[facts, item.listingType === 'rent' ? 'Rental' : 'Sale', item.assignedAgent?.name || 'Unassigned'].filter(Boolean).join(' · ')}
+        </p>
+        <p className="pt-1 text-lg font-semibold tabular-nums tracking-tight text-foreground lg:hidden">{priceLabel(item)}</p>
       </div>
-    </article>
+      <div className="flex min-w-0 flex-col gap-3 sm:col-span-2 lg:col-span-1 lg:items-end">
+        <p className="hidden text-lg font-semibold tabular-nums tracking-tight text-foreground lg:block">{priceLabel(item)}</p>
+        <ListingActions item={item} />
+      </div>
+    </li>
   )
 }
 
@@ -118,50 +117,32 @@ export async function ListingListPage({ searchParams }: PageProps) {
   ]
 
   return (
-    <section className="overflow-hidden flex flex-col">
-      <PageBreadcrumbs
-        items={[
-          { type: 'link', label: 'Dashboard', href: '/' },
-          { type: 'page', label: 'Platform' },
-          { type: 'page', label: 'Listings' },
-        ]}
-      />
-      <div className="flex flex-col gap-4 px-4 pt-4 md:px-6 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Listings</h1>
-          <p className="text-muted-foreground">Manage listings for sale and for rent</p>
-        </div>
-        <Button asChild>
-          <Link href="/dashboard/properties/create">Create listing</Link>
-        </Button>
-      </div>
-      <form action="/dashboard/platform/listings" className="flex gap-2 px-4 py-4 md:px-6">
-        {status !== 'all' ? <input type="hidden" name="status" value={status} /> : null}
-        <Input name="q" defaultValue={q} aria-label="Search listings" placeholder="Search address, city or title" className="sm:max-w-sm" />
-        <Button type="submit" variant="outline">Search</Button>
-      </form>
-      <FilterTabs label="Listing status" items={tabs} />
-      <div className="px-4 py-4 md:px-6">
-        {error ? (
-          <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Listings could not be loaded. {error}</div>
-        ) : items.length ? (
-          <div className="grid gap-4 xl:grid-cols-2">{items.map((item) => <ListingCard key={item.id} item={item} />)}</div>
-        ) : (
-          <div className="rounded-lg border border-dashed border-border p-10 text-center">
-            <h2 className="text-base font-semibold text-foreground">{q ? 'No listings match your search' : 'No listings'}</h2>
-          </div>
-        )}
-        {!error && pageInfo && (pageInfo.hasPreviousPage || pageInfo.hasNextPage) ? (
-          <nav aria-label="Listing pages" className="mt-6 flex items-center justify-between gap-3">
-            {pageInfo.hasPreviousPage && pageInfo.previousCursor ? (
-              <Button asChild variant="outline"><Link href={listingPageHref(status, q, { before: pageInfo.previousCursor })}>Previous</Link></Button>
-            ) : <span />}
-            {pageInfo.hasNextPage && pageInfo.nextCursor ? (
-              <Button asChild variant="outline"><Link href={listingPageHref(status, q, { after: pageInfo.nextCursor })}>Next</Link></Button>
-            ) : <span />}
-          </nav>
-        ) : null}
-      </div>
-    </section>
+    <PlatformPage
+      crumbs={[{ label: 'Listings' }]}
+      title="Listings"
+      meta={stats ? `${stats.active} active · ${stats.pending} pending · ${stats.total} total` : null}
+      actions={<Button asChild className="rounded-full"><Link href="/dashboard/properties/create"><Plus aria-hidden /> New listing</Link></Button>}
+      toolbar={<>
+        <SearchField action="/dashboard/platform/listings" defaultValue={q} label="Search listings" placeholder="Address, city or title" hidden={{ status: status !== 'all' ? status : undefined }} />
+        <FilterTabs label="Listing status" items={tabs} />
+      </>}
+    >
+      {error ? (
+        <ErrorBanner>Listings could not be loaded. {error}</ErrorBanner>
+      ) : items.length ? (
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">{items.map((item) => <ListingRow key={item.id} item={item} />)}</ul>
+      ) : (
+        <EmptyState title={q ? 'No listings match this search' : 'No listings'}>
+          {!q ? <Button asChild size="sm" className="rounded-full"><Link href="/dashboard/properties/create">New listing</Link></Button> : null}
+        </EmptyState>
+      )}
+      {!error && pageInfo ? (
+        <Pager
+          label="Listing pages"
+          previous={pageInfo.hasPreviousPage && pageInfo.previousCursor ? listingPageHref(status, q, { before: pageInfo.previousCursor }) : null}
+          next={pageInfo.hasNextPage && pageInfo.nextCursor ? listingPageHref(status, q, { after: pageInfo.nextCursor }) : null}
+        />
+      ) : null}
+    </PlatformPage>
   )
 }

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { ArrowUpRight, Menu, X } from 'lucide-react'
 import type { BrokerageSettings } from '@/features/storefront/lib/data/settings'
 import { contactHref } from '@/features/storefront/lib/format'
 import { BrokerageMark } from './BrokerageMark'
@@ -13,31 +13,38 @@ export function StorefrontNav({ settings, sections = { neighborhoods: true, advi
   const [open, setOpen] = useState(false)
   const contact = contactHref(settings)
   const close = () => setOpen(false)
+  const links: Array<[string, string]> = [
+    ['/#homes', 'Homes'],
+    ...(sections.neighborhoods ? [['/#neighborhoods', 'Neighborhoods'] as [string, string]] : []),
+    ...(sections.advisors ? [['/#advisors', 'Advisors'] as [string, string]] : []),
+  ]
 
   return (
-    <header className="sf-site-header">
-      <div className="sf-container sf-nav">
-        <Link href="/" className="sf-wordmark" aria-label={`${settings.businessName} home`}>
-          <BrokerageMark className="sf-wordmark__mark" logoIcon={settings.logoIcon} logoColor={settings.logoColor} />
-          <span className="sf-wordmark__copy">
+    <header className="sf-header">
+      <div className="sf-container sf-header__bar">
+        <Link href="/" className="sf-lockup" aria-label={`${settings.businessName} home`} onClick={close}>
+          <BrokerageMark className="sf-lockup__mark" logoIcon={settings.logoIcon} logoColor={settings.logoColor} />
+          <span className="sf-lockup__name">
             <strong>{settings.businessName}</strong>
-            <small>{settings.marketLabel}</small>
+            {settings.marketLabel ? <small>{settings.marketLabel}</small> : null}
           </span>
         </Link>
 
-        <nav className="sf-nav__links" aria-label="Primary navigation">
-          <Link href="/#homes">Homes</Link>
-          {sections.neighborhoods ? <Link href="/#neighborhoods">Neighborhoods</Link> : null}
-          {sections.advisors ? <Link href="/#advisors">Advisors</Link> : null}
-          <Link href="/account">My account</Link>
+        <nav className="sf-header__nav" aria-label="Primary navigation">
+          {links.map(([href, label]) => <Link key={href} href={href}>{label}</Link>)}
         </nav>
 
-        {contact ? <a className="sf-nav__contact" href={contact}>Contact</a> : <span />}
+        <div className="sf-header__actions">
+          <Link href="/account" className="sf-btn sf-btn--quiet">My showings</Link>
+          {contact ? <a href={contact} className="sf-btn sf-btn--primary">Contact</a> : null}
+        </div>
+
         <button
           type="button"
-          className="sf-nav__toggle"
+          className="sf-header__toggle"
           aria-label={open ? 'Close navigation' : 'Open navigation'}
           aria-expanded={open}
+          aria-controls="sf-mobile-nav"
           onClick={() => setOpen(value => !value)}
         >
           {open ? <X aria-hidden /> : <Menu aria-hidden />}
@@ -45,12 +52,10 @@ export function StorefrontNav({ settings, sections = { neighborhoods: true, advi
       </div>
 
       {open ? (
-        <nav className="sf-mobile-nav" aria-label="Mobile navigation">
-          <Link href="/#homes" onClick={close}>Homes</Link>
-          {sections.neighborhoods ? <Link href="/#neighborhoods" onClick={close}>Neighborhoods</Link> : null}
-          {sections.advisors ? <Link href="/#advisors" onClick={close}>Advisors</Link> : null}
-          {contact ? <a href={contact} onClick={close}>Contact</a> : null}
-          <Link href="/account" onClick={close}>My account</Link>
+        <nav id="sf-mobile-nav" className="sf-mobile-nav" aria-label="Mobile navigation">
+          {links.map(([href, label]) => <Link key={href} href={href} onClick={close}>{label}<ArrowUpRight aria-hidden /></Link>)}
+          <Link href="/account" onClick={close}>My showings<ArrowUpRight aria-hidden /></Link>
+          {contact ? <a href={contact} onClick={close}>Contact<ArrowUpRight aria-hidden /></a> : null}
         </nav>
       ) : null}
     </header>

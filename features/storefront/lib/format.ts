@@ -76,3 +76,29 @@ export function emailHref(email?: string | null) {
 export function contactHref(settings: { publicEmail?: string | null; publicPhone?: string | null }) {
   return emailHref(settings.publicEmail) || phoneHref(settings.publicPhone)
 }
+
+export type StatusTone = 'active' | 'soon' | 'pending' | 'closed' | 'cancelled'
+
+export function listingTone(status?: string | null): StatusTone {
+  if (status === 'coming_soon') return 'soon'
+  if (status === 'pending') return 'pending'
+  if (status === 'active') return 'active'
+  return 'closed'
+}
+
+export function listingMarketLabel(listing: Pick<StorefrontProperty, 'status' | 'listingType'>) {
+  if (listing.status === 'coming_soon') return 'Coming soon'
+  if (listing.status === 'pending') return 'Pending'
+  return listing.listingType === 'rent' ? 'For rent' : 'For sale'
+}
+
+export function showingTone(status?: string | null): StatusTone {
+  if (status === 'scheduled') return 'active'
+  if (status === 'requested') return 'pending'
+  if (status === 'cancelled' || status === 'no_show') return 'cancelled'
+  return 'closed'
+}
+
+export function initials(name?: string | null) {
+  return String(name || '').split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase()
+}

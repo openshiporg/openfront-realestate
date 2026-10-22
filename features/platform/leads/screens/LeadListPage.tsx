@@ -1,9 +1,7 @@
 import Link from 'next/link'
-import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Mail, Phone } from 'lucide-react'
 import { formatMoney as exactMoney, moneyToMinor } from '@/features/lib/money'
+import { EmptyState, ErrorBanner, Pager, PlatformPage, SearchField, TitleLine, Track, trackItemClass } from '../../components/PlatformUI'
 import { FilterTabs } from '../../listings/components/FilterTabs'
 import { getLeadDuplicateGroups, getPlatformLeads, getShowingRequestViewer, type LeadStats, type PlatformLead } from '../actions/leads'
 import { LeadStatusForm } from '../components/LeadActionForms'
@@ -57,84 +55,87 @@ function ageLabel(iso?: string | null) {
   return `${Math.floor(hours / 24)}d ago`
 }
 
-function LeadCard({ lead, viewer }: { lead: PlatformLead; viewer: OperatorViewer | null }) {
-  const contact = [lead.email, lead.phone].filter(Boolean).join(' · ')
-
+function LeadStatusActions({ lead }: { lead: PlatformLead }) {
+  const actions = [
+    lead.status === 'new' ? <LeadStatusForm key="contacted" leadId={lead.id} nextStatus="attempted_contact" label="Mark contacted" primary /> : null,
+    ['new', 'attempted_contact'].includes(lead.status) ? <LeadStatusForm key="qualify" leadId={lead.id} nextStatus="qualified" label="Qualify" primary={lead.status !== 'new'} /> : null,
+    !['closed', 'lost'].includes(lead.status) ? <LeadStatusForm key="lost" leadId={lead.id} nextStatus="lost" label="Mark lost" /> : null,
+  ].filter(Boolean)
   return (
-    <article className="rounded-lg border border-border bg-card p-4">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-3">
-            <h2 className="min-w-0 flex-1 text-base font-semibold text-foreground">
+    <Track label={`${lead.name} actions`}>
+      {actions}
+      <Link href={`/dashboard/platform/leads/${encodeURIComponent(lead.id)}`} className={trackItemClass(false)}>Open</Link>
+    </Track>
+  )
+}
+
+function LeadCard({ lead, viewer }: { lead: PlatformLead; viewer: OperatorViewer | null }) {
+  const activityCount = lead.activitiesCount ?? lead.activities?.length ?? 0
+  return (
+    <article className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+      <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <TitleLine tone={leadStatusColors[lead.status] || 'zinc'} status={label(leadStatusLabels, lead.status)} headingClassName="text-base">
               <Link href={`/dashboard/platform/leads/${encodeURIComponent(lead.id)}`} className="hover:underline">{lead.name}</Link>
-            </h2>
-            <Badge color={leadStatusColors[lead.status] || 'zinc'} className="shrink-0">{label(leadStatusLabels, lead.status)}</Badge>
+            </TitleLine>
+            <p className="text-xs tabular-nums text-muted-foreground">{ageLabel(lead.createdAt)}</p>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">{label(leadIntentLabels, lead.intent, 'Intent unknown')} · {label(leadSourceLabels, lead.source, 'Website')}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{contact || 'No contact details'}</p>
-          {lead.property ? (
-            <div className="mt-3 rounded-md border border-border bg-muted/40 p-3">
-              <p className="text-xs font-medium text-muted-foreground">Interested in</p>
-              <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <Link href={`/dashboard/properties/${encodeURIComponent(lead.property.id)}`} className="text-sm font-medium text-foreground hover:underline">{lead.property.title || 'Listing'}</Link>
-                  {lead.property.city ? <p className="text-sm text-muted-foreground">{[lead.property.city, lead.property.state].filter(Boolean).join(', ')}</p> : null}
-                </div>
-                {lead.property.title ? <p className="text-sm font-semibold text-foreground">{formatMoney(lead.property.price, lead.property.listingType)}</p> : null}
-              </div>
+          <p className="text-sm text-muted-foreground">
+            {[label(leadIntentLabels, lead.intent, 'Intent unknown'), label(leadSourceLabels, lead.source, 'Website'), lead.assignedAgent ? lead.assignedAgent.name || 'Assigned' : 'Unassigned', `${lead.showingsCount ?? 0} ${lead.showingsCount === 1 ? 'showing' : 'showings'}`].join(' · ')}
+          </p>
+          {lead.email || lead.phone ? (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {lead.phone ? <a href={`tel:${lead.phone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center gap-1.5 font-medium text-foreground hover:underline"><Phone aria-hidden className="size-3.5 text-muted-foreground" />{lead.phone}</a> : null}
+              {lead.email ? <a href={`mailto:${lead.email}`} className="inline-flex min-w-0 items-center gap-1.5 break-all font-medium text-foreground hover:underline"><Mail aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />{lead.email}</a> : null}
             </div>
+          ) : <p className="text-sm text-muted-foreground">No contact details</p>}
+          {lead.property ? (
+            <Link href={`/dashboard/properties/${encodeURIComponent(lead.property.id)}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm hover:bg-muted">
+              <span className="min-w-0">
+                <span className="font-medium text-foreground">{lead.property.title || 'Listing'}</span>
+                {lead.property.city ? <span className="text-muted-foreground"> · {[lead.property.city, lead.property.state].filter(Boolean).join(', ')}</span> : null}
+              </span>
+              {lead.property.title ? <span className="font-semibold tabular-nums text-foreground">{formatMoney(lead.property.price, lead.property.listingType)}</span> : null}
+            </Link>
           ) : null}
-          {lead.message ? <p className="mt-3 line-clamp-3 text-sm text-foreground/90">{lead.message}</p> : null}
+          {lead.message ? <blockquote className="line-clamp-3 border-l-2 border-border pl-3 text-sm text-foreground/90">{lead.message}</blockquote> : null}
+          <LeadStatusActions lead={lead} />
         </div>
 
-        <aside className="w-full rounded-md border border-border bg-muted/40 p-3 xl:w-72">
-          <dl className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <dt className="text-xs text-muted-foreground">Created</dt>
-              <dd className="mt-0.5 font-medium text-foreground">{ageLabel(lead.createdAt)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Showings</dt>
-              <dd className="mt-0.5 font-medium text-foreground">{lead.showingsCount ?? '—'}</dd>
-            </div>
-            <div className="col-span-2">
-              <dt className="text-xs text-muted-foreground">Agent</dt>
-              <dd className="mt-0.5 font-medium text-foreground">{lead.assignedAgent ? lead.assignedAgent.name || 'Assigned' : 'Unassigned'}</dd>
-            </div>
-          </dl>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {lead.status === 'new' ? <LeadStatusForm leadId={lead.id} nextStatus="attempted_contact" label="Mark contacted" /> : null}
-            {['new', 'attempted_contact'].includes(lead.status) ? <LeadStatusForm leadId={lead.id} nextStatus="qualified" label="Qualify" /> : null}
-            {!['closed', 'lost'].includes(lead.status) ? <LeadStatusForm leadId={lead.id} nextStatus="lost" label="Mark lost" /> : null}
+        {viewer ? (
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <h3 className="mb-3 text-sm font-semibold text-foreground">Schedule showing</h3>
+            <ScheduleShowingForm viewer={viewer} leadId={lead.id} propertyId={lead.property?.id} assignedAgentId={lead.assignedAgent?.id} />
           </div>
-          {viewer ? <ScheduleShowingForm viewer={viewer} leadId={lead.id} propertyId={lead.property?.id} assignedAgentId={lead.assignedAgent?.id} /> : null}
-        </aside>
+        ) : null}
       </div>
 
-      <div className="mt-4 grid gap-4 border-t border-border pt-4 lg:grid-cols-[1fr_28rem]">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Recent activity</h3>
+      <details className="group border-t border-border">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground">
+          <span>Activity</span>
+          <span className="tabular-nums text-xs">{activityCount}</span>
+        </summary>
+        <div className="grid gap-4 border-t border-border p-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
           {lead.activityAccess === 'restricted' ? (
-            <p className="mt-2 text-sm text-muted-foreground">You don’t have access to this lead’s activity.</p>
+            <p className="text-sm text-muted-foreground">No access to this lead’s activity</p>
           ) : lead.activities?.length ? (
-            <ol className="mt-2 space-y-2">
+            <ol className="space-y-3">
               {lead.activities.map((activity) => (
-                <li key={activity.id} className="rounded-md border border-border bg-muted/40 p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-foreground">{activity.subject || label(activityTypeLabels, activity.activityType)}</p>
-                    <Badge variant="outline">{label(activityTypeLabels, activity.activityType)} · {label(channelLabels, activity.channel, 'CRM')}</Badge>
-                  </div>
-                  {activity.body ? <p className="mt-1 line-clamp-3 text-sm text-foreground/90">{activity.body}</p> : null}
-                  <p className="mt-1 text-xs text-muted-foreground">{activity.occurredAt ? ageLabel(activity.occurredAt) : ''}{activity.agent?.name ? `${activity.occurredAt ? ' · ' : ''}${activity.agent.name}` : ''}</p>
+                <li key={activity.id} className="relative border-l border-border pl-4">
+                  <span aria-hidden className="absolute -left-[3px] top-1.5 size-1.5 rounded-full bg-muted-foreground" />
+                  <p className="text-sm font-medium text-foreground">{activity.subject || label(activityTypeLabels, activity.activityType)}</p>
+                  {activity.body ? <p className="mt-0.5 line-clamp-3 text-sm text-foreground/90">{activity.body}</p> : null}
+                  <p className="mt-0.5 text-xs text-muted-foreground">{[label(activityTypeLabels, activity.activityType), label(channelLabels, activity.channel, 'CRM'), activity.occurredAt ? ageLabel(activity.occurredAt) : '', activity.agent?.name].filter(Boolean).join(' · ')}</p>
                 </li>
               ))}
             </ol>
           ) : (
-            <p className="mt-2 text-sm text-muted-foreground">No activity yet.</p>
+            <p className="text-sm text-muted-foreground">No activity</p>
           )}
+          <LeadActivityForm leadId={lead.id} propertyId={lead.property?.id} />
         </div>
-        <LeadActivityForm leadId={lead.id} propertyId={lead.property?.id} />
-      </div>
+      </details>
     </article>
   )
 }
@@ -159,56 +160,50 @@ export async function LeadListPage({ searchParams }: PageProps) {
   }))
 
   return (
-    <section className="overflow-hidden flex flex-col">
-      <PageBreadcrumbs
-        items={[
-          { type: 'link', label: 'Dashboard', href: '/' },
-          { type: 'page', label: 'Platform' },
-          { type: 'page', label: 'Leads' },
-        ]}
-      />
-      <div className="px-4 pt-4 md:px-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Leads</h1>
-        <p className="text-muted-foreground">Follow up with buyer, renter and seller inquiries</p>
-      </div>
-      <form action="/dashboard/platform/leads" className="flex gap-2 px-4 py-4 md:px-6">
-        {status !== 'all' ? <input type="hidden" name="status" value={status} /> : null}
-        <Input name="q" defaultValue={q} aria-label="Search leads" placeholder="Search name, email, phone or city" className="sm:max-w-sm" />
-        <Button type="submit" variant="outline">Search</Button>
-      </form>
-      <FilterTabs label="Lead status" items={tabItems} />
-
-      <div className="space-y-6 px-4 py-4 md:px-6">
+    <PlatformPage
+      crumbs={[{ label: 'Leads' }]}
+      title="Leads"
+      meta={stats ? `${stats.new} new · ${stats.hot} qualified · ${stats.stale} stale` : null}
+      toolbar={<>
+        <SearchField action="/dashboard/platform/leads" defaultValue={q} label="Search leads" placeholder="Name, email, phone or city" hidden={{ status: status !== 'all' ? status : undefined }} />
+        <FilterTabs label="Lead status" items={tabItems} />
+      </>}
+    >
+      <div className="space-y-6">
         {viewer ? <OriginalShowingRecovery viewer={viewer} /> : null}
 
         {duplicateGroups.length ? (
-          <div className="space-y-3">
-            <h2 className="text-base font-semibold text-foreground">Possible duplicates</h2>
-            {duplicateGroups.map((group) => <DuplicateLeadResolver key={group.key} group={group} />)}
-          </div>
+          <details className="rounded-xl border border-amber-300/60 bg-amber-50/60 dark:border-amber-900/50 dark:bg-amber-950/20">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-foreground">
+              <span>Possible duplicates</span>
+              <span className="tabular-nums text-xs font-medium text-muted-foreground">{duplicateGroups.length}</span>
+            </summary>
+            <div className="space-y-3 border-t border-amber-300/60 p-4 dark:border-amber-900/50">
+              {duplicateGroups.map((group) => <DuplicateLeadResolver key={group.key} group={group} />)}
+            </div>
+          </details>
         ) : duplicateError ? (
-          <div role="alert" className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">Duplicates could not be loaded. {duplicateError}</div>
+          <ErrorBanner>Duplicates could not be loaded. {duplicateError}</ErrorBanner>
         ) : null}
 
         {error ? (
-          <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>
+          <ErrorBanner>{error}</ErrorBanner>
         ) : leads.length ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {leads.map((lead) => <LeadCard key={lead.id} lead={lead} viewer={viewer} />)}
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-border p-10 text-center">
-            <h2 className="text-base font-semibold text-foreground">{q ? 'No leads match your search' : 'No leads'}</h2>
-          </div>
+          <EmptyState title={q ? 'No leads match this search' : 'No leads'} />
         )}
-
-        {!error && pageInfo && (pageInfo.previousCursor || pageInfo.nextCursor) ? (
-          <nav aria-label="Lead pages" className="flex items-center justify-between gap-3">
-            {pageInfo.previousCursor ? <Button asChild variant="outline"><Link href={leadsHref(status, q, { direction: 'before', value: pageInfo.previousCursor })}>Previous</Link></Button> : <span />}
-            {pageInfo.nextCursor ? <Button asChild variant="outline"><Link href={leadsHref(status, q, { direction: 'after', value: pageInfo.nextCursor })}>Next</Link></Button> : <span />}
-          </nav>
-        ) : null}
       </div>
-    </section>
+
+      {!error && pageInfo ? (
+        <Pager
+          label="Lead pages"
+          previous={pageInfo.previousCursor ? leadsHref(status, q, { direction: 'before', value: pageInfo.previousCursor }) : null}
+          next={pageInfo.nextCursor ? leadsHref(status, q, { direction: 'after', value: pageInfo.nextCursor }) : null}
+        />
+      ) : null}
+    </PlatformPage>
   )
 }

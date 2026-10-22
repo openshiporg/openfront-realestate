@@ -1,84 +1,85 @@
 import Link from 'next/link'
-import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
 import { Button } from '@/components/ui/button'
 import { formatMoney } from '@/features/lib/money'
 import { humanize } from '../../leads/lib/labels'
+import { ErrorBanner, Panel, PlatformPage, Stats } from '../../components/PlatformUI'
 import { getBrokerageReport } from '../actions/reports'
 
 const sourceLabels: Record<string, string> = { website: 'Website', zillow: 'Zillow', referral: 'Referral', open_house: 'Open house', phone: 'Phone', import: 'Import', unknown: 'Unknown' }
 
+function Bar({ label, value, max }: { label: string; value: number; max: number }) {
+  const width = max > 0 ? Math.max(value > 0 ? 2 : 0, Math.round((value / max) * 100)) : 0
+  return (
+    <li className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_3rem] items-center gap-3 text-sm">
+      <span className="truncate text-foreground">{label}</span>
+      <span className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden><span className="block h-full rounded-full bg-foreground/80" style={{ width: `${width}%` }} /></span>
+      <span className="text-right font-medium tabular-nums text-foreground">{value}</span>
+    </li>
+  )
+}
+
 export async function ReportsPage() {
   const report = await getBrokerageReport()
-  const listingMetrics: Array<[string, string | number]> = [
-    ['Active listings', report.activeListings],
-    ['Pending listings', report.pendingListings],
-  ]
-  const activityMetrics: Array<[string, string | number]> = [
+  const funnel: Array<[string, number]> = [
     ['Leads', report.leadsTotal],
-    ['New leads', report.newLeads],
-    ['Qualified leads', report.qualifiedLeads],
+    ['Qualified', report.qualifiedLeads],
     ['Showings scheduled', report.toursScheduled],
     ['Showings completed', report.showingsCompleted],
     ['Deals closed', report.closedDeals],
-    ['Projected commission', formatMoney(report.projectedCommission)],
   ]
+  const funnelMax = Math.max(0, ...funnel.map(([, value]) => value))
   const sources = Object.entries(report.sourceCounts).sort((a, b) => b[1] - a[1])
+  const sourceMax = Math.max(0, ...sources.map(([, value]) => value))
 
   return (
-    <section className="overflow-hidden flex flex-col">
-      <PageBreadcrumbs
-        items={[
-          { type: 'link', label: 'Dashboard', href: '/' },
-          { type: 'page', label: 'Platform' },
-          { type: 'page', label: 'Reports' },
-        ]}
-      />
-      <div className="flex flex-col gap-4 px-4 pt-4 md:px-6 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Reports</h1>
-          <p className="text-muted-foreground">Latest 250 leads, showings and deals</p>
+    <PlatformPage
+      crumbs={[{ label: 'Reports' }]}
+      title="Reports"
+      meta="Latest 250 leads, showings and deals"
+      actions={<Button asChild variant="outline" className="rounded-full"><Link href="/dashboard/platform/pipeline">Pipeline</Link></Button>}
+      toolbar={<Stats items={[
+        ['Active listings', report.activeListings],
+        ['Pending listings', report.pendingListings],
+        ['New leads', report.newLeads],
+        ['Projected commission', formatMoney(report.projectedCommission)],
+      ]} />}
+    >
+      <div className="min-w-0 space-y-5">
+        {report.error ? <ErrorBanner>Reports could not be loaded. {report.error}</ErrorBanner> : null}
+
+        <div className="grid min-w-0 gap-5 lg:grid-cols-2">
+          <Panel title="Funnel">
+            <ol className="space-y-3">{funnel.map(([label, value]) => <Bar key={label} label={label} value={value} max={funnelMax} />)}</ol>
+          </Panel>
+          <Panel title="Lead sources">
+            {sources.length ? (
+              <ol className="space-y-3">{sources.map(([source, count]) => <Bar key={source} label={sourceLabels[source] || humanize(source)} value={count} max={sourceMax} />)}</ol>
+            ) : <p className="text-sm text-muted-foreground">No leads</p>}
+          </Panel>
         </div>
-        <Button asChild variant="outline"><Link href="/dashboard/platform/pipeline">Pipeline</Link></Button>
-      </div>
 
-      <div className="min-w-0 space-y-6 px-4 py-4 md:px-6">
-        {report.error ? <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Reports could not be loaded. {report.error}</div> : null}
-
-        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[...listingMetrics, ...activityMetrics].map(([label, value]) => (
-            <div key={label} className="min-w-0 rounded-lg border border-border bg-card p-3">
-              <dt className="text-xs text-muted-foreground">{label}</dt>
-              <dd className="mt-1 break-words text-xl font-semibold text-foreground">{value}</dd>
-            </div>
-          ))}
-        </dl>
-
-        <div className="grid min-w-0 gap-6 lg:grid-cols-[1fr_2fr]">
-          <section className="min-w-0 rounded-lg border border-border bg-card p-4">
-            <h2 className="text-base font-semibold text-foreground">Lead sources</h2>
-            <table className="mt-3 w-full text-left text-sm">
-              <thead><tr className="text-muted-foreground"><th className="py-2 font-medium">Source</th><th className="py-2 text-right font-medium">Leads</th></tr></thead>
+        <Panel title="By agent" bodyClassName="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[34rem] text-left text-sm">
+              <thead className="border-b border-border text-xs text-muted-foreground">
+                <tr><th className="px-4 py-2.5 font-medium">Agent</th><th className="px-4 py-2.5 text-right font-medium">Leads</th><th className="px-4 py-2.5 text-right font-medium">Showings</th><th className="px-4 py-2.5 text-right font-medium">Deals</th><th className="px-4 py-2.5 text-right font-medium">Commission</th></tr>
+              </thead>
               <tbody className="divide-y divide-border">
-                {sources.map(([source, count]) => <tr key={source}><td className="py-2 text-foreground">{sourceLabels[source] || humanize(source)}</td><td className="py-2 text-right tabular-nums text-foreground">{count}</td></tr>)}
-                {sources.length ? null : <tr><td colSpan={2} className="py-3 text-muted-foreground">No leads</td></tr>}
+                {report.agentRows.map(row => (
+                  <tr key={row.agent}>
+                    <td className="px-4 py-2.5 font-medium text-foreground">{row.agent}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{row.leads}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{row.showings}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{row.deals}</td>
+                    <td className="px-4 py-2.5 text-right font-medium tabular-nums text-foreground">{formatMoney(row.projectedCommission)}</td>
+                  </tr>
+                ))}
+                {report.agentRows.length ? null : <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">No agent activity</td></tr>}
               </tbody>
             </table>
-          </section>
-
-          <section className="min-w-0 rounded-lg border border-border bg-card p-4">
-            <h2 className="text-base font-semibold text-foreground">By agent</h2>
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[32rem] text-left text-sm">
-                <thead className="text-muted-foreground"><tr><th className="py-2 pr-3 font-medium">Agent</th><th className="py-2 pr-3 font-medium">Leads</th><th className="py-2 pr-3 font-medium">Showings</th><th className="py-2 pr-3 font-medium">Deals</th><th className="py-2 font-medium">Commission</th></tr></thead>
-                <tbody className="divide-y divide-border">
-                  {report.agentRows.map(row => <tr key={row.agent}><td className="py-2 pr-3 font-medium text-foreground">{row.agent}</td><td className="py-2 pr-3 tabular-nums">{row.leads}</td><td className="py-2 pr-3 tabular-nums">{row.showings}</td><td className="py-2 pr-3 tabular-nums">{row.deals}</td><td className="py-2 font-medium text-foreground">{formatMoney(row.projectedCommission)}</td></tr>)}
-                  {report.agentRows.length ? null : <tr><td colSpan={5} className="py-3 text-muted-foreground">No agent activity</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
+          </div>
+        </Panel>
       </div>
-    </section>
+    </PlatformPage>
   )
 }

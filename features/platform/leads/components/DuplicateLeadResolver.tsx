@@ -32,7 +32,7 @@ export function DuplicateLeadResolver({ group }: { group: LeadDuplicateGroup }) 
   }
 
   return (
-    <form action={action} className="rounded-lg border border-border bg-card p-4">
+    <form action={action} className="rounded-xl border border-border bg-card p-4 shadow-xs">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold text-foreground">{group.reason}</h3>
@@ -69,7 +69,7 @@ export function DuplicateLeadResolver({ group }: { group: LeadDuplicateGroup }) 
             <Label htmlFor={`${id}-note`}>Note</Label>
             <Textarea id={`${id}-note`} name="note" rows={2} />
           </div>
-          <Button type="submit" size="sm" className="w-full" disabled={pending || state.uncertain === true || !duplicateId}>
+          <Button type="submit" size="sm" className="w-full rounded-full" disabled={pending || state.uncertain === true || !duplicateId}>
             {pending ? 'Resolving…' : state.uncertain ? 'Refresh to check' : 'Resolve duplicate'}
           </Button>
           {state.uncertain && state.message ? <p role="status" className="text-xs text-amber-700 dark:text-amber-400">{state.message}</p> : null}

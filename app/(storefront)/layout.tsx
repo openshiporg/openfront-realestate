@@ -1,22 +1,22 @@
 import type { CSSProperties } from 'react'
 import type { Metadata, Viewport } from 'next'
-import { Cormorant_Garamond, Source_Sans_3 } from 'next/font/google'
+import { Hanken_Grotesk, Instrument_Serif } from 'next/font/google'
 import '@/features/storefront/styles/storefront.css'
 import { getBrokerageSettings } from '@/features/storefront/lib/data/settings'
 import { StorefrontSettingsState } from '@/features/storefront/components/StorefrontSettingsState'
 import { storefrontBrandHueFromLogoColor, storefrontThemeColor } from '@/features/lib/storefront-theme'
 
-const cormorant = Cormorant_Garamond({
-  variable: '--font-cormorant',
+const instrument = Instrument_Serif({
+  variable: '--font-instrument',
   subsets: ['latin'],
-  weight: ['400', '500', '600'],
+  weight: '400',
+  style: ['normal', 'italic'],
   display: 'swap',
 })
 
-const sourceSans = Source_Sans_3({
-  variable: '--font-source-sans',
+const hanken = Hanken_Grotesk({
+  variable: '--font-hanken',
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
   display: 'swap',
 })
 
@@ -51,7 +51,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
   const style: StorefrontThemeStyle = { '--sf-brand-hue': storefrontBrandHueFromLogoColor(state.status === 'ready' ? state.settings.logoColor : undefined) }
 
   return (
-    <div className={`storefront-root ${cormorant.variable} ${sourceSans.variable}`} style={style}>
+    <div className={`storefront-root ${instrument.variable} ${hanken.variable}`} style={style}>
       {state.status === 'ready' ? children : <StorefrontSettingsState state={state} />}
     </div>
   )
