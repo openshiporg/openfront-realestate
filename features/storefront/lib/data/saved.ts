@@ -11,6 +11,7 @@ export type SavedSearch = {
   name: string
   keywords: string
   propertyType: string
+  listingType: string
   minPrice: string | null
   maxPrice: string | null
   minBedrooms: number | null
@@ -25,7 +26,7 @@ type SavedDiscoveryResult = { ok: boolean; message: string; itemId: string | nul
 const LISTING_SELECTION = `
   id title slug status listingType propertyType shortDescription description
   addressLine1 addressLine2 city state postalCode neighborhood
-  price bedrooms bathrooms squareFeet lotSizeSquareFeet yearBuilt hoaFee availableAt isFeatured virtualTourUrl imagePath
+  price bedrooms bathrooms squareFeet lotSizeSquareFeet yearBuilt hoaFee availableAt isFeatured virtualTourUrl leaseTerm securityDeposit petPolicy imagePath
   assignedAgent { name email phone brokerageTitle imagePath }
   media { title mediaType imagePath externalUrl altText caption sortOrder isHero }
   openHouses { id title startsAt endsAt hostName }
@@ -63,7 +64,7 @@ export async function getSavedHomes() {
 export async function getSavedSearches(userId: string) {
   const result = await keystoneClient<{ savedSearches: SavedSearch[] }>(
     `query CustomerSavedSearches($userId: ID!) {
-      savedSearches(where: { user: { id: { equals: $userId } } }, orderBy: [{ createdAt: desc }], take: 50) { id name keywords propertyType minPrice maxPrice minBedrooms minBathrooms }
+      savedSearches(where: { user: { id: { equals: $userId } } }, orderBy: [{ createdAt: desc }], take: 50) { id name keywords propertyType listingType minPrice maxPrice minBedrooms minBathrooms }
     }`,
     { userId },
     { cache: 'no-store' },
@@ -135,6 +136,7 @@ export async function saveCurrentSearch(_previous: SaveSearchState, form: FormDa
     name: searchName(params),
     keywords: params.q || '',
     propertyType: params.propertyType || '',
+    listingType: params.type || '',
     minPrice: params.minPrice || null,
     maxPrice: params.maxPrice || null,
     minBedrooms: params.beds ? Number(params.beds) : null,

@@ -19,12 +19,12 @@ export function RequestResetForm() {
   </form>
 }
 
-export function RedeemResetForm({ token }: { token: string }) {
+export function RedeemResetForm({ token, email = '' }: { token: string; email?: string }) {
   const [state, action, pending] = useActionState(redeemCustomerPasswordReset, initialState)
   if (state.ok) return <div className="sf-form"><Message state={state} /><Link href="/account" className="sf-btn sf-btn--primary sf-btn--block">Sign in</Link></div>
   return <form action={action} className="sf-form">
     <input type="hidden" name="token" value={token} />
-    <label><span>Email</span><input key={state.email || ''} className="sf-field" name="email" type="email" autoComplete="email" required maxLength={320} defaultValue={state.email || ''} /></label>
+    <label><span>Email</span><input key={state.email || email} className="sf-field" name="email" type="email" autoComplete="email" required maxLength={320} defaultValue={state.email || email} /></label>
     <label><span>New password</span><input className="sf-field" name="password" type="password" autoComplete="new-password" required minLength={12} maxLength={200} aria-describedby="reset-password-hint" /></label>
     <p id="reset-password-hint" className="sf-hint">At least 12 characters</p>
     <Message state={state} />

@@ -58,6 +58,9 @@ export type StorefrontProperty = {
   availableAt: string
   isFeatured: boolean
   virtualTourUrl: string
+  leaseTerm: string
+  securityDeposit?: number | null
+  petPolicy: string
   imagePath: string
   assignedAgent?: {
     name: string
@@ -76,7 +79,7 @@ type ListingResponse = { publicRealEstateListing: StorefrontProperty | null }
 const LISTING_SELECTION = `
   id title slug status listingType propertyType shortDescription description
   addressLine1 addressLine2 city state postalCode neighborhood
-  price bedrooms bathrooms squareFeet lotSizeSquareFeet yearBuilt hoaFee availableAt isFeatured virtualTourUrl imagePath
+  price bedrooms bathrooms squareFeet lotSizeSquareFeet yearBuilt hoaFee availableAt isFeatured virtualTourUrl leaseTerm securityDeposit petPolicy imagePath
   assignedAgent { name email phone brokerageTitle imagePath }
   media { title mediaType imagePath externalUrl altText caption sortOrder isHero }
   openHouses { id title startsAt endsAt hostName }

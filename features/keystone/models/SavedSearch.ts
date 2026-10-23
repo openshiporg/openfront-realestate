@@ -26,6 +26,8 @@ export const SavedSearch = list({
     city: text(),
     state: text(),
     propertyType: text(),
+    // "sale", "rent" or "" for both; validated by saveSearchForCurrentUser.
+    listingType: text(),
     minPrice: money({ precision: 12, scale: 2 }),
     maxPrice: money({ precision: 12, scale: 2 }),
     minBedrooms: integer(),

@@ -12,9 +12,9 @@ export const AGENT_IMAGE_PATHS: Record<string, string> = {
 }
 
 export const NEIGHBORHOOD_IMAGE_PATHS: Record<string, string> = {
-  'rainey street historic district': '/images/real-estate/photos/hero-austin-skyline.jpg',
-  'westlake hills': '/images/real-estate/photos/hill-country-estate.jpg',
-  'east cesar chavez': '/images/real-estate/photos/eastside-townhome-rental.jpg',
+  'rainey street historic district': '/images/real-estate/photos/neighborhoods/rainey-street.jpg',
+  'westlake hills': '/images/real-estate/photos/mueller-bungalow.jpg',
+  'east cesar chavez': '/images/real-estate/photos/neighborhood-homes.jpg',
   mueller: '/images/real-estate/photos/neighborhood-homes.jpg',
 }
 
@@ -55,9 +55,9 @@ export function getNeighborhoodImagePath(neighborhood?: string | null, publicIma
 }
 
 const LEGACY_NEIGHBORHOOD_PHOTOS: Record<string, string> = {
-  'rainey-street': 'hero-austin-skyline',
-  'westlake-hills': 'hill-country-estate',
-  'east-cesar-chavez': 'eastside-townhome-rental',
+  'rainey-street': 'neighborhoods/rainey-street',
+  'westlake-hills': 'mueller-bungalow',
+  'east-cesar-chavez': 'neighborhood-homes',
   mueller: 'neighborhood-homes',
 }
 

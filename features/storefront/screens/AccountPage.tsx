@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { LocalDateTime } from '@/features/platform/showings/components/LocalDateTime'
 import { getCustomer, getCustomerShowings } from '../lib/data/account'
+import { CancelShowingButton } from '../components/CancelShowingButton'
 import { showingStatusLabel, showingTone, showingTypeLabel } from '../lib/format'
 import { storefrontTitle } from '../lib/metadata'
 
@@ -43,7 +44,10 @@ export default async function AccountPage() {
                 <span>{showingTypeLabel(showing.showingType)}{showing.showingType === 'virtual' && ['requested', 'scheduled'].includes(showing.status) ? ' · Link sent by your advisor' : ''}</span>
               </p>
             </div>
-            {showing.listingSlug ? <Link className="sf-link" href={`/listings/${encodeURIComponent(showing.listingSlug)}`}>View home</Link> : null}
+            <div className="sf-trip__actions">
+              {['requested', 'scheduled'].includes(showing.status) ? <CancelShowingButton showingId={showing.id} listingTitle={showing.listingTitle} /> : null}
+              {showing.listingSlug ? <Link className="sf-link" href={`/listings/${encodeURIComponent(showing.listingSlug)}`}>{['requested', 'scheduled'].includes(showing.status) ? 'View home or request a new time' : 'View home'}</Link> : null}
+            </div>
           </li>
         ))}
       </ul>

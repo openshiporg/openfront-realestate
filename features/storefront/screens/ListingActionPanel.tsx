@@ -11,13 +11,19 @@ export function ListingActionPanel({ propertyId, intent, customer, accountHref }
   const [tab, setTab] = useState<Tab>('tour')
 
   useEffect(() => {
-    const sync = () => { if (window.location.hash === '#showing') setTab('tour') }
+    const sync = () => {
+      if (window.location.hash === '#showing') setTab('tour')
+      if (window.location.hash === '#ask') {
+        setTab('question')
+        document.getElementById('showing')?.scrollIntoView({ block: 'start' })
+      }
+    }
     sync()
     window.addEventListener('hashchange', sync)
     return () => window.removeEventListener('hashchange', sync)
   }, [])
 
-  const tabs: Array<[Tab, string]> = [['tour', 'Tour'], ['question', 'Ask a question']]
+  const tabs: Array<[Tab, string]> = [['tour', 'Tour'], ['question', intent === 'rent' ? 'Ask about applying' : 'Ask a question']]
 
   return (
     <section id="showing" className="sf-panel" aria-label="Contact about this home">

@@ -59,7 +59,8 @@ function passwordResetEmail({ url }: { url: string }): string {
   `;
 }
 
-export async function sendPasswordResetEmail(resetToken: string, to: string, baseUrl?: string): Promise<void> {
+/** `resetPath` lets storefront customers land on the storefront reset page instead of the dashboard's. */
+export async function sendPasswordResetEmail(resetToken: string, to: string, baseUrl?: string, resetPath?: string): Promise<void> {
   // Use provided baseUrl or fall back to utility function
   const frontendUrl = baseUrl || getBaseUrlForEmails();
   
@@ -67,9 +68,11 @@ export async function sendPasswordResetEmail(resetToken: string, to: string, bas
   const info = await transport.sendMail({
     to,
     from: process.env.SMTP_FROM,
-    subject: "Your password reset token!",
+    subject: "Reset your password",
     html: passwordResetEmail({
-      url: `${frontendUrl}${basePath && basePath}/reset?token=${encodeURIComponent(resetToken)}`,
+      url: resetPath
+        ? `${frontendUrl}${resetPath}?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(to)}`
+        : `${frontendUrl}${basePath && basePath}/reset?token=${encodeURIComponent(resetToken)}`,
     }),
   });
   if (process.env.MAIL_USER?.includes("ethereal.email")) {

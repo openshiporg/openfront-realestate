@@ -16,6 +16,7 @@ export async function GET() {
   })
 }
 
-export function faviconRedirect(request: Request) {
-  return Response.redirect(new URL('/brand-mark.svg', request.url), 307)
+/** Relative Location: behind Railway's proxy, request.url carries the internal origin, not the public one. */
+export function faviconRedirect() {
+  return new Response(null, { status: 307, headers: { Location: '/brand-mark.svg' } })
 }

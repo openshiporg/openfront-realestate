@@ -12,6 +12,7 @@ type SaveSearchInput = {
   city?: string | null
   state?: string | null
   propertyType?: string | null
+  listingType?: string | null
   minPrice?: string | null
   maxPrice?: string | null
   minBedrooms?: number | null
@@ -232,6 +233,7 @@ export async function saveSearchForCurrentUser(
       city: clean(data.city),
       state: clean(data.state),
       propertyType: clean(data.propertyType),
+      listingType: ['sale', 'rent'].includes(clean(data.listingType)) ? clean(data.listingType) : '',
       minPrice: clean(data.minPrice) || null,
       maxPrice: clean(data.maxPrice) || null,
       minBedrooms: data.minBedrooms ?? null,

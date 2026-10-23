@@ -42,7 +42,7 @@ import {
 import { domainOutboxEventStatus, replayDomainOutboxEvent } from './domainOutbox'
 import { platformContacts, platformListings, platformOperations, platformPeople, platformPipeline, platformReports, platformShowings } from './platformProjections'
 import { platformStorefrontSettings, updatePlatformStorefrontSettings } from './platformStorefrontSettings'
-import { registerRealEstateCustomer, customerShowingHistory } from './customerAccount'
+import { registerRealEstateCustomer, customerShowingHistory, cancelCustomerShowing } from './customerAccount'
 import { createChecklistItemCommand, createCounterOfferCommand, createOfferCommand, queueSavedSearchAlertCommand, queueSourceImportCommand, transitionAgentTaskCommand, transitionDocumentCommand, transitionInspectionCommand, transitionListingSyndicationCommand, updateSavedSearchAlertCommand } from './platformCommands'
 import { recordListingEngagementAuthorityCommand, recordListingPublicationAuthorityCommand, recordPractitionerLicenseAuthorityCommand, recordRepresentationAuthorityCommand } from './authorityCommands'
 import { appendDocumentEvidenceEventCommand } from './documentEvidenceCommands'
@@ -199,6 +199,9 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         availableAt: String!
         isFeatured: Boolean!
         virtualTourUrl: String!
+        leaseTerm: String!
+        securityDeposit: Int
+        petPolicy: String!
         imagePath: String!
         assignedAgent: PublicRealEstateAgent
         media: [PublicRealEstateMedia!]!
@@ -452,6 +455,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         city: String
         state: String
         propertyType: String
+        listingType: String
         minPrice: String
         maxPrice: String
         minBedrooms: Int
@@ -561,6 +565,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         dismissRealEstateOnboarding: RealEstateOnboardingResult!
         updatePlatformStorefrontSettings(data: PlatformStorefrontSettingsInput!): PlatformStorefrontSettingsState!
         registerRealEstateCustomer(data: RealEstateCustomerInput!): CustomerRegistrationResult!
+        cancelCustomerShowing(brokerageSlug: String!, id: ID!): CustomerRegistrationResult!
       }
     `,
     resolvers: {
@@ -640,6 +645,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         dismissRealEstateOnboarding,
         updatePlatformStorefrontSettings,
         registerRealEstateCustomer,
+        cancelCustomerShowing,
       },
     },
   })

@@ -90,8 +90,9 @@ export async function requestCustomerPasswordReset(_previous: PasswordResetState
   const email = String(form.get('email') || '').trim().toLowerCase()
   if (!email || email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: 'Enter your email.', email }
   const result = await keystoneClient<{ sendUserPasswordResetLink: boolean }>('mutation CustomerPasswordResetLink($email: String!) { sendUserPasswordResetLink(email: $email) }', { email }, { cache: 'no-store' })
-  if (!result.success) return { ok: false, message: 'Password reset is unavailable. Contact the office.', email }
-  return { ok: true, message: 'If an account uses this email, a reset link is on its way.', email }
+  // Same answer whether or not the email has an account or the mail could be sent, so the form never reveals either.
+  if (!result.success) console.error('Password reset email could not be sent.')
+  return { ok: true, message: 'If an account uses this email, a reset link is on its way. If nothing arrives, contact the office.', email }
 }
 
 export async function redeemCustomerPasswordReset(_previous: PasswordResetState, form: FormData): Promise<PasswordResetState> {
@@ -101,4 +102,16 @@ export async function redeemCustomerPasswordReset(_previous: PasswordResetState,
   const result = await keystoneClient<{ redeemUserPasswordResetToken: { code: string; message: string } | null }>('mutation CustomerPasswordReset($email: String!, $token: String!, $password: String!) { redeemUserPasswordResetToken(email: $email, token: $token, password: $password) { code message } }', { email, token, password }, { cache: 'no-store' })
   if (!result.success || result.data.redeemUserPasswordResetToken) return { ok: false, message: 'This reset link is invalid or has expired.', email }
   return { ok: true, message: 'Password changed. Sign in with your new password.', email }
+}
+
+export type CancelShowingState = { ok: boolean; message: string }
+
+export async function cancelCustomerShowing(_previous: CancelShowingState, form: FormData): Promise<CancelShowingState> {
+  const id = String(form.get('showingId') || '').trim()
+  const brokerageSlug = await getStorefrontBrokerageSlug()
+  if (!id || id.length > 200 || !brokerageSlug) return { ok: false, message: 'This showing could not be cancelled.' }
+  const result = await keystoneClient<{ cancelCustomerShowing: { ok: boolean; message: string } }>('mutation CancelCustomerShowing($brokerageSlug: String!, $id: ID!) { cancelCustomerShowing(brokerageSlug: $brokerageSlug, id: $id) { ok message } }', { brokerageSlug, id }, { cache: 'no-store' })
+  if (!result.success) return { ok: false, message: 'This showing could not be cancelled.' }
+  if (result.data.cancelCustomerShowing.ok) revalidatePath('/account')
+  return result.data.cancelCustomerShowing
 }

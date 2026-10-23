@@ -254,6 +254,9 @@ model Property {
   availableAt                      DateTime?
   isFeatured                       Boolean                       @default(false)
   virtualTourUrl                   String                        @default("")
+  leaseTerm                        String                        @default("")
+  securityDeposit                  Int?
+  petPolicy                        String                        @default("")
   primaryImageUrl                  String                        @default("")
   assignedAgent                    User?                         @relation("Property_assignedAgent", fields: [assignedAgentId], references: [id])
   assignedAgentId                  String?                       @map("assignedAgent")
@@ -628,6 +631,7 @@ model SavedSearch {
   city                              String             @default("")
   state                             String             @default("")
   propertyType                      String             @default("")
+  listingType                       String             @default("")
   minPrice                          BigInt?            @map("minPriceMinor")
   maxPrice                          BigInt?            @map("maxPriceMinor")
   minBedrooms                       Int?

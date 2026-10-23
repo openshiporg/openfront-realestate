@@ -64,8 +64,10 @@ const { withAuth } = createAuth({
   },
   passwordResetLink: {
     async sendToken(args) {
-      // send the email
-      await sendPasswordResetEmail(args.token, args.identity);
+      // Storefront customers hold no brokerage memberships; their link opens the storefront reset page.
+      const user = await args.context.sudo().query.User.findOne({ where: { id: String(args.itemId) }, query: "id brokerageMemberships(take: 1) { id }" });
+      const customer = Boolean(user && !user.brokerageMemberships?.length);
+      await sendPasswordResetEmail(args.token, args.identity, undefined, customer ? "/password-reset" : undefined);
     },
   },
   sessionData: `

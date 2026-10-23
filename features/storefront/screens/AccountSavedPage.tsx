@@ -14,6 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 function searchHref(search: SavedSearch) {
   return listingPageHref({
     q: search.keywords || undefined,
+    type: search.listingType === 'sale' || search.listingType === 'rent' ? search.listingType : undefined,
     propertyType: search.propertyType || undefined,
     minPrice: search.minPrice ? String(Number(search.minPrice)) : undefined,
     maxPrice: search.maxPrice ? String(Number(search.maxPrice)) : undefined,

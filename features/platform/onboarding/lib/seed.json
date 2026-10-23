@@ -418,6 +418,9 @@
             "availableAt": "2026-08-15T15:00:00.000Z",
             "isFeatured": false,
             "virtualTourUrl": "",
+            "leaseTerm": "12 months",
+            "securityDeposit": 3800,
+            "petPolicy": "Cats and dogs under 40 lb, $500 pet deposit",
             "primaryImageUrl": "/images/real-estate/photos/eastside-townhome-rental.jpg",
             "assignedAgent": {
               "connect": {
@@ -1031,17 +1034,17 @@
       {
         "key": "rainey-street",
         "name": "Rainey Street Historic District",
-        "imagePath": "/images/real-estate/photos/hero-austin-skyline.jpg"
+        "imagePath": "/images/real-estate/photos/neighborhoods/rainey-street.jpg"
       },
       {
         "key": "westlake-hills",
         "name": "Westlake Hills",
-        "imagePath": "/images/real-estate/photos/hill-country-estate.jpg"
+        "imagePath": "/images/real-estate/photos/mueller-bungalow.jpg"
       },
       {
         "key": "east-cesar-chavez",
         "name": "East Cesar Chavez",
-        "imagePath": "/images/real-estate/photos/eastside-townhome-rental.jpg"
+        "imagePath": "/images/real-estate/photos/neighborhood-homes.jpg"
       },
       {
         "key": "mueller",

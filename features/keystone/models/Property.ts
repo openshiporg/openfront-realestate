@@ -89,6 +89,10 @@ export const Property = list({
     availableAt: timestamp(),
     isFeatured: checkbox({ defaultValue: false }),
     virtualTourUrl: text(),
+    // Rental terms; shown on the storefront for listings with listingType "rent".
+    leaseTerm: text({ ui: { description: "For rentals, e.g. 12 months" } }),
+    securityDeposit: integer({ validation: { min: 0 }, ui: { description: "For rentals, in whole dollars" } }),
+    petPolicy: text({ ui: { description: "For rentals, e.g. Cats and small dogs allowed" } }),
     primaryImageUrl: text(),
     assignedAgent: relationship({ ref: "User.assignedProperties", access: { create: permissions.canManagePeople, update: permissions.canManagePeople } }),
     leads: relationship({ ref: "Lead.property", many: true, access: { create: () => false, update: () => false } }),

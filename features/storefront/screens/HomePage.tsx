@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import { ListingSearchForm } from '@/features/storefront/components/ListingSearchForm'
@@ -27,6 +28,23 @@ function activeFilters(params: ListingSearchParams) {
   if (params.minPrice) chips.push(`From $${Number(params.minPrice).toLocaleString('en-US')}`)
   if (params.maxPrice) chips.push(`Up to $${Number(params.maxPrice).toLocaleString('en-US')}`)
   return chips
+}
+
+const RASTER = /\.(?:jpe?g|png|webp)$/i
+
+export async function generateHomeMetadata(): Promise<Metadata> {
+  const [settingsState, listings] = await Promise.all([getBrokerageSettings(), getStorefrontListings()])
+  if (settingsState.status !== 'ready') return {}
+  const { settings } = settingsState
+  const featured = listings.listings.find(listing => listing.isFeatured && RASTER.test(listing.imagePath)) || listings.listings.find(listing => RASTER.test(listing.imagePath))
+  const images = featured ? [{ url: featured.imagePath, alt: settings.businessName }] : undefined
+  const description = settings.description || settings.tagline
+  // Relative URLs resolve against the storefront layout's metadataBase.
+  return {
+    alternates: { canonical: '/' },
+    openGraph: { type: 'website', url: '/', title: settings.businessName, description, siteName: settings.businessName, ...(images ? { images } : {}) },
+    twitter: { card: images ? 'summary_large_image' : 'summary', title: settings.businessName, description, ...(images ? { images } : {}) },
+  }
 }
 
 export default async function HomePage({ searchParams }: { searchParams?: Promise<ListingSearchParams> }) {
@@ -90,16 +108,20 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
               <p className="sf-eyebrow">{filtered ? 'Search results' : 'Listings'}</p>
               <h2>{filtered ? 'Matching homes' : 'Available homes'}</h2>
             </div>
-            {resultSummary ? <p className="sf-num">{resultSummary}</p> : null}
+            {resultSummary || params.sort ? (
+              <div className="sf-section-head__meta">
+                {resultSummary ? <p className="sf-num">{resultSummary}</p> : null}
+                {listings.length > 1 || params.sort ? <SortSelect params={params} /> : null}
+              </div>
+            ) : null}
           </div>
 
-          {chips.length || listings.length > 1 ? (
+          {chips.length ? (
             <div className="sf-results-head">
-              {chips.length ? <div className="sf-chips" aria-label="Active filters">{chips.map(chip => <span key={chip} className="sf-chip">{chip}</span>)}</div> : <span />}
+              <div className="sf-chips" aria-label="Active filters">{chips.map(chip => <span key={chip} className="sf-chip">{chip}</span>)}</div>
               <div className="sf-results-head__actions">
-                {chips.length ? <Link href="/#homes" className="sf-link">Clear search</Link> : null}
-                {chips.length && customer ? <SaveSearchButton params={params} /> : null}
-                {listings.length > 1 || params.sort ? <SortSelect params={params} /> : null}
+                <Link href="/#homes" className="sf-link">Clear search</Link>
+                {customer ? <SaveSearchButton params={params} /> : null}
               </div>
             </div>
           ) : null}

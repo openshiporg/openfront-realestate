@@ -1549,6 +1549,9 @@ type Property {
   availableAt: DateTime
   isFeatured: Boolean
   virtualTourUrl: String
+  leaseTerm: String
+  securityDeposit: Int
+  petPolicy: String
   primaryImageUrl: String
   assignedAgent: User
   leads(where: LeadWhereInput! = {}, orderBy: [LeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: LeadWhereUniqueInput): [Lead!]
@@ -1637,6 +1640,9 @@ input PropertyWhereInput {
   availableAt: DateTimeNullableFilter
   isFeatured: BooleanFilter
   virtualTourUrl: StringFilter
+  leaseTerm: StringFilter
+  securityDeposit: IntNullableFilter
+  petPolicy: StringFilter
   primaryImageUrl: StringFilter
   assignedAgent: UserWhereInput
   leads: LeadManyRelationFilter
@@ -1719,6 +1725,9 @@ input PropertyOrderByInput {
   availableAt: OrderDirection
   isFeatured: OrderDirection
   virtualTourUrl: OrderDirection
+  leaseTerm: OrderDirection
+  securityDeposit: OrderDirection
+  petPolicy: OrderDirection
   primaryImageUrl: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
@@ -1751,6 +1760,9 @@ input PropertyUpdateInput {
   availableAt: DateTime
   isFeatured: Boolean
   virtualTourUrl: String
+  leaseTerm: String
+  securityDeposit: Int
+  petPolicy: String
   primaryImageUrl: String
   assignedAgent: UserRelateToOneForUpdateInput
   leads: LeadRelateToManyForUpdateInput
@@ -1795,6 +1807,9 @@ input PropertyCreateInput {
   availableAt: DateTime
   isFeatured: Boolean
   virtualTourUrl: String
+  leaseTerm: String
+  securityDeposit: Int
+  petPolicy: String
   primaryImageUrl: String
   assignedAgent: UserRelateToOneForCreateInput
   leads: LeadRelateToManyForCreateInput
@@ -3356,6 +3371,7 @@ type SavedSearch {
   city: String
   state: String
   propertyType: String
+  listingType: String
   minPrice: Decimal
   maxPrice: Decimal
   minBedrooms: Int
@@ -3383,6 +3399,7 @@ input SavedSearchWhereInput {
   city: StringFilter
   state: StringFilter
   propertyType: StringFilter
+  listingType: StringFilter
   minPrice: DecimalNullableFilter
   maxPrice: DecimalNullableFilter
   minBedrooms: IntNullableFilter
@@ -3402,6 +3419,7 @@ input SavedSearchOrderByInput {
   city: OrderDirection
   state: OrderDirection
   propertyType: OrderDirection
+  listingType: OrderDirection
   minPrice: OrderDirection
   maxPrice: OrderDirection
   minBedrooms: OrderDirection
@@ -3420,6 +3438,7 @@ input SavedSearchUpdateInput {
   city: String
   state: String
   propertyType: String
+  listingType: String
   minPrice: Decimal
   maxPrice: Decimal
   minBedrooms: Int
@@ -3444,6 +3463,7 @@ input SavedSearchCreateInput {
   city: String
   state: String
   propertyType: String
+  listingType: String
   minPrice: Decimal
   maxPrice: Decimal
   minBedrooms: Int
@@ -6773,6 +6793,7 @@ type Mutation {
   dismissRealEstateOnboarding: RealEstateOnboardingResult!
   updatePlatformStorefrontSettings(data: PlatformStorefrontSettingsInput!): PlatformStorefrontSettingsState!
   registerRealEstateCustomer(data: RealEstateCustomerInput!): CustomerRegistrationResult!
+  cancelCustomerShowing(brokerageSlug: String!, id: ID!): CustomerRegistrationResult!
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -7942,6 +7963,9 @@ type PublicRealEstateListing {
   availableAt: String!
   isFeatured: Boolean!
   virtualTourUrl: String!
+  leaseTerm: String!
+  securityDeposit: Int
+  petPolicy: String!
   imagePath: String!
   assignedAgent: PublicRealEstateAgent
   media: [PublicRealEstateMedia!]!
@@ -8449,6 +8473,7 @@ input SaveSearchForCurrentUserInput {
   city: String
   state: String
   propertyType: String
+  listingType: String
   minPrice: String
   maxPrice: String
   minBedrooms: Int

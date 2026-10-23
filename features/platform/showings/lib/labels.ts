@@ -20,5 +20,6 @@ export const showingHistoryLabels: Record<string, string> = {
   request: 'Requested',
   request_receipt: 'Request received',
   schedule: 'Scheduled',
+  customer_cancel: 'Cancelled by client',
   complete_with_feedback: 'Completed with feedback',
 }

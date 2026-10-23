@@ -101,6 +101,12 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
     ...(listing.neighborhood ? [['Neighborhood', listing.neighborhood] as [string, string]] : []),
     ...(listing.postalCode ? [['ZIP', listing.postalCode] as [string, string]] : []),
   ]
+  const rental = listing.listingType === 'rent'
+  const rentalTerms: Array<[string, string]> = rental ? [
+    ...(listing.leaseTerm ? [['Lease term', listing.leaseTerm] as [string, string]] : []),
+    ...(listing.securityDeposit ? [['Security deposit', formatMoney(String(listing.securityDeposit))] as [string, string]] : []),
+    ...(listing.petPolicy ? [['Pets', listing.petPolicy] as [string, string]] : []),
+  ] : []
   const extraPhotos = [...new Map(listing.media
     .filter(item => item.mediaType === 'photo' && item.imagePath && item.imagePath !== listing.imagePath)
     .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -185,6 +191,18 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
                     )
                   })}
                 </ul>
+              </section>
+            ) : null}
+
+            {rental ? (
+              <section className="sf-prose">
+                <h2>Rental terms</h2>
+                {rentalTerms.length ? (
+                  <dl className="sf-facts">
+                    {rentalTerms.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+                  </dl>
+                ) : null}
+                <p style={{ marginTop: rentalTerms.length ? '1rem' : 0 }}><a href="#ask" className="sf-link">Ask about applying</a></p>
               </section>
             ) : null}
 

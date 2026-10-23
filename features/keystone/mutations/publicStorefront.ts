@@ -14,6 +14,7 @@ const PUBLIC_LISTING_QUERY = `
   id title slug status listingType propertyType shortDescription description
   addressLine1 addressLine2 city state postalCode neighborhood
   price bedrooms bathrooms squareFeet lotSizeSquareFeet yearBuilt hoaFee availableAt isFeatured virtualTourUrl
+  leaseTerm securityDeposit petPolicy
   primaryImageUrl
   brokerage { id }
   assignedAgent { id name email phone brokerageTitle avatarUrl brokerageMemberships(where: { status: { equals: active } }) { brokerage { id status } } }
@@ -148,6 +149,9 @@ function toPublicListing(property: any, media: readonly any[], openHouses: reado
     availableAt: property.availableAt || '',
     isFeatured: Boolean(property.isFeatured),
     virtualTourUrl: property.virtualTourUrl || '',
+    leaseTerm: property.leaseTerm || '',
+    securityDeposit: property.securityDeposit ?? null,
+    petPolicy: property.petPolicy || '',
     imagePath: publicImagePath(property.primaryImageUrl),
     assignedAgent: toPublicAgent(property.assignedAgent, property.brokerage.id),
     openHouses: openHouses.map(item => ({
