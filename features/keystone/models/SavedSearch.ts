@@ -16,7 +16,7 @@ export const SavedSearch = list({
     },
     filter: { query: rules.canReadSavedSearches },
   },
-  hooks: createTenantOwnedHooks({ listKey: 'SavedSearch', users: ['user'], required: ['user'] }),
+  hooks: createTenantOwnedHooks({ listKey: 'SavedSearch', users: ['user'], required: ['user'], allowCustomers: true }),
   ui: {
     hideDelete: true,
     hideCreate: true, listView: { initialColumns: ["name", "user", "city", "minPrice", "maxPrice", "alertsEnabled"] } },

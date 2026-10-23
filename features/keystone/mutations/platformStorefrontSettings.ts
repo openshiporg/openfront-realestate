@@ -34,7 +34,8 @@ const SETTINGS_SELECTION = 'id businessName marketLabel city state tagline descr
 
 function activeBrokerageScope(context: Context) {
   const ids = activeBrokerageIds(context.session as any)
-  const selected = context.session?.data.activeBrokerage
+  const session = context.session as any
+  const selected = session?.data.activeBrokerage || session?.data.brokerageMemberships?.find((membership: any) => membership.brokerage?.id === ids[0])?.brokerage
   if (ids.length !== 1 || !selected || selected.id !== ids[0] || selected.status !== 'active') {
     throw new Error('An active brokerage is required.')
   }

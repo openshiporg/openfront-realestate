@@ -2,8 +2,11 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getCustomer } from '../lib/data/account'
 import { PasswordForm, ProfileDetailsForm } from '../components/ProfileForms'
+import { storefrontTitle } from '../lib/metadata'
 
-export const metadata: Metadata = { title: 'Profile' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: await storefrontTitle('Profile') }
+}
 
 export default async function AccountProfilePage() {
   const customer = await getCustomer()
@@ -12,7 +15,7 @@ export default async function AccountProfilePage() {
   return <>
     <header className="sf-account__head">
       <div>
-        <p className="sf-eyebrow">{customer.email}</p>
+        <p className="sf-eyebrow">{customer.name}</p>
         <h1 style={{ marginTop: '0.5rem' }}>Profile</h1>
       </div>
     </header>

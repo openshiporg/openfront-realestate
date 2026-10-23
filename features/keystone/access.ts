@@ -51,8 +51,10 @@ const hasRoleFlag = (session: Session | undefined, flag: keyof Session['data']['
   Boolean(session?.data.role?.[flag])
 
 export function activeBrokerageIds(session?: Session) {
-  const selected = session?.data.activeBrokerage
   const memberships = session?.data.brokerageMemberships || []
+  const liveMemberships = memberships.filter(membership => membership.status === 'active' && membership.brokerage?.status === 'active')
+  // With no brokerage selected, a single live membership is unambiguous.
+  const selected = session?.data.activeBrokerage || (liveMemberships.length === 1 ? liveMemberships[0].brokerage : null)
   if (!selected || selected.status !== 'active') return []
   const selectedMemberships = memberships.filter(membership =>
     membership.status === 'active' &&

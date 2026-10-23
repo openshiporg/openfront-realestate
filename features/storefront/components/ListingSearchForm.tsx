@@ -17,7 +17,7 @@ const intents = [
   ['rent', 'Rent'],
 ]
 
-export function ListingSearchForm({ params, count, hasMore = false, marketCity = '', action = '/' }: { params: ListingSearchParams; count: number; hasMore?: boolean; marketCity?: string; action?: string }) {
+export function ListingSearchForm({ params, marketCity = '', action = '/' }: { params: ListingSearchParams; marketCity?: string; action?: string }) {
   const intent = params.type === 'sale' || params.type === 'rent' ? params.type : ''
   return (
     <form action={action} className="sf-search" role="search" aria-label="Search homes">
@@ -37,14 +37,15 @@ export function ListingSearchForm({ params, count, hasMore = false, marketCity =
         </label>
         <button type="submit" className="sf-btn sf-btn--primary sf-search__submit">
           <Search aria-hidden /> Search
-          <span className="sf-search__count" aria-label={`${count}${hasMore ? ' or more' : ''} homes`}>{count}{hasMore ? '+' : ''}</span>
         </button>
+        {params.sort ? <input type="hidden" name="sort" value={params.sort} /> : null}
       </div>
       <div className="sf-search__filters">
         <label><span>Home type</span><select name="propertyType" defaultValue={params.propertyType || 'any'} className="sf-field">{propertyTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label><span>Bedrooms</span><select name="beds" defaultValue={params.beds || ''} className="sf-field"><option value="">Any</option><option value="1">1+</option><option value="2">2+</option><option value="3">3+</option><option value="4">4+</option></select></label>
-        <label><span>Min price</span><input name="minPrice" type="text" inputMode="decimal" pattern="[0-9]{1,10}([.][0-9]{1,2})?" defaultValue={params.minPrice || ''} className="sf-field" placeholder="No min" /></label>
-        <label><span>Max price</span><input name="maxPrice" type="text" inputMode="decimal" pattern="[0-9]{1,10}([.][0-9]{1,2})?" defaultValue={params.maxPrice || ''} className="sf-field" placeholder="No max" /></label>
+        <label><span>Bathrooms</span><select name="baths" defaultValue={params.baths || ''} className="sf-field"><option value="">Any</option><option value="1">1+</option><option value="2">2+</option><option value="3">3+</option></select></label>
+        <label><span>Min price</span><input name="minPrice" type="text" inputMode="numeric" autoComplete="off" maxLength={16} defaultValue={params.minPrice || ''} className="sf-field" placeholder="No min" /></label>
+        <label><span>Max price</span><input name="maxPrice" type="text" inputMode="numeric" autoComplete="off" maxLength={16} defaultValue={params.maxPrice || ''} className="sf-field" placeholder="No max" /></label>
       </div>
     </form>
   )

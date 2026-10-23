@@ -1,8 +1,11 @@
 import Link from 'next/link'
 import type { StorefrontProperty } from '@/features/storefront/lib/data/properties'
 import { formatLocation, formatPrice, listingMarketLabel, listingTone, propertyTypeLabel } from '@/features/storefront/lib/format'
+import { SaveHomeButton } from '@/features/storefront/components/SaveHomeButton'
 
-export function ListingCard({ listing, priority = false }: { listing: StorefrontProperty; priority?: boolean }) {
+export type SaveState = { signedIn: boolean; savedIds: Record<string, string> }
+
+export function ListingCard({ listing, priority = false, save }: { listing: StorefrontProperty; priority?: boolean; save?: SaveState }) {
   const href = `/listings/${listing.slug}`
   const land = listing.propertyType === 'land'
   return (
@@ -11,6 +14,7 @@ export function ListingCard({ listing, priority = false }: { listing: Storefront
         {listing.imagePath ? <img src={listing.imagePath} alt="" decoding="async" fetchPriority={priority ? 'high' : 'low'} loading={priority ? 'eager' : 'lazy'} /> : <span className="sf-card__placeholder" aria-hidden="true">No photo</span>}
         <span className="sf-card__tag">{propertyTypeLabel(listing.propertyType)}</span>
       </div>
+      {save ? <SaveHomeButton className="sf-card__save" propertyId={listing.id} title={listing.title} slug={listing.slug} savedId={save.savedIds[listing.id] || null} signedIn={save.signedIn} /> : null}
       <div className="sf-card__body">
         <p className="sf-card__price">{formatPrice(listing)}</p>
         <h3 className="sf-card__title">

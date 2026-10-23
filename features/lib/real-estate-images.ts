@@ -1,21 +1,21 @@
 export const PROPERTY_IMAGE_PATHS: Record<string, string> = {
-  'riverfront-loft-austin': '/images/real-estate/properties/riverfront-loft-austin.svg',
-  'hill-country-estate': '/images/real-estate/properties/hill-country-estate.svg',
-  'eastside-townhome-rental': '/images/real-estate/properties/eastside-townhome-rental.svg',
-  'mueller-bungalow': '/images/real-estate/properties/mueller-bungalow.svg',
+  'riverfront-loft-austin': '/images/real-estate/photos/riverfront-loft-austin.jpg',
+  'hill-country-estate': '/images/real-estate/photos/hill-country-estate.jpg',
+  'eastside-townhome-rental': '/images/real-estate/photos/eastside-townhome-rental.jpg',
+  'mueller-bungalow': '/images/real-estate/photos/mueller-bungalow.jpg',
 }
 
 export const AGENT_IMAGE_PATHS: Record<string, string> = {
-  'maya.chen@example.realestate.local': '/images/real-estate/agents/maya-chen.svg',
-  'omar.patel@example.realestate.local': '/images/real-estate/agents/omar-patel.svg',
-  'evelyn.brooks@example.realestate.local': '/images/real-estate/agents/evelyn-brooks.svg',
+  'maya.chen@example.realestate.local': '/images/real-estate/photos/agents/maya-chen.jpg',
+  'omar.patel@example.realestate.local': '/images/real-estate/photos/agents/omar-patel.jpg',
+  'evelyn.brooks@example.realestate.local': '/images/real-estate/photos/agents/evelyn-brooks.jpg',
 }
 
 export const NEIGHBORHOOD_IMAGE_PATHS: Record<string, string> = {
-  'rainey street historic district': '/images/real-estate/neighborhoods/rainey-street.svg',
-  'westlake hills': '/images/real-estate/neighborhoods/westlake-hills.svg',
-  'east cesar chavez': '/images/real-estate/neighborhoods/east-cesar-chavez.svg',
-  mueller: '/images/real-estate/neighborhoods/mueller.svg',
+  'rainey street historic district': '/images/real-estate/photos/hero-austin-skyline.jpg',
+  'westlake hills': '/images/real-estate/photos/hill-country-estate.jpg',
+  'east cesar chavez': '/images/real-estate/photos/eastside-townhome-rental.jpg',
+  mueller: '/images/real-estate/photos/neighborhood-homes.jpg',
 }
 
 type PublicImagePack = {
@@ -52,4 +52,21 @@ export function getNeighborhoodImagePath(neighborhood?: string | null, publicIma
   if (publicImagePack?.neighborhoodImagePath) return publicImagePack.neighborhoodImagePath
   if (!neighborhood) return undefined
   return NEIGHBORHOOD_IMAGE_PATHS[neighborhood.trim().toLowerCase()]
+}
+
+const LEGACY_NEIGHBORHOOD_PHOTOS: Record<string, string> = {
+  'rainey-street': 'hero-austin-skyline',
+  'westlake-hills': 'hill-country-estate',
+  'east-cesar-chavez': 'eastside-townhome-rental',
+  mueller: 'neighborhood-homes',
+}
+
+/** Starter data saved before the photo pack pointed at labelled SVG art; serve the matching photo instead. */
+export function upgradeLegacyImagePath(path: string) {
+  const match = /^\/images\/real-estate\/(properties|agents|neighborhoods)\/([a-z0-9-]+)\.svg$/.exec(path)
+  if (!match) return path
+  const [, kind, name] = match
+  if (kind === 'properties') return `/images/real-estate/photos/${name}.jpg`
+  if (kind === 'agents') return `/images/real-estate/photos/agents/${name}.jpg`
+  return LEGACY_NEIGHBORHOOD_PHOTOS[name] ? `/images/real-estate/photos/${LEGACY_NEIGHBORHOOD_PHOTOS[name]}.jpg` : path
 }

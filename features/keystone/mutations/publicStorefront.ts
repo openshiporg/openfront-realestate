@@ -1,5 +1,6 @@
 import type { Context } from '.keystone/types'
 
+import { upgradeLegacyImagePath } from '../../lib/real-estate-images'
 import { ListingAuthorityDeniedError, requireListingAuthority } from '../lib/authorityEvidence'
 import {
   collectEligiblePage,
@@ -26,6 +27,18 @@ export type PublicListingFilters = {
   minPrice?: string | null
   maxPrice?: string | null
   bedrooms?: number | null
+  bathrooms?: number | null
+  sort?: string | null
+}
+
+const PUBLIC_LISTING_SORTS: Record<string, Array<Record<string, 'asc' | 'desc'>>> = {
+  newest: [{ createdAt: 'desc' }, { id: 'asc' }],
+  price_asc: [{ price: 'asc' }, { createdAt: 'desc' }, { id: 'asc' }],
+  price_desc: [{ price: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
+}
+
+function publicListingOrder(sort?: string | null) {
+  return PUBLIC_LISTING_SORTS[clean(sort)] || [{ isFeatured: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }]
 }
 
 function clean(value?: string | null) {
@@ -81,6 +94,10 @@ function buildPublicListingWhere(brokerageSlug: string, filters: PublicListingFi
     if (!Number.isInteger(filters.bedrooms) || filters.bedrooms < 0 || filters.bedrooms > 20) throw new Error('Bedrooms must be an integer from 0 to 20.')
     where.bedrooms = { gte: filters.bedrooms }
   }
+  if (filters.bathrooms != null) {
+    if (!Number.isInteger(filters.bathrooms) || filters.bathrooms < 0 || filters.bathrooms > 20) throw new Error('Bathrooms must be an integer from 0 to 20.')
+    where.bathrooms = { gte: String(filters.bathrooms) }
+  }
   if (minPrice || maxPrice) {
     if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) throw new Error('Minimum price cannot exceed maximum price.')
     where.price = { ...(minPrice ? { gte: minPrice } : {}), ...(maxPrice ? { lte: maxPrice } : {}) }
@@ -91,7 +108,7 @@ function buildPublicListingWhere(brokerageSlug: string, filters: PublicListingFi
 
 function publicImagePath(value?: string | null) {
   const path = clean(value)
-  return path.startsWith('/images/real-estate/') ? path : ''
+  return path.startsWith('/images/real-estate/') ? upgradeLegacyImagePath(path) : ''
 }
 
 function toPublicAgent(agent: any, brokerageId: string) {
@@ -209,7 +226,7 @@ export async function publicRealEstateListings(
     candidateScanLimit: PUBLIC_LISTING_CANDIDATE_SCAN_LIMIT,
     fetchCandidates: (candidateSkip, candidateTake) => context.sudo().query.Property.findMany({
       where,
-      orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
+      orderBy: publicListingOrder(filters?.sort),
       take: candidateTake,
       skip: candidateSkip,
       query: PUBLIC_LISTING_QUERY,
@@ -248,4 +265,64 @@ export async function publicRealEstateListing(
     findPublicOpenHouses(context, property.id, property.brokerage.id),
   ])
   return toPublicListing(property, media, openHouses)
+}
+
+const SAVED_HOME_STATUSES = ['saved', 'interested'] as const
+
+function savedHomesWhere(actor: string, brokerageSlug: string) {
+  return {
+    user: { id: { equals: actor } },
+    status: { in: [...SAVED_HOME_STATUSES] },
+    property: { brokerage: { slug: { equals: validBrokerageSlug(brokerageSlug) }, status: { equals: 'active' as const } } },
+  }
+}
+
+/** The signed-in shopper's saved property ids for this brokerage, for save toggles. */
+export async function customerSavedProperties(
+  _root: unknown,
+  { brokerageSlug }: { brokerageSlug: string },
+  context: Context
+) {
+  const actor = context.session?.itemId
+  if (!actor) return []
+  const rows = await context.sudo().query.SavedProperty.findMany({
+    where: savedHomesWhere(actor, brokerageSlug),
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: 200,
+    query: 'id property { id }',
+  })
+  return rows.filter(row => row.property?.id).map(row => ({ id: row.id, propertyId: row.property.id }))
+}
+
+/** Saved homes that are still publicly listed, projected exactly like the public listing query. */
+export async function customerSavedHomes(
+  _root: unknown,
+  { brokerageSlug }: { brokerageSlug: string },
+  context: Context
+) {
+  const actor = context.session?.itemId
+  if (!actor) throw new Error('Sign in to view saved homes.')
+  const listingWhere = buildPublicListingWhere(brokerageSlug)
+  const rows = await context.sudo().query.SavedProperty.findMany({
+    where: savedHomesWhere(actor, brokerageSlug),
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: 100,
+    query: 'id property { id }',
+  })
+  const listings = []
+  for (const row of rows) {
+    if (!row.property?.id) continue
+    const property = (await context.sudo().query.Property.findMany({
+      where: { ...listingWhere, id: { equals: row.property.id } },
+      take: 1,
+      query: PUBLIC_LISTING_QUERY,
+    }))[0]
+    if (!property || !await hasPublicListingAuthority(context, property)) continue
+    const [media, openHouses] = await Promise.all([
+      findPublicMedia(context, property.id),
+      findPublicOpenHouses(context, property.id, property.brokerage.id),
+    ])
+    listings.push(toPublicListing(property, media, openHouses))
+  }
+  return listings
 }

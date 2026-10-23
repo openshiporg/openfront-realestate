@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getAuthenticatedUser } from '@/features/dashboard/actions/auth'
 import { Button } from '@/components/ui/button'
+import { upgradeLegacyImagePath } from '@/features/lib/real-estate-images'
 import { humanize } from '../../leads/lib/labels'
 import { EmptyState, ErrorBanner, PlatformPage, Stats, TitleLine, Track } from '../../components/PlatformUI'
 import { getPlatformPeople } from '../actions/people'
@@ -57,7 +58,7 @@ export async function PeoplePage() {
                   <li key={agent.id} className="grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
                     <div className="flex min-w-0 items-start gap-3">
                       {agent.avatarUrl
-                        ? <img src={agent.avatarUrl} alt="" className="size-10 shrink-0 rounded-full object-cover" />
+                        ? <img src={upgradeLegacyImagePath(agent.avatarUrl)} alt="" className="size-10 shrink-0 rounded-full object-cover" />
                         : <div className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-sm font-semibold text-foreground">{initials(agent.name)}</div>}
                       <div className="min-w-0">
                         <TitleLine as="h3" status={membershipLabels[membership?.membershipRole || ''] || humanize(membership?.membershipRole, 'Member')} headingClassName="text-sm">{agent.name}</TitleLine>

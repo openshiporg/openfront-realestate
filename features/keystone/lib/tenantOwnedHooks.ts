@@ -12,6 +12,8 @@ type HookConfig = {
   coherentWith?: { field: string; listKey: string; matches: Record<string, string> }
   protectDelete?: boolean
   deriveOnly?: boolean
+  /** Storefront customers (no memberships) count as belonging to the brokerage they registered with. */
+  allowCustomers?: boolean
 }
 
 type RelationshipInput = { connect?: { id?: string } | null; disconnect?: boolean }
@@ -28,14 +30,16 @@ function relationshipIds(data: any, field: string) {
   return connect?.id ? [connect.id] : []
 }
 
-async function relatedBrokerageIds(context: any, listKey: string, id: string) {
+async function relatedBrokerageIds(context: any, listKey: string, id: string, allowCustomers = false) {
   if (listKey === 'User') {
     const user = await context.sudo().query.User.findOne({
       where: { id },
-      query: 'id brokerageMemberships(where: { status: { equals: active } }) { brokerage { id status } }',
+      query: 'id activeBrokerage { id status } brokerageMemberships { status brokerage { id status } }',
     })
-    return (user?.brokerageMemberships || [])
-      .filter((membership: any) => membership.brokerage?.status === 'active')
+    const memberships = user?.brokerageMemberships || []
+    if (allowCustomers && !memberships.length && user?.activeBrokerage?.status === 'active') return [user.activeBrokerage.id]
+    return memberships
+      .filter((membership: any) => membership.status === 'active' && membership.brokerage?.status === 'active')
       .map((membership: any) => membership.brokerage.id)
   }
   const item = await context.sudo().query[listKey].findOne({
@@ -55,7 +59,7 @@ async function deriveBrokerage(context: any, inputData: any, config: HookConfig)
   for (const field of config.users || []) {
     const id = relationshipId(inputData, field)
     if (!id) continue
-    const brokerageIds = await relatedBrokerageIds(context, 'User', id)
+    const brokerageIds = await relatedBrokerageIds(context, 'User', id, config.allowCustomers)
     if (brokerageIds.length === 1) return brokerageIds[0]
   }
   return null
@@ -116,7 +120,7 @@ export function createTenantOwnedHooks(config: HookConfig) {
       for (const field of config.users || []) {
         const id = relationshipId(relationshipData, field)
         if (!id) continue
-        const brokerageIds = await relatedBrokerageIds(context, 'User', id)
+        const brokerageIds = await relatedBrokerageIds(context, 'User', id, config.allowCustomers)
         if (!brokerageIds.includes(brokerageId)) {
           addValidationError(`${config.listKey} ${field} must have an active membership in the brokerage.`)
         }

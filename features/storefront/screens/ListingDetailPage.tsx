@@ -2,9 +2,14 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, ArrowUpRight, Mail, Phone } from 'lucide-react'
+import { LocalDateTime } from '@/features/platform/showings/components/LocalDateTime'
+import { BrokerageMark } from '@/features/storefront/components/BrokerageMark'
+import { SaveHomeButton } from '@/features/storefront/components/SaveHomeButton'
+import { StickyShowingBar } from '@/features/storefront/components/StickyShowingBar'
 import { StorefrontFooter } from '@/features/storefront/components/StorefrontFooter'
 import { StorefrontNav } from '@/features/storefront/components/StorefrontNav'
 import { getCustomer } from '@/features/storefront/lib/data/account'
+import { getSavedPropertyIds } from '@/features/storefront/lib/data/saved'
 import { getStorefrontListingBySlug } from '@/features/storefront/lib/data/properties'
 import { getBrokerageSettings } from '@/features/storefront/lib/data/settings'
 import { emailHref, formatLocation, formatPrice, initials, listingMarketLabel, listingStatusLabel, listingTone, phoneHref, propertyTypeLabel } from '@/features/storefront/lib/format'
@@ -19,14 +24,16 @@ export async function generateListingMetadata({ params }: ListingDetailProps): P
   const listing = result.listing
   if (!listing) return { title: 'Home not found', robots: { index: false, follow: false } }
   const description = listing.shortDescription || `${formatPrice(listing)} · ${formatLocation(listing)}`
+  // Relative paths resolve against the storefront layout's metadataBase. Link previews need a raster photo.
+  const photo = [listing.imagePath, ...listing.media.filter(item => item.mediaType === 'photo').map(item => item.imagePath)]
+    .find(path => path && /\.(?:jpe?g|png|webp)$/i.test(path))
+  const images = photo ? [{ url: photo, alt: listing.title }] : undefined
   return {
     title: listing.title,
     description,
-    openGraph: {
-      title: listing.title,
-      description,
-      ...(listing.imagePath ? { images: [{ url: listing.imagePath }] } : {}),
-    },
+    alternates: { canonical: `/listings/${listing.slug}` },
+    openGraph: { type: 'website', title: listing.title, description, url: `/listings/${listing.slug}`, ...(images ? { images } : {}) },
+    twitter: { card: images ? 'summary_large_image' : 'summary', title: listing.title, description, ...(images ? { images } : {}) },
   }
 }
 
@@ -38,14 +45,17 @@ function positiveMoney(value?: string | null) {
   }
 }
 
-function formatDate(value?: string | null) {
+/** Future dates only; a date that has passed reads "Now" for a live listing and is dropped otherwise. */
+function availability(value: string | null | undefined, status: string) {
   const time = value ? Date.parse(value) : Number.NaN
-  return Number.isFinite(time) ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(time)) : ''
+  if (!Number.isFinite(time)) return ''
+  if (time <= Date.now()) return status === 'active' ? 'Now' : ''
+  return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(time))
 }
 
-const openHouseDay = new Intl.DateTimeFormat('en-US', { day: 'numeric', timeZone: 'UTC' })
-const openHouseMonth = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' })
-const openHouseTime = new Intl.DateTimeFormat('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short' })
+const openHouseDay: Intl.DateTimeFormatOptions = { day: 'numeric' }
+const openHouseMonth: Intl.DateTimeFormatOptions = { month: 'short' }
+const openHouseTime: Intl.DateTimeFormatOptions = { weekday: 'long', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }
 
 export default async function ListingDetailPage({ params }: ListingDetailProps) {
   const { slug } = await params
@@ -53,6 +63,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
   if (settingsState.status !== 'ready') return null
   const settings = settingsState.settings
   const [result, customer] = await Promise.all([getStorefrontListingBySlug(slug), getCustomer()])
+  const savedIds = customer ? await getSavedPropertyIds() : {}
   if (!result.listing && !result.error) notFound()
   const listing = result.listing
 
@@ -74,7 +85,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
 
   const land = listing.propertyType === 'land'
   const hoaFee = positiveMoney(listing.hoaFee)
-  const availableAt = formatDate(listing.availableAt)
+  const availableAt = availability(listing.availableAt, listing.status)
   const keyFacts: Array<[string, string]> = [
     ...(!land && listing.bedrooms ? [['Beds', String(listing.bedrooms)] as [string, string]] : []),
     ...(!land && Number(listing.bathrooms) > 0 ? [['Baths', String(Number(listing.bathrooms))] as [string, string]] : []),
@@ -135,7 +146,10 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
         <div className="sf-container sf-detail">
           <div className="sf-detail__main">
             <header className="sf-detail__head">
-              <p className="sf-eyebrow">{listingMarketLabel(listing)} · {propertyTypeLabel(listing.propertyType)}</p>
+              <div className="sf-detail__top">
+                <p className="sf-eyebrow">{listingMarketLabel(listing)} · {propertyTypeLabel(listing.propertyType)}</p>
+                <SaveHomeButton propertyId={listing.id} title={listing.title} slug={listing.slug} savedId={savedIds[listing.id] || null} signedIn={Boolean(customer)} />
+              </div>
               <h1 className="sf-detail__title"><span className="sf-dot" data-tone={listingTone(listing.status)} aria-hidden />{listing.title}</h1>
               <p className="sf-detail__address">{formatLocation(listing)}</p>
               <p className="sf-detail__price">{formatPrice(listing)}</p>
@@ -160,13 +174,12 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
                 <h2>Open houses</h2>
                 <ul className="sf-openhouses">
                   {listing.openHouses.map(openHouse => {
-                    const start = new Date(openHouse.startsAt)
                     return (
                       <li key={openHouse.id} className="sf-openhouse">
-                        <span className="sf-openhouse__date" aria-hidden><span>{openHouseMonth.format(start)}</span><b>{openHouseDay.format(start)}</b></span>
+                        <span className="sf-openhouse__date" aria-hidden><LocalDateTime value={openHouse.startsAt} options={openHouseMonth} /><b><LocalDateTime value={openHouse.startsAt} options={openHouseDay} /></b></span>
                         <div>
                           <strong>{openHouse.title}</strong>
-                          <p>{openHouseTime.format(start)}{openHouse.hostName ? ` · ${openHouse.hostName}` : ''}</p>
+                          <p><LocalDateTime value={openHouse.startsAt} options={openHouseTime} />{openHouse.hostName ? ` · ${openHouse.hostName}` : ''}</p>
                         </div>
                       </li>
                     )
@@ -185,10 +198,12 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
 
           <aside className="sf-detail__aside">
             <div className="sf-advisor-card">
-              {agent?.imagePath ? <img src={agent.imagePath} alt="" /> : <span className="sf-advisor__initials" aria-hidden>{initials(agent?.name || settings.businessName)}</span>}
+              {agent
+                ? agent.imagePath ? <img src={agent.imagePath} alt="" /> : <span className="sf-advisor__initials" aria-hidden>{initials(agent.name)}</span>
+                : <span className="sf-advisor-card__mark" aria-hidden><BrokerageMark className="" logoIcon={settings.logoIcon} logoColor={settings.logoColor} /></span>}
               <div>
-                <strong>{agent?.name || settings.businessName}</strong>
-                <span>{agent?.brokerageTitle || 'Listing advisor'}</span>
+                <strong>{agent ? agent.name : 'Contact the office'}</strong>
+                <span>{agent ? agent.brokerageTitle || 'Listing advisor' : settings.businessName}</span>
               </div>
               <span className="sf-advisor-card__links">
                 {phoneLink ? <a href={phoneLink} className="sf-icon-btn" aria-label={`Call ${advisorPhone}`}><Phone aria-hidden /></a> : null}
@@ -199,13 +214,13 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
           </aside>
         </div>
       </main>
-      <div className="sf-stickybar">
+      <StickyShowingBar>
         <div>
           <strong>{formatPrice(listing)}</strong>
           <span>{listingMarketLabel(listing)}</span>
         </div>
         <a href="#showing" className="sf-btn sf-btn--primary">Request a showing</a>
-      </div>
+      </StickyShowingBar>
       <StorefrontFooter settings={settings} />
     </>
   )

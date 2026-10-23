@@ -1,6 +1,7 @@
 import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
 import { getStorefrontBrokerageSlug } from '@/features/storefront/lib/brokerage'
 import {
+  LISTING_SORTS,
   listingPageHref,
   parseListingSkip,
   splitListingPage,
@@ -15,6 +16,8 @@ export type ListingSearchParams = {
   minPrice?: string
   maxPrice?: string
   beds?: string
+  baths?: string
+  sort?: string
   skip?: string
 }
 
@@ -99,16 +102,49 @@ function normalize(listing: StorefrontProperty): StorefrontProperty {
   }
 }
 
-function buildFilters(params: ListingSearchParams) {
-  const beds = Number(params.beds)
+const PROPERTY_TYPES = ['house', 'condo', 'townhome', 'multi_family', 'land', 'commercial']
+
+function cleanPrice(value?: string) {
+  const amount = String(value || '').replace(/[$,\s]/g, '')
+  return /^\d{1,10}(?:\.\d{1,2})?$/.test(amount) && Number(amount) > 0 ? amount : undefined
+}
+
+function cleanCount(value?: string) {
+  const count = Number(value)
+  return Number.isInteger(count) && count > 0 && count <= 20 ? String(count) : undefined
+}
+
+/** Drops filter values the listing query would reject, so a bad URL widens the search instead of failing it. */
+export function normalizeListingParams(params: ListingSearchParams): ListingSearchParams {
+  let minPrice = cleanPrice(params.minPrice), maxPrice = cleanPrice(params.maxPrice)
+  if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) [minPrice, maxPrice] = [maxPrice, minPrice]
+  const q = clean(params.q)?.slice(0, 120), city = clean(params.city)?.slice(0, 80)
   return {
-    ...(clean(params.q) ? { q: clean(params.q) } : {}),
-    ...(clean(params.city) ? { city: clean(params.city) } : {}),
-    ...(params.type === 'sale' || params.type === 'rent' ? { listingType: params.type } : {}),
-    ...(params.propertyType && params.propertyType !== 'any' ? { propertyType: params.propertyType } : {}),
-    ...(clean(params.minPrice) ? { minPrice: clean(params.minPrice) } : {}),
-    ...(clean(params.maxPrice) ? { maxPrice: clean(params.maxPrice) } : {}),
-    ...(Number.isFinite(beds) && beds > 0 ? { bedrooms: beds } : {}),
+    ...(q ? { q } : {}),
+    ...(city ? { city } : {}),
+    ...(params.type === 'sale' || params.type === 'rent' ? { type: params.type } : {}),
+    ...(params.propertyType && PROPERTY_TYPES.includes(params.propertyType) ? { propertyType: params.propertyType } : {}),
+    ...(minPrice ? { minPrice } : {}),
+    ...(maxPrice ? { maxPrice } : {}),
+    ...(cleanCount(params.beds) ? { beds: cleanCount(params.beds) } : {}),
+    ...(cleanCount(params.baths) ? { baths: cleanCount(params.baths) } : {}),
+    ...(LISTING_SORTS.some(([value]) => value && value === params.sort) ? { sort: params.sort } : {}),
+    ...(params.skip ? { skip: params.skip } : {}),
+  }
+}
+
+function buildFilters(raw: ListingSearchParams) {
+  const params = normalizeListingParams(raw)
+  return {
+    ...(params.q ? { q: params.q } : {}),
+    ...(params.city ? { city: params.city } : {}),
+    ...(params.type ? { listingType: params.type } : {}),
+    ...(params.propertyType ? { propertyType: params.propertyType } : {}),
+    ...(params.minPrice ? { minPrice: params.minPrice } : {}),
+    ...(params.maxPrice ? { maxPrice: params.maxPrice } : {}),
+    ...(params.beds ? { bedrooms: Number(params.beds) } : {}),
+    ...(params.baths ? { bathrooms: Number(params.baths) } : {}),
+    ...(params.sort ? { sort: params.sort } : {}),
   }
 }
 
@@ -145,10 +181,10 @@ export async function getStorefrontListings(params: ListingSearchParams = {}) {
   return { listings, count: listings.length, hasMore: page.hasMore, skip, overflow: false, error: null }
 }
 
-export function hasListingFilters(params: ListingSearchParams) {
-  return Boolean(clean(params.q) || clean(params.city) || params.type === 'sale' || params.type === 'rent'
-    || (params.propertyType && params.propertyType !== 'any') || clean(params.minPrice) || clean(params.maxPrice)
-    || Number(params.beds) > 0 || parseListingSkip(params.skip) > 0)
+export function hasListingFilters(raw: ListingSearchParams) {
+  const params = normalizeListingParams(raw)
+  return Boolean(params.q || params.city || params.type || params.propertyType || params.minPrice || params.maxPrice
+    || params.beds || params.baths || parseListingSkip(params.skip) > 0)
 }
 
 export function getStorefrontListingPageHref(params: ListingSearchParams, skip: number) {

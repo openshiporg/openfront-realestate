@@ -158,7 +158,7 @@
             "licenseNumber": "TX-0423118",
             "brokerageTitle": "Managing Broker",
             "bio": "Luxury listing specialist and speed-to-lead owner for web inquiries.",
-            "avatarUrl": "/images/real-estate/agents/maya-chen.svg",
+            "avatarUrl": "/images/real-estate/photos/agents/maya-chen.jpg",
             "activeBrokerage": {
               "connect": {
                 "$ref": "brokerages:primary"
@@ -184,7 +184,7 @@
             "licenseNumber": "TX-0687452",
             "brokerageTitle": "Buyer & Rental Specialist",
             "bio": "First-time buyer and rental conversion specialist for Austin neighborhoods.",
-            "avatarUrl": "/images/real-estate/agents/omar-patel.svg",
+            "avatarUrl": "/images/real-estate/photos/agents/omar-patel.jpg",
             "activeBrokerage": {
               "connect": {
                 "$ref": "brokerages:primary"
@@ -210,7 +210,7 @@
             "licenseNumber": "TX-0719306",
             "brokerageTitle": "Listing Advisor",
             "bio": "Seller intake, pricing strategy, and listing launch operations.",
-            "avatarUrl": "/images/real-estate/agents/evelyn-brooks.svg",
+            "avatarUrl": "/images/real-estate/photos/agents/evelyn-brooks.jpg",
             "activeBrokerage": {
               "connect": {
                 "$ref": "brokerages:primary"
@@ -341,7 +341,7 @@
             "availableAt": "2026-07-15T15:00:00.000Z",
             "isFeatured": true,
             "virtualTourUrl": "",
-            "primaryImageUrl": "/images/real-estate/properties/riverfront-loft-austin.svg",
+            "primaryImageUrl": "/images/real-estate/photos/riverfront-loft-austin.jpg",
             "assignedAgent": {
               "connect": {
                 "$ref": "agents:maya-chen"
@@ -380,7 +380,7 @@
             "availableAt": "2026-08-01T15:00:00.000Z",
             "isFeatured": true,
             "virtualTourUrl": "",
-            "primaryImageUrl": "/images/real-estate/properties/hill-country-estate.svg",
+            "primaryImageUrl": "/images/real-estate/photos/hill-country-estate.jpg",
             "assignedAgent": {
               "connect": {
                 "$ref": "agents:maya-chen"
@@ -418,7 +418,7 @@
             "availableAt": "2026-08-15T15:00:00.000Z",
             "isFeatured": false,
             "virtualTourUrl": "",
-            "primaryImageUrl": "/images/real-estate/properties/eastside-townhome-rental.svg",
+            "primaryImageUrl": "/images/real-estate/photos/eastside-townhome-rental.jpg",
             "assignedAgent": {
               "connect": {
                 "$ref": "agents:omar-patel"
@@ -455,7 +455,7 @@
             "yearBuilt": 1948,
             "availableAt": "2026-07-30T15:00:00.000Z",
             "isFeatured": false,
-            "primaryImageUrl": "/images/real-estate/properties/mueller-bungalow.svg",
+            "primaryImageUrl": "/images/real-estate/photos/mueller-bungalow.jpg",
             "assignedAgent": {
               "connect": {
                 "$ref": "agents:evelyn-brooks"
@@ -998,55 +998,55 @@
     "properties": [
       {
         "key": "riverfront-loft-austin",
-        "imagePath": "/images/real-estate/properties/riverfront-loft-austin.svg"
+        "imagePath": "/images/real-estate/photos/riverfront-loft-austin.jpg"
       },
       {
         "key": "hill-country-estate",
-        "imagePath": "/images/real-estate/properties/hill-country-estate.svg"
+        "imagePath": "/images/real-estate/photos/hill-country-estate.jpg"
       },
       {
         "key": "eastside-townhome-rental",
-        "imagePath": "/images/real-estate/properties/eastside-townhome-rental.svg"
+        "imagePath": "/images/real-estate/photos/eastside-townhome-rental.jpg"
       },
       {
         "key": "mueller-bungalow",
-        "imagePath": "/images/real-estate/properties/mueller-bungalow.svg"
+        "imagePath": "/images/real-estate/photos/mueller-bungalow.jpg"
       }
     ],
     "agents": [
       {
         "key": "maya-chen",
-        "imagePath": "/images/real-estate/agents/maya-chen.svg"
+        "imagePath": "/images/real-estate/photos/agents/maya-chen.jpg"
       },
       {
         "key": "omar-patel",
-        "imagePath": "/images/real-estate/agents/omar-patel.svg"
+        "imagePath": "/images/real-estate/photos/agents/omar-patel.jpg"
       },
       {
         "key": "evelyn-brooks",
-        "imagePath": "/images/real-estate/agents/evelyn-brooks.svg"
+        "imagePath": "/images/real-estate/photos/agents/evelyn-brooks.jpg"
       }
     ],
     "neighborhoods": [
       {
         "key": "rainey-street",
         "name": "Rainey Street Historic District",
-        "imagePath": "/images/real-estate/neighborhoods/rainey-street.svg"
+        "imagePath": "/images/real-estate/photos/hero-austin-skyline.jpg"
       },
       {
         "key": "westlake-hills",
         "name": "Westlake Hills",
-        "imagePath": "/images/real-estate/neighborhoods/westlake-hills.svg"
+        "imagePath": "/images/real-estate/photos/hill-country-estate.jpg"
       },
       {
         "key": "east-cesar-chavez",
         "name": "East Cesar Chavez",
-        "imagePath": "/images/real-estate/neighborhoods/east-cesar-chavez.svg"
+        "imagePath": "/images/real-estate/photos/eastside-townhome-rental.jpg"
       },
       {
         "key": "mueller",
         "name": "Mueller",
-        "imagePath": "/images/real-estate/neighborhoods/mueller.svg"
+        "imagePath": "/images/real-estate/photos/neighborhood-homes.jpg"
       }
     ]
   }

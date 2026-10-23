@@ -1,12 +1,17 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { LocalDateTime } from '@/features/platform/showings/components/LocalDateTime'
 import { getCustomer, getCustomerShowings } from '../lib/data/account'
 import { showingStatusLabel, showingTone, showingTypeLabel } from '../lib/format'
+import { storefrontTitle } from '../lib/metadata'
 
-export const metadata: Metadata = { title: 'My showings' }
+export async function generateMetadata(): Promise<Metadata> {
+  // The sign-in slot names signed-out visits.
+  return (await getCustomer()) ? { title: await storefrontTitle('My showings') } : {}
+}
 
-const requestedTime = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })
+const requestedTime: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }
 
 export default async function AccountPage() {
   const customer = await getCustomer()
@@ -34,8 +39,8 @@ export default async function AccountPage() {
               <h2><span className="sf-dot" data-tone={showingTone(showing.status)} aria-hidden />{showing.listingTitle}</h2>
               <p className="sf-trip__meta">
                 <span><b>{showingStatusLabel(showing.status)}</b></span>
-                <span className="sf-num">{requestedTime.format(new Date(showing.requestedStart))} UTC</span>
-                <span>{showingTypeLabel(showing.showingType)}</span>
+                <LocalDateTime className="sf-num" value={showing.requestedStart} options={requestedTime} />
+                <span>{showingTypeLabel(showing.showingType)}{showing.showingType === 'virtual' && ['requested', 'scheduled'].includes(showing.status) ? ' · Link sent by your advisor' : ''}</span>
               </p>
             </div>
             {showing.listingSlug ? <Link className="sf-link" href={`/listings/${encodeURIComponent(showing.listingSlug)}`}>View home</Link> : null}

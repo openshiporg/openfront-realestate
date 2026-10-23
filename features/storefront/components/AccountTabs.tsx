@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-const tabs: Array<[string, string]> = [['/account', 'My showings'], ['/account/profile', 'Profile']]
+const tabs: Array<[string, string]> = [['/account', 'My showings'], ['/account/saved', 'Saved'], ['/account/profile', 'Profile']]
 
 export function AccountTabs() {
   const pathname = usePathname()

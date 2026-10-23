@@ -1,7 +1,7 @@
 import { mergeSchemas } from '@graphql-tools/schema'
 import type { GraphQLSchema } from 'graphql'
 import { publicBrokerageIdentity } from './publicBrokerageIdentity'
-import { publicRealEstateListing, publicRealEstateListings } from './publicStorefront'
+import { customerSavedHomes, customerSavedProperties, publicRealEstateListing, publicRealEstateListings } from './publicStorefront'
 import redirectToInit from './redirectToInit'
 import { requestPropertyShowing } from './requestPropertyShowing'
 import { platformShowingDetail, scheduledShowingReceipt } from './showingJourney'
@@ -143,6 +143,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         minPrice: String
         maxPrice: String
         bedrooms: Int
+        bathrooms: Int
+        sort: String
       }
 
       type PublicRealEstateAgent {
@@ -240,6 +242,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       type CustomerRegistrationResult { ok: Boolean! message: String! }
       input RealEstateCustomerInput { name: String! email: String! password: String! brokerageSlug: String! }
       type CustomerShowing { id: ID! status: String! showingType: String! scheduledStart: String! scheduledEnd: String listingTitle: String! listingSlug: String! requestedStart: String! }
+      type CustomerSavedProperty { id: ID! propertyId: ID! }
 
       type PublicBrokerageIdentity {
         businessName: String!
@@ -485,6 +488,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         redirectToInit: Boolean
         publicBrokerageIdentity(brokerageSlug: String): PublicBrokerageIdentityState!
         customerShowingHistory(brokerageSlug: String!, id: ID): [CustomerShowing!]!
+        customerSavedProperties(brokerageSlug: String!): [CustomerSavedProperty!]!
+        customerSavedHomes(brokerageSlug: String!): [PublicRealEstateListing!]!
         publicRealEstateListings(brokerageSlug: String!, filters: PublicRealEstateListingFilters, take: Int = 24, skip: Int = 0): [PublicRealEstateListing!]!
         publicRealEstateListing(brokerageSlug: String!, slug: String!): PublicRealEstateListing
         domainOutboxEventStatus(eventKey: String!): DomainOutboxEventStatus
@@ -563,6 +568,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         redirectToInit,
         publicBrokerageIdentity,
         customerShowingHistory,
+        customerSavedProperties,
+        customerSavedHomes,
         publicRealEstateListings,
         publicRealEstateListing,
         domainOutboxEventStatus,

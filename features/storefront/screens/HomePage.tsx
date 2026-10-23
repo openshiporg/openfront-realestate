@@ -1,10 +1,14 @@
 import Link from 'next/link'
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import { ListingSearchForm } from '@/features/storefront/components/ListingSearchForm'
+import { SaveSearchButton } from '@/features/storefront/components/SaveSearchButton'
+import { SortSelect } from '@/features/storefront/components/SortSelect'
 import { StorefrontFooter } from '@/features/storefront/components/StorefrontFooter'
 import { StorefrontNav } from '@/features/storefront/components/StorefrontNav'
 import { groupStorefrontNeighborhoods } from '@/features/storefront/lib/data/neighborhoods'
-import { getStorefrontListingPageHref, getStorefrontListings, hasListingFilters, type ListingSearchParams } from '@/features/storefront/lib/data/properties'
+import { getCustomer } from '@/features/storefront/lib/data/account'
+import { getStorefrontListingPageHref, getStorefrontListings, hasListingFilters, normalizeListingParams, type ListingSearchParams } from '@/features/storefront/lib/data/properties'
+import { getSavedPropertyIds } from '@/features/storefront/lib/data/saved'
 import { STOREFRONT_LISTING_PAGE_SIZE } from '@/features/storefront/lib/data/listingPagination'
 import { getBrokerageSettings } from '@/features/storefront/lib/data/settings'
 import { contactHref, emailHref, formatLocation, formatPrice, initials, listingMarketLabel, phoneHref } from '@/features/storefront/lib/format'
@@ -18,22 +22,25 @@ function activeFilters(params: ListingSearchParams) {
   if (params.type === 'rent') chips.push('For rent')
   if (params.q?.trim()) chips.push(`“${params.q.trim()}”`)
   if (params.propertyType && params.propertyType !== 'any') chips.push(typeLabels[params.propertyType] || params.propertyType)
-  if (Number(params.beds) > 0) chips.push(`${params.beds}+ beds`)
-  if (params.minPrice?.trim()) chips.push(`From $${params.minPrice.trim()}`)
-  if (params.maxPrice?.trim()) chips.push(`Up to $${params.maxPrice.trim()}`)
+  if (params.beds) chips.push(`${params.beds}+ beds`)
+  if (params.baths) chips.push(`${params.baths}+ baths`)
+  if (params.minPrice) chips.push(`From $${Number(params.minPrice).toLocaleString('en-US')}`)
+  if (params.maxPrice) chips.push(`Up to $${Number(params.maxPrice).toLocaleString('en-US')}`)
   return chips
 }
 
 export default async function HomePage({ searchParams }: { searchParams?: Promise<ListingSearchParams> }) {
-  const params = (await searchParams) || {}
+  const params = normalizeListingParams((await searchParams) || {})
   const settingsState = await getBrokerageSettings()
   if (settingsState.status !== 'ready') return null
   const settings = settingsState.settings
   const filtered = hasListingFilters(params)
-  const [listingsResult, allListingsResult] = await Promise.all([
+  const [listingsResult, allListingsResult, customer] = await Promise.all([
     getStorefrontListings(params),
     filtered ? getStorefrontListings() : null,
+    getCustomer(),
   ])
+  const save = { signedIn: Boolean(customer), savedIds: customer ? await getSavedPropertyIds() : {} }
   const { listings, count, error, hasMore, skip, overflow } = listingsResult
   const inventory = (allListingsResult || listingsResult).listings
   const featured = inventory.find(listing => listing.isFeatured && listing.imagePath) || inventory.find(listing => listing.imagePath) || inventory[0]
@@ -59,7 +66,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
             <div className="sf-hero__copy">
               {marketLocation || settings.marketLabel ? <p className="sf-eyebrow">{[settings.marketLabel, marketLocation].filter(Boolean).join(' · ')}</p> : null}
               <h1 className="sf-hero__title">{settings.tagline || settings.businessName}</h1>
-              <ListingSearchForm params={params} count={count} hasMore={hasMore} marketCity={settings.city} action="/#homes" />
+              <ListingSearchForm params={params} marketCity={settings.city} action="/#homes" />
             </div>
             {featured?.imagePath ? (
               <Link href={`/listings/${featured.slug}`} className="sf-hero__feature" aria-label={`${featured.title}, ${formatPrice(featured)}`}>
@@ -86,10 +93,14 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
             {resultSummary ? <p className="sf-num">{resultSummary}</p> : null}
           </div>
 
-          {chips.length ? (
+          {chips.length || listings.length > 1 ? (
             <div className="sf-results-head">
-              <div className="sf-chips" aria-label="Active filters">{chips.map(chip => <span key={chip} className="sf-chip">{chip}</span>)}</div>
-              <Link href="/#homes" className="sf-link">Clear search</Link>
+              {chips.length ? <div className="sf-chips" aria-label="Active filters">{chips.map(chip => <span key={chip} className="sf-chip">{chip}</span>)}</div> : <span />}
+              <div className="sf-results-head__actions">
+                {chips.length ? <Link href="/#homes" className="sf-link">Clear search</Link> : null}
+                {chips.length && customer ? <SaveSearchButton params={params} /> : null}
+                {listings.length > 1 || params.sort ? <SortSelect params={params} /> : null}
+              </div>
             </div>
           ) : null}
 
@@ -100,7 +111,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
             </div>
           ) : listings.length ? (
             <div className="sf-listing-grid">
-              {listings.map((listing, index) => <ListingCard key={listing.id} listing={listing} priority={index < 3} />)}
+              {listings.map((listing, index) => <ListingCard key={listing.id} listing={listing} priority={index < 3} save={save} />)}
             </div>
           ) : (
             <div className="sf-state">

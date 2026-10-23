@@ -1,1 +1,1 @@
-export { default, metadata } from '@/features/storefront/screens/LoginPage'
+export { default, generateMetadata } from '@/features/storefront/screens/LoginPage'

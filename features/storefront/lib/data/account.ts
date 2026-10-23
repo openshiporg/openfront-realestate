@@ -22,7 +22,7 @@ export async function getCustomerShowings() {
   return result.success ? { items: result.data.customerShowingHistory, error: null } : { items: [] as CustomerShowing[], error: 'Your showings could not be loaded.' }
 }
 
-export type AccountState = { message: string }
+export type AccountState = { message: string; email?: string }
 export type ProfileState = { ok: boolean; message: string }
 
 function destination(value: FormDataEntryValue | null) {
@@ -37,9 +37,9 @@ async function authenticate(email: string, password: string) {
 
 export async function customerSignIn(_previous: AccountState, form: FormData): Promise<AccountState> {
   const email = String(form.get('email') || '').trim().toLowerCase(), password = String(form.get('password') || '')
-  if (!email || email.length > 320 || !password || password.length > 200) return { message: 'Invalid email or password.' }
+  if (!email || email.length > 320 || !password || password.length > 200) return { message: 'Invalid email or password.', email: email.slice(0, 320) }
   const sessionToken = await authenticate(email, password)
-  if (!sessionToken) return { message: 'Invalid email or password.' }
+  if (!sessionToken) return { message: 'Invalid email or password.', email }
   ;(await cookies()).set('keystonejs-session', sessionToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 })
   revalidatePath('/', 'layout')
   redirect(destination(form.get('from')))
@@ -50,7 +50,7 @@ export async function customerSignUp(previous: AccountState, form: FormData): Pr
   if (!brokerageSlug) return { message: 'Account could not be created.' }
   const data = { name: String(form.get('name') || '').trim(), email: String(form.get('email') || '').trim().toLowerCase(), password: String(form.get('password') || ''), brokerageSlug }
   const result = await keystoneClient<{ registerRealEstateCustomer: { ok: boolean; message: string } }>(`mutation CustomerSignUp($data: RealEstateCustomerInput!) { registerRealEstateCustomer(data: $data) { ok message } }`, { data }, { cache: 'no-store' })
-  if (!result.success || !result.data.registerRealEstateCustomer?.ok) return { message: result.success ? result.data.registerRealEstateCustomer.message : 'Account could not be created.' }
+  if (!result.success || !result.data.registerRealEstateCustomer?.ok) return { message: result.success ? result.data.registerRealEstateCustomer.message : 'Account could not be created.', email: data.email.slice(0, 320) }
   return customerSignIn(previous, form)
 }
 
@@ -82,4 +82,23 @@ export async function updateCustomerPassword(_previous: ProfileState, form: Form
   const result = await keystoneClient<{ updateUser: { id: string } | null }>(`mutation UpdateCustomerPassword($id: ID!, $data: UserUpdateInput!) { updateUser(where: { id: $id }, data: $data) { id } }`, { id: customer.id, data: { password: newPassword } }, { cache: 'no-store' })
   if (!result.success || !result.data.updateUser) return { ok: false, message: 'Your password could not be changed.' }
   return { ok: true, message: 'Password changed.' }
+}
+
+export type PasswordResetState = { ok: boolean; message: string; email?: string }
+
+export async function requestCustomerPasswordReset(_previous: PasswordResetState, form: FormData): Promise<PasswordResetState> {
+  const email = String(form.get('email') || '').trim().toLowerCase()
+  if (!email || email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: 'Enter your email.', email }
+  const result = await keystoneClient<{ sendUserPasswordResetLink: boolean }>('mutation CustomerPasswordResetLink($email: String!) { sendUserPasswordResetLink(email: $email) }', { email }, { cache: 'no-store' })
+  if (!result.success) return { ok: false, message: 'Password reset is unavailable. Contact the office.', email }
+  return { ok: true, message: 'If an account uses this email, a reset link is on its way.', email }
+}
+
+export async function redeemCustomerPasswordReset(_previous: PasswordResetState, form: FormData): Promise<PasswordResetState> {
+  const email = String(form.get('email') || '').trim().toLowerCase(), token = String(form.get('token') || ''), password = String(form.get('password') || '')
+  if (!email || email.length > 320 || !token || token.length > 200) return { ok: false, message: 'This reset link is invalid.', email }
+  if (password.length < 12 || password.length > 200) return { ok: false, message: 'Use a password of at least 12 characters.', email }
+  const result = await keystoneClient<{ redeemUserPasswordResetToken: { code: string; message: string } | null }>('mutation CustomerPasswordReset($email: String!, $token: String!, $password: String!) { redeemUserPasswordResetToken(email: $email, token: $token, password: $password) { code message } }', { email, token, password }, { cache: 'no-store' })
+  if (!result.success || result.data.redeemUserPasswordResetToken) return { ok: false, message: 'This reset link is invalid or has expired.', email }
+  return { ok: true, message: 'Password changed. Sign in with your new password.', email }
 }

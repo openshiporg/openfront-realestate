@@ -6939,6 +6939,8 @@ type Query {
   redirectToInit: Boolean
   publicBrokerageIdentity(brokerageSlug: String): PublicBrokerageIdentityState!
   customerShowingHistory(brokerageSlug: String!, id: ID): [CustomerShowing!]!
+  customerSavedProperties(brokerageSlug: String!): [CustomerSavedProperty!]!
+  customerSavedHomes(brokerageSlug: String!): [PublicRealEstateListing!]!
   publicRealEstateListings(brokerageSlug: String!, filters: PublicRealEstateListingFilters, take: Int = 24, skip: Int = 0): [PublicRealEstateListing!]!
   publicRealEstateListing(brokerageSlug: String!, slug: String!): PublicRealEstateListing
   domainOutboxEventStatus(eventKey: String!): DomainOutboxEventStatus
@@ -7884,6 +7886,8 @@ input PublicRealEstateListingFilters {
   minPrice: String
   maxPrice: String
   bedrooms: Int
+  bathrooms: Int
+  sort: String
 }
 
 type PublicRealEstateAgent {
@@ -7999,6 +8003,11 @@ type CustomerShowing {
   listingTitle: String!
   listingSlug: String!
   requestedStart: String!
+}
+
+type CustomerSavedProperty {
+  id: ID!
+  propertyId: ID!
 }
 
 type PublicBrokerageIdentity {

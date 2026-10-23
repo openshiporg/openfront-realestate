@@ -28,6 +28,33 @@ function userId(context: Context) {
   return (context.session as any)?.itemId as string | undefined
 }
 
+/** Operators save within their selected brokerage. Storefront customers hold no
+ * memberships and save within the brokerage they registered with, which only
+ * the server sets. */
+function discoveryBrokerageId(session: any): string | undefined {
+  const operatorBrokerageId = activeBrokerageIds(session)[0]
+  if (operatorBrokerageId) return operatorBrokerageId
+  const selected = session?.data?.activeBrokerage
+  const memberships = session?.data?.brokerageMemberships || []
+  return session?.itemId && selected?.id && selected.status === 'active' && !memberships.length ? selected.id : undefined
+}
+
+/** Recheck the actor after the transaction starts; customers are re-read and row-locked like operators. */
+async function freshDiscoveryContext(context: Context) {
+  const session = context.session as any
+  if (activeBrokerageIds(session).length) return freshOperatorCommandContext(context)
+  const brokerageId = discoveryBrokerageId(session)
+  if (!session?.itemId || !brokerageId) throw new Error('Sign in to save homes.')
+  await context.prisma.$executeRawUnsafe('SELECT "id" FROM "User" WHERE "id" = $1 FOR NO KEY UPDATE', session.itemId)
+  const current = await context.sudo().query.User.findOne({
+    where: { id: session.itemId },
+    query: 'id name email activeBrokerage { id slug status } brokerageMemberships(take: 1) { id status isPrimary brokerage { id slug status } }',
+  })
+  const nextSession = { ...session, data: { ...session.data, ...current } }
+  if (!current || current.id !== session.itemId || discoveryBrokerageId(nextSession) !== brokerageId) throw new Error('Sign in to save homes.')
+  return context.withSession(nextSession)
+}
+
 function clean(value?: string | null) {
   return String(value || '').trim()
 }
@@ -47,12 +74,12 @@ async function withSavedDiscoveryLock<T>(
   execute: (scoped: Context, currentUserId: string, brokerageId: string) => Promise<T>,
 ): Promise<T> {
   return context.transaction(async transactionContext => {
-    const scoped = await freshOperatorCommandContext(
+    const scoped = await freshDiscoveryContext(
       context.session ? transactionContext.withSession(context.session) : transactionContext,
     )
     const currentUserId = userId(scoped)
-    const brokerageId = activeBrokerageIds(scoped.session as any)[0]
-    if (!currentUserId || !brokerageId) throw new Error('An active brokerage membership is required.')
+    const brokerageId = discoveryBrokerageId(scoped.session)
+    if (!currentUserId || !brokerageId) throw new Error('Sign in to save homes.')
     await lockSavedDiscoveryIdentity((scoped.sudo() as any).prisma, kind, brokerageId, currentUserId, target)
     return execute(scoped, currentUserId, brokerageId)
   }, { timeout: 30_000 })
@@ -68,11 +95,11 @@ async function withSavedDiscoveryRecordLock(
 ): Promise<SavedDiscoveryResult> {
   const notFound = (): SavedDiscoveryResult => ({ ok: false, message: notFoundMessage, itemId: null })
   return context.transaction(async transactionContext => {
-    const scoped = await freshOperatorCommandContext(
+    const scoped = await freshDiscoveryContext(
       context.session ? transactionContext.withSession(context.session) : transactionContext,
     )
     const currentUserId = userId(scoped)
-    const brokerageId = activeBrokerageIds(scoped.session as any)[0]
+    const brokerageId = discoveryBrokerageId(scoped.session)
     if (!currentUserId || !brokerageId) return notFound()
 
     const beforeLock = await readIdentity(scoped, recordId)
@@ -109,7 +136,7 @@ export async function savePropertyForCurrentUser(
   if (!currentUserId) return unauthenticated()
   const propertyId = clean(data.propertyId)
   if (!propertyId) return { ok: false, message: 'Choose a property to save.', itemId: null }
-  if (!activeBrokerageIds(context.session as any).length) return { ok: false, message: 'This property is not available to save.', itemId: null }
+  if (!discoveryBrokerageId(context.session)) return { ok: false, message: 'This property is not available to save.', itemId: null }
 
   const savedStatus = savedPropertyStatus(data.status)
   return withSavedDiscoveryLock(context, 'property', propertyId, async (scoped, lockedUserId, brokerageId) => {
@@ -156,7 +183,7 @@ export async function removeSavedPropertyForCurrentUser(
   const currentUserId = userId(context)
   if (!currentUserId) return unauthenticated()
   const id = clean(data.savedPropertyId)
-  if (!id || !activeBrokerageIds(context.session as any).length) return { ok: false, message: 'Saved property not found.', itemId: null }
+  if (!id || !discoveryBrokerageId(context.session)) return { ok: false, message: 'Saved property not found.', itemId: null }
 
   return withSavedDiscoveryRecordLock(
     context,
@@ -189,7 +216,7 @@ export async function saveSearchForCurrentUser(
   if (!currentUserId) return unauthenticated()
   const name = clean(data.name)
   if (!name) return { ok: false, message: 'Name the search before saving it.', itemId: null }
-  if (!activeBrokerageIds(context.session as any).length) return { ok: false, message: 'An active brokerage membership is required.', itemId: null }
+  if (!discoveryBrokerageId(context.session)) return { ok: false, message: 'Sign in to save searches.', itemId: null }
 
   return withSavedDiscoveryLock(context, 'search', name, async (scoped, lockedUserId, brokerageId) => {
     if (lockedUserId !== currentUserId) return unauthenticated()
@@ -234,7 +261,7 @@ export async function deleteSavedSearchForCurrentUser(
   const currentUserId = userId(context)
   if (!currentUserId) return unauthenticated()
   const id = clean(data.savedSearchId)
-  if (!id || !activeBrokerageIds(context.session as any).length) return { ok: false, message: 'Saved search not found.', itemId: null }
+  if (!id || !discoveryBrokerageId(context.session)) return { ok: false, message: 'Saved search not found.', itemId: null }
 
   return withSavedDiscoveryRecordLock(
     context,
