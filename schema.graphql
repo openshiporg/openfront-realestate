@@ -1175,6 +1175,8 @@ type User {
   leadRoutingRulesCount(where: LeadRoutingRuleWhereInput! = {}): Int
   customerShowings(where: ShowingWhereInput! = {}, orderBy: [ShowingOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ShowingWhereUniqueInput): [Showing!]
   customerShowingsCount(where: ShowingWhereInput! = {}): Int
+  customerInquiries(where: LeadActivityWhereInput! = {}, orderBy: [LeadActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: LeadActivityWhereUniqueInput): [LeadActivity!]
+  customerInquiriesCount(where: LeadActivityWhereInput! = {}): Int
   savedProperties(where: SavedPropertyWhereInput! = {}, orderBy: [SavedPropertyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SavedPropertyWhereUniqueInput): [SavedProperty!]
   savedPropertiesCount(where: SavedPropertyWhereInput! = {}): Int
   practitionerLicenseAuthorities(where: PractitionerLicenseAuthorityWhereInput! = {}, orderBy: [PractitionerLicenseAuthorityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PractitionerLicenseAuthorityWhereUniqueInput): [PractitionerLicenseAuthority!]
@@ -1249,6 +1251,7 @@ input UserWhereInput {
   assignedDeals: DealManyRelationFilter
   leadRoutingRules: LeadRoutingRuleManyRelationFilter
   customerShowings: ShowingManyRelationFilter
+  customerInquiries: LeadActivityManyRelationFilter
   savedProperties: SavedPropertyManyRelationFilter
   practitionerLicenseAuthorities: PractitionerLicenseAuthorityManyRelationFilter
   verifiedPractitionerLicenses: PractitionerLicenseAuthorityManyRelationFilter
@@ -1322,6 +1325,7 @@ input UserUpdateInput {
   assignedDeals: DealRelateToManyForUpdateInput
   leadRoutingRules: LeadRoutingRuleRelateToManyForUpdateInput
   customerShowings: ShowingRelateToManyForUpdateInput
+  customerInquiries: LeadActivityRelateToManyForUpdateInput
   savedProperties: SavedPropertyRelateToManyForUpdateInput
   practitionerLicenseAuthorities: PractitionerLicenseAuthorityRelateToManyForUpdateInput
   verifiedPractitionerLicenses: PractitionerLicenseAuthorityRelateToManyForUpdateInput
@@ -1381,6 +1385,7 @@ input UserCreateInput {
   assignedDeals: DealRelateToManyForCreateInput
   leadRoutingRules: LeadRoutingRuleRelateToManyForCreateInput
   customerShowings: ShowingRelateToManyForCreateInput
+  customerInquiries: LeadActivityRelateToManyForCreateInput
   savedProperties: SavedPropertyRelateToManyForCreateInput
   practitionerLicenseAuthorities: PractitionerLicenseAuthorityRelateToManyForCreateInput
   verifiedPractitionerLicenses: PractitionerLicenseAuthorityRelateToManyForCreateInput
@@ -2407,6 +2412,7 @@ type LeadActivity {
   property: Property
   showing: Showing
   agent: User
+  customer: User
   displayLabel: String
   createdAt: DateTime
   updatedAt: DateTime
@@ -2460,6 +2466,7 @@ input LeadActivityWhereInput {
   property: PropertyWhereInput
   showing: ShowingWhereInput
   agent: UserWhereInput
+  customer: UserWhereInput
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
 }
@@ -2509,6 +2516,7 @@ input LeadActivityUpdateInput {
   property: PropertyRelateToOneForUpdateInput
   showing: ShowingRelateToOneForUpdateInput
   agent: UserRelateToOneForUpdateInput
+  customer: UserRelateToOneForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2536,6 +2544,7 @@ input LeadActivityCreateInput {
   property: PropertyRelateToOneForCreateInput
   showing: ShowingRelateToOneForCreateInput
   agent: UserRelateToOneForCreateInput
+  customer: UserRelateToOneForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -6960,6 +6969,7 @@ type Query {
   redirectToInit: Boolean
   publicBrokerageIdentity(brokerageSlug: String): PublicBrokerageIdentityState!
   customerShowingHistory(brokerageSlug: String!, id: ID): [CustomerShowing!]!
+  customerInquiryHistory(brokerageSlug: String!): [CustomerInquiry!]!
   customerSavedProperties(brokerageSlug: String!): [CustomerSavedProperty!]!
   customerSavedHomes(brokerageSlug: String!): [PublicRealEstateListing!]!
   publicRealEstateListings(brokerageSlug: String!, filters: PublicRealEstateListingFilters, take: Int = 24, skip: Int = 0): [PublicRealEstateListing!]!
@@ -8032,6 +8042,15 @@ type CustomerShowing {
 type CustomerSavedProperty {
   id: ID!
   propertyId: ID!
+}
+
+type CustomerInquiry {
+  id: ID!
+  message: String!
+  sentAt: String!
+  listingTitle: String!
+  listingSlug: String!
+  status: String!
 }
 
 type PublicBrokerageIdentity {

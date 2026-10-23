@@ -78,6 +78,8 @@ export const LeadActivity = list({
     property: relationship({ ref: "Property" }),
     showing: relationship({ ref: "Showing" }),
     agent: relationship({ ref: "User" }),
+    // The signed-in storefront account that sent this inquiry; set by the server only.
+    customer: relationship({ ref: "User.customerInquiries", access: { create: () => false, update: () => false } }),
     displayLabel: virtual({
       field: graphql.field({
         type: graphql.String,

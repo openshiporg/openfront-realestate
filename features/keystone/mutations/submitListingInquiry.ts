@@ -4,7 +4,7 @@ import { requireListingAuthority } from '../lib/authorityEvidence'
 import { lockBrokerageCommand } from '../lib/commandContext'
 import { lockPropertyForDecision } from '../lib/propertyLock'
 import { enqueueDomainEvent } from '../lib/domainEvents'
-import { capturePublicLead } from './leadCapture'
+import { capturePublicLead, firstActiveBrokerageAgent } from './leadCapture'
 
 type SubmitListingInquiryInput = {
   brokerageSlug: string;
@@ -57,7 +57,7 @@ async function findRoutingAgentId(context: Context, property: any, intent: strin
   const matchingRule = rules.find((rule: any) => matchesRule(rule, property, intent));
   const fallbackRule = rules.find((rule: any) => rule.isFallback && rule.assignedAgent?.id);
 
-  return matchingRule?.assignedAgent?.id || property?.assignedAgent?.id || fallbackRule?.assignedAgent?.id || null;
+  return firstActiveBrokerageAgent(context, property.brokerage.id, [matchingRule?.assignedAgent?.id, property?.assignedAgent?.id, fallbackRule?.assignedAgent?.id]);
 }
 
 export async function submitListingInquiry(
@@ -137,9 +137,15 @@ export async function submitListingInquiry(
     })
     if (recent.length >= 5) return { ok: false, message: 'Unable to accept this request. Please contact the brokerage directly.', leadId: null }
 
+    // Only a session account registered with this brokerage owns the inquiry; email is never proof.
+    const customerId = context.session?.itemId || null
+    const customer = customerId ? await transactionContext.sudo().query.User.findOne({ where: { id: customerId }, query: 'id activeBrokerage { id }' }) : null
+    const ownedByCustomer = Boolean(customer && customer.activeBrokerage?.id === property.brokerage.id)
+
     const activity = await transactionContext.sudo().query.LeadActivity.createOne({
       data: {
         lead: { connect: { id: capture.lead.id } },
+        ...(ownedByCustomer ? { customer: { connect: { id: customerId! } } } : {}),
         property: { connect: { id: propertyId } },
         activityType: 'inquiry',
         direction: 'inbound',

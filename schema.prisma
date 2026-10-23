@@ -164,6 +164,7 @@ model User {
   assignedDeals                         Deal[]                         @relation("Deal_assignedAgent")
   leadRoutingRules                      LeadRoutingRule[]              @relation("LeadRoutingRule_assignedAgent")
   customerShowings                      Showing[]                      @relation("Showing_customer")
+  customerInquiries                     LeadActivity[]                 @relation("LeadActivity_customer")
   savedProperties                       SavedProperty[]                @relation("SavedProperty_user")
   practitionerLicenseAuthorities        PractitionerLicenseAuthority[] @relation("PractitionerLicenseAuthority_practitioner")
   verifiedPractitionerLicenses          PractitionerLicenseAuthority[] @relation("PractitionerLicenseAuthority_verifiedBy")
@@ -446,6 +447,8 @@ model LeadActivity {
   showingId    String?                      @map("showing")
   agent        User?                        @relation("LeadActivity_agent", fields: [agentId], references: [id])
   agentId      String?                      @map("agent")
+  customer     User?                        @relation("LeadActivity_customer", fields: [customerId], references: [id])
+  customerId   String?                      @map("customer")
   createdAt    DateTime                     @default(now())
   updatedAt    DateTime                     @default(now()) @updatedAt
 
@@ -454,6 +457,7 @@ model LeadActivity {
   @@index([propertyId])
   @@index([showingId])
   @@index([agentId])
+  @@index([customerId])
 }
 
 model LeadRoutingRule {

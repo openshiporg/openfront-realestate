@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { AccountShell } from '../components/AccountShell'
 
-export const metadata: Metadata = { title: 'Page not found', robots: { index: false, follow: false } }
+export const metadata: Metadata = { title: 'Page not found', robots: { index: false, follow: false }, icons: { icon: [{ url: '/brand-mark.svg', type: 'image/svg+xml' }] } }
 
 export default function NotFoundPage() {
   return <AccountShell>

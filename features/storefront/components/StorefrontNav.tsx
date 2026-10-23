@@ -7,5 +7,5 @@ export type { StorefrontSections } from './StorefrontNavBar'
 /** Header with the shopper's signed-in state. */
 export async function StorefrontNav({ settings, sections }: { settings: BrokerageSettings; sections?: StorefrontSections }) {
   const customer = await getCustomer()
-  return <StorefrontNavBar settings={settings} sections={sections} customerName={customer ? customer.name.split(/\s+/)[0] || customer.name : null} />
+  return <StorefrontNavBar settings={settings} sections={sections} customerName={customer ? customer.name.trim() || customer.email : null} />
 }

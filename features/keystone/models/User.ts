@@ -89,6 +89,7 @@ export const User = list({
     assignedDeals: relationship({ ref: 'Deal.assignedAgent', many: true, access: { create: denyAll, update: denyAll } }),
     leadRoutingRules: relationship({ ref: 'LeadRoutingRule.assignedAgent', many: true, access: { create: denyAll, update: denyAll } }),
     customerShowings: relationship({ ref: 'Showing.customer', many: true, access: { create: denyAll, update: denyAll } }),
+    customerInquiries: relationship({ ref: 'LeadActivity.customer', many: true, access: { create: denyAll, update: denyAll } }),
     savedProperties: relationship({ ref: 'SavedProperty.user', many: true, access: { create: denyAll, update: denyAll } }),
     practitionerLicenseAuthorities: relationship({ ref: 'PractitionerLicenseAuthority.practitioner', many: true, access: { create: denyAll, update: denyAll } }),
     verifiedPractitionerLicenses: relationship({ ref: 'PractitionerLicenseAuthority.verifiedBy', many: true, access: { create: denyAll, update: denyAll } }),

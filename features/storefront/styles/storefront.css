@@ -96,7 +96,9 @@
   .sf-mobile-nav a svg { width: 1.1rem; height: 1.1rem; color: var(--sf-muted); }
   .sf-mobile-nav form { display: contents; }
   .sf-mobile-nav__signout { padding: 0.95rem 0.25rem; border: 0; background: none; font: inherit; font-size: 1.125rem; font-weight: 500; color: var(--sf-ink-2); text-align: left; cursor: pointer; }
-  .sf-header__account { max-width: 12rem; overflow: hidden; text-overflow: ellipsis; }
+  .sf-header__account { display: inline-block; max-width: 11rem; line-height: 2.5rem; overflow: hidden; text-overflow: ellipsis; }
+  .sf-header__actions form { display: contents; }
+  .sf-header__signout { border: 0; cursor: pointer; }
   @media (min-width: 60rem) {
     .sf-header__nav, .sf-header__actions { display: flex; }
     .sf-header__toggle, .sf-mobile-nav { display: none; }
@@ -204,7 +206,8 @@
   .sf-advisor__initials { display: grid; place-items: center; background: color-mix(in oklch, var(--sf-paper) 14%, transparent); font-weight: 700; }
   .sf-advisor h3 { font-size: 1rem; font-weight: 600; }
   .sf-advisor p { font-size: 0.875rem; color: color-mix(in oklch, var(--sf-paper) 65%, transparent); }
-  .sf-advisor a { font-size: 0.875rem; text-decoration: underline; text-decoration-color: color-mix(in oklch, var(--sf-paper) 35%, transparent); text-underline-offset: 0.2em; overflow-wrap: anywhere; }
+  .sf-advisor > div { min-width: 0; }
+  .sf-advisor a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; text-decoration: underline; text-decoration-color: color-mix(in oklch, var(--sf-paper) 35%, transparent); text-underline-offset: 0.2em; }
 
   /* Closing band */
   .sf-closing { display: grid; gap: 1.5rem; align-items: end; padding: clamp(2rem, 5vw, 3.5rem); border-radius: var(--sf-radius-lg); background: var(--sf-accent-soft); }
@@ -273,9 +276,10 @@
   .sf-panel h2 { font-size: 1.125rem; font-weight: 700; }
   .sf-advisor-card { display: flex; align-items: center; gap: 0.9rem; padding: 1rem; border-radius: var(--sf-radius); border: 1px solid var(--sf-line); }
   .sf-advisor-card img, .sf-advisor-card .sf-advisor__initials { flex: none; width: 3.25rem; height: 3.25rem; border-radius: 999px; object-fit: cover; background: var(--sf-paper-3); }
-  .sf-advisor-card div { display: grid; min-width: 0; gap: 0.1rem; }
+  .sf-advisor-card { flex-wrap: wrap; }
+  .sf-advisor-card div { display: grid; flex: 1 1 10rem; min-width: 0; gap: 0.1rem; }
   .sf-advisor-card strong { font-size: 0.9375rem; }
-  .sf-advisor-card span { font-size: 0.8125rem; color: var(--sf-muted); text-wrap: balance; }
+  .sf-advisor-card span { font-size: 0.8125rem; color: var(--sf-muted); }
   .sf-advisor-card__links { display: flex; gap: 0.4rem; margin-left: auto; }
   .sf-advisor-card__mark { display: grid; place-items: center; flex: none; width: 3.25rem; height: 3.25rem; border-radius: 999px; background: var(--sf-paper-2); }
   .sf-advisor-card__mark svg { width: 1.75rem; height: 1.75rem; }
@@ -309,6 +313,7 @@
   .sf-trip__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
   .sf-trip__cancel { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
   .sf-trip__note { font-size: 0.875rem; font-weight: 600; color: var(--sf-muted); }
+  .sf-trip__message { margin-top: 0.5rem; max-width: 65ch; font-size: 0.9375rem; color: var(--sf-ink-2); white-space: pre-line; }
   .sf-account__section { display: grid; gap: 1rem; }
   .sf-account__section > h2 { font-family: var(--sf-display); font-weight: 400; font-size: 2rem; line-height: 1; }
   .sf-account__forms { display: grid; gap: 1rem; }

@@ -67,3 +67,20 @@ export async function capturePublicLead(context: Context, input: PublicLeadCaptu
 
   return { lead, reused: false, identityKey }
 }
+
+/**
+ * The first candidate who still holds an active membership in the brokerage.
+ * A listing or routing rule can point at a former agent; assigning a lead or
+ * showing to them fails tenant validation, so such leads stay unassigned.
+ */
+export async function firstActiveBrokerageAgent(context: Context, brokerageId: string, candidates: Array<string | null | undefined>) {
+  const ids = [...new Set(candidates.filter((id): id is string => Boolean(id)))]
+  if (!ids.length) return null
+  const memberships = await context.sudo().query.BrokerageMembership.findMany({
+    where: { user: { id: { in: ids } }, brokerage: { id: { equals: brokerageId }, status: { equals: 'active' } }, status: { equals: 'active' } },
+    take: ids.length * 2,
+    query: 'user { id }',
+  })
+  const members = new Set(memberships.map((membership: any) => membership.user?.id).filter(Boolean))
+  return ids.find(id => members.has(id)) || null
+}

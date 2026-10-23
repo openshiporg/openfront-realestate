@@ -7,7 +7,7 @@ import { ShowingRequestForm } from './ShowingRequestForm'
 type Prefill = { name: string; email: string; phone: string } | null
 type Tab = 'tour' | 'question'
 
-export function ListingActionPanel({ propertyId, intent, customer, accountHref }: { propertyId: string; intent: 'buy' | 'rent'; customer: Prefill; accountHref: string }) {
+export function ListingActionPanel({ propertyId, intent, customer, accountHref, timeZone, timeZoneName }: { propertyId: string; intent: 'buy' | 'rent'; customer: Prefill; accountHref: string; timeZone: string | null; timeZoneName: string }) {
   const [tab, setTab] = useState<Tab>('tour')
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export function ListingActionPanel({ propertyId, intent, customer, accountHref }
         ))}
       </div>
       <div id="listing-panel-tour" role="tabpanel" aria-labelledby="listing-tab-tour" hidden={tab !== 'tour'}>
-        <ShowingRequestForm propertyId={propertyId} customer={customer} accountHref={accountHref} />
+        <ShowingRequestForm propertyId={propertyId} customer={customer} accountHref={accountHref} timeZone={timeZone} timeZoneName={timeZoneName} />
       </div>
       <div id="listing-panel-question" role="tabpanel" aria-labelledby="listing-tab-question" hidden={tab !== 'question'}>
         <ListingInquiryForm propertyId={propertyId} intent={intent} customer={customer} />

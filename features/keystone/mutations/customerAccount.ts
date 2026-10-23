@@ -73,3 +73,25 @@ export async function cancelCustomerShowing(_root: unknown, { brokerageSlug, id 
     return { ok: true, message: 'Showing cancelled.' }
   }, { timeout: 30_000 })
 }
+
+/** The signed-in shopper's own listing questions, newest first. */
+export async function customerInquiryHistory(_root: unknown, { brokerageSlug }: { brokerageSlug: string }, context: Context) {
+  const actor = context.session?.itemId
+  if (!actor) throw new Error('Sign in to view your questions.')
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(brokerageSlug) || brokerageSlug.length > 80) throw new Error('Questions unavailable.')
+  const rows = await context.sudo().query.LeadActivity.findMany({
+    where: { customer: { id: { equals: actor } }, activityType: { equals: 'inquiry' }, brokerage: { slug: { equals: brokerageSlug }, status: { equals: 'active' } } },
+    orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+    take: 100,
+    query: 'id body occurredAt property { title slug } lead { status }',
+  })
+  return rows.map(row => ({
+    id: row.id,
+    // Routing notes are appended for advisors and are not part of what the shopper wrote.
+    message: String(row.body || '').split('\n\nAuto-routed by')[0],
+    sentAt: row.occurredAt,
+    listingTitle: row.property?.title || 'Residence',
+    listingSlug: row.property?.slug || '',
+    status: row.lead?.status || 'new',
+  }))
+}

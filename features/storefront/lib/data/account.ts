@@ -22,6 +22,15 @@ export async function getCustomerShowings() {
   return result.success ? { items: result.data.customerShowingHistory, error: null } : { items: [] as CustomerShowing[], error: 'Your showings could not be loaded.' }
 }
 
+export type CustomerInquiry = { id: string; message: string; sentAt: string; listingTitle: string; listingSlug: string; status: string }
+
+export async function getCustomerInquiries() {
+  const brokerageSlug = await getStorefrontBrokerageSlug()
+  if (!brokerageSlug) return { items: [] as CustomerInquiry[], error: 'Your questions could not be loaded.' }
+  const result = await keystoneClient<{ customerInquiryHistory: CustomerInquiry[] }>(`query CustomerInquiries($brokerageSlug: String!) { customerInquiryHistory(brokerageSlug: $brokerageSlug) { id message sentAt listingTitle listingSlug status } }`, { brokerageSlug }, { cache: 'no-store' })
+  return result.success ? { items: result.data.customerInquiryHistory, error: null } : { items: [] as CustomerInquiry[], error: 'Your questions could not be loaded.' }
+}
+
 export type AccountState = { message: string; email?: string }
 export type ProfileState = { ok: boolean; message: string }
 

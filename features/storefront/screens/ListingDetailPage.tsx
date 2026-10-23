@@ -14,6 +14,7 @@ import { getStorefrontListingBySlug } from '@/features/storefront/lib/data/prope
 import { getBrokerageSettings } from '@/features/storefront/lib/data/settings'
 import { emailHref, formatLocation, formatPrice, initials, listingMarketLabel, listingStatusLabel, listingTone, phoneHref, propertyTypeLabel } from '@/features/storefront/lib/format'
 import { formatMoney } from '@/features/lib/money'
+import { stateTimeZone, timeZoneLabel } from '@/features/lib/date-time'
 import { ListingActionPanel } from './ListingActionPanel'
 
 type ListingDetailProps = { params: Promise<{ slug: string }> }
@@ -22,7 +23,7 @@ export async function generateListingMetadata({ params }: ListingDetailProps): P
   const { slug } = await params
   const result = await getStorefrontListingBySlug(slug)
   const listing = result.listing
-  if (!listing) return { title: 'Home not found', robots: { index: false, follow: false } }
+  if (!listing) return { title: 'Page not found', robots: { index: false, follow: false } }
   const description = listing.shortDescription || `${formatPrice(listing)} · ${formatLocation(listing)}`
   // Relative paths resolve against the storefront layout's metadataBase. Link previews need a raster photo.
   const photo = [listing.imagePath, ...listing.media.filter(item => item.mediaType === 'photo').map(item => item.imagePath)]
@@ -124,6 +125,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
   const accountHref = `/account?from=${encodeURIComponent(`/listings/${listing.slug}`)}`
   const prefill = customer ? { name: customer.name, email: customer.email, phone: customer.phone } : null
   const location = listing.neighborhood || listing.city
+  const listingTimeZone = stateTimeZone(listing.state)
 
   return (
     <>
@@ -194,15 +196,13 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
               </section>
             ) : null}
 
-            {rental ? (
+            {rentalTerms.length ? (
               <section className="sf-prose">
                 <h2>Rental terms</h2>
-                {rentalTerms.length ? (
-                  <dl className="sf-facts">
-                    {rentalTerms.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-                  </dl>
-                ) : null}
-                <p style={{ marginTop: rentalTerms.length ? '1rem' : 0 }}><a href="#ask" className="sf-link">Ask about applying</a></p>
+                <dl className="sf-facts">
+                  {rentalTerms.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+                </dl>
+                <p style={{ marginTop: '1rem' }}><a href="#ask" className="sf-link">Ask about applying</a></p>
               </section>
             ) : null}
 
@@ -228,7 +228,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
                 {emailLink ? <a href={emailLink} className="sf-icon-btn" aria-label={`Email ${advisorEmail}`}><Mail aria-hidden /></a> : null}
               </span>
             </div>
-            <ListingActionPanel propertyId={listing.id} intent={listing.listingType === 'rent' ? 'rent' : 'buy'} customer={prefill} accountHref={accountHref} />
+            <ListingActionPanel propertyId={listing.id} intent={listing.listingType === 'rent' ? 'rent' : 'buy'} customer={prefill} accountHref={accountHref} timeZone={listingTimeZone} timeZoneName={listingTimeZone ? timeZoneLabel(listingTimeZone) : ''} />
           </aside>
         </div>
       </main>

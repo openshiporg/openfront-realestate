@@ -3,10 +3,10 @@ import type { Context } from '.keystone/types'
 import { requireListingAuthority } from '../lib/authorityEvidence'
 import { lockBrokerageCommand } from '../lib/commandContext'
 import { lockPropertyForDecision } from '../lib/propertyLock'
-import { explicitDateTimeToIso } from '../../lib/date-time'
+import { explicitDateTimeToIso, SHOWING_HOURS, stateTimeZone, timeZoneLabel, withinShowingHours } from '../../lib/date-time'
 import { domainPayloadHash, enqueueDomainEvent } from '../lib/domainEvents'
 import { showingSnapshot } from './showingJourney'
-import { capturePublicLead } from './leadCapture'
+import { capturePublicLead, firstActiveBrokerageAgent } from './leadCapture'
 
 export type RequestPropertyShowingInput = {
   brokerageSlug: string
@@ -53,7 +53,7 @@ async function findRoutingAgentId(context: Context, property: any) {
     (!rule.postalCode || rule.postalCode === property.postalCode)
   )
   const fallback = rules.find((rule: any) => rule.isFallback && rule.assignedAgent?.id)
-  return matching?.assignedAgent?.id || property.assignedAgent?.id || fallback?.assignedAgent?.id || null
+  return firstActiveBrokerageAgent(context, property.brokerage.id, [matching?.assignedAgent?.id, property.assignedAgent?.id, fallback?.assignedAgent?.id])
 }
 
 export async function requestPropertyShowing(
@@ -117,6 +117,11 @@ export async function requestPropertyShowing(
   const property = properties[0]
   if (!property || !['active', 'coming_soon'].includes(property.status)) {
     return { ok: false, message: 'This listing is no longer accepting showing requests.', leadId: null, showingId: null }
+  }
+  // Showing hours are read in the listing's own time zone, whatever zone the visitor's browser is in.
+  const listingTimeZone = stateTimeZone(property.state)
+  if (listingTimeZone && !withinShowingHours(requestedStart.getTime(), listingTimeZone)) {
+    return { ok: false, message: `Choose a time between ${SHOWING_HOURS.first} AM and ${SHOWING_HOURS.last - 12} PM ${timeZoneLabel(listingTimeZone)}.`, leadId: null, showingId: null }
   }
   try {
     await requireListingAuthority(context, { brokerageId: property.brokerage.id, propertyId, practitionerId: property.assignedAgent?.id || '', jurisdictionCode: property.state, destination: 'public_site', showingRequired: true })

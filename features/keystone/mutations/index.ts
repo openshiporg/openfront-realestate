@@ -42,7 +42,7 @@ import {
 import { domainOutboxEventStatus, replayDomainOutboxEvent } from './domainOutbox'
 import { platformContacts, platformListings, platformOperations, platformPeople, platformPipeline, platformReports, platformShowings } from './platformProjections'
 import { platformStorefrontSettings, updatePlatformStorefrontSettings } from './platformStorefrontSettings'
-import { registerRealEstateCustomer, customerShowingHistory, cancelCustomerShowing } from './customerAccount'
+import { registerRealEstateCustomer, customerShowingHistory, cancelCustomerShowing, customerInquiryHistory } from './customerAccount'
 import { createChecklistItemCommand, createCounterOfferCommand, createOfferCommand, queueSavedSearchAlertCommand, queueSourceImportCommand, transitionAgentTaskCommand, transitionDocumentCommand, transitionInspectionCommand, transitionListingSyndicationCommand, updateSavedSearchAlertCommand } from './platformCommands'
 import { recordListingEngagementAuthorityCommand, recordListingPublicationAuthorityCommand, recordPractitionerLicenseAuthorityCommand, recordRepresentationAuthorityCommand } from './authorityCommands'
 import { appendDocumentEvidenceEventCommand } from './documentEvidenceCommands'
@@ -246,6 +246,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       input RealEstateCustomerInput { name: String! email: String! password: String! brokerageSlug: String! }
       type CustomerShowing { id: ID! status: String! showingType: String! scheduledStart: String! scheduledEnd: String listingTitle: String! listingSlug: String! requestedStart: String! }
       type CustomerSavedProperty { id: ID! propertyId: ID! }
+      type CustomerInquiry { id: ID! message: String! sentAt: String! listingTitle: String! listingSlug: String! status: String! }
 
       type PublicBrokerageIdentity {
         businessName: String!
@@ -492,6 +493,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         redirectToInit: Boolean
         publicBrokerageIdentity(brokerageSlug: String): PublicBrokerageIdentityState!
         customerShowingHistory(brokerageSlug: String!, id: ID): [CustomerShowing!]!
+        customerInquiryHistory(brokerageSlug: String!): [CustomerInquiry!]!
         customerSavedProperties(brokerageSlug: String!): [CustomerSavedProperty!]!
         customerSavedHomes(brokerageSlug: String!): [PublicRealEstateListing!]!
         publicRealEstateListings(brokerageSlug: String!, filters: PublicRealEstateListingFilters, take: Int = 24, skip: Int = 0): [PublicRealEstateListing!]!
@@ -573,6 +575,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         redirectToInit,
         publicBrokerageIdentity,
         customerShowingHistory,
+        customerInquiryHistory,
         customerSavedProperties,
         customerSavedHomes,
         publicRealEstateListings,

@@ -194,7 +194,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
                       <div>
                         <h3>{agent.name}</h3>
                         <p>{agent.brokerageTitle || 'Advisor'}</p>
-                        {agentEmail ? <a href={agentEmail}>{agent.email}</a> : null}
+                        {agentEmail ? <a href={agentEmail} title={agent.email}>{agent.email}</a> : null}
                       </div>
                     </article>
                   )

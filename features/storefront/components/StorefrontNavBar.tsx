@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { ArrowUpRight, Heart, Menu, X } from 'lucide-react'
+import { ArrowUpRight, Heart, LogOut, Menu, X } from 'lucide-react'
 import type { BrokerageSettings } from '@/features/storefront/lib/data/settings'
 import { customerSignOut } from '@/features/storefront/lib/data/account'
 import { contactHref } from '@/features/storefront/lib/format'
@@ -38,7 +38,8 @@ export function StorefrontNavBar({ settings, sections = { neighborhoods: true, a
         <div className="sf-header__actions">
           {customerName ? <>
             <Link href="/account/saved" className="sf-btn sf-btn--quiet"><Heart aria-hidden />Saved</Link>
-            <Link href="/account" className="sf-btn sf-btn--quiet sf-header__account" title="My account">{customerName}</Link>
+            <Link href="/account" className="sf-btn sf-btn--quiet sf-header__account" title={customerName}>{customerName}</Link>
+            <form action={customerSignOut}><button type="submit" className="sf-icon-btn sf-header__signout" aria-label="Sign out" title="Sign out"><LogOut aria-hidden /></button></form>
           </> : <Link href="/account" className="sf-btn sf-btn--quiet">Sign in</Link>}
           {contact ? <a href={contact} className="sf-btn sf-btn--primary">Contact</a> : null}
         </div>
