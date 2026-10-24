@@ -13,7 +13,8 @@ export const AGENT_IMAGE_PATHS: Record<string, string> = {
 
 export const NEIGHBORHOOD_IMAGE_PATHS: Record<string, string> = {
   'rainey street historic district': '/images/real-estate/photos/neighborhoods/rainey-street.jpg',
-  'westlake hills': '/images/real-estate/photos/neighborhoods/westlake-hills.jpg',
+  // No starter photo of the area itself; the tile renders plain rather than repeat a listing photo.
+  'westlake hills': '',
   'east cesar chavez': '/images/real-estate/photos/neighborhoods/east-cesar-chavez.jpg',
   mueller: '/images/real-estate/photos/neighborhood-homes.jpg',
 }
@@ -56,7 +57,6 @@ export function getNeighborhoodImagePath(neighborhood?: string | null, publicIma
 
 const LEGACY_NEIGHBORHOOD_PHOTOS: Record<string, string> = {
   'rainey-street': 'neighborhoods/rainey-street',
-  'westlake-hills': 'neighborhoods/westlake-hills',
   'east-cesar-chavez': 'neighborhoods/east-cesar-chavez',
   mueller: 'neighborhood-homes',
 }

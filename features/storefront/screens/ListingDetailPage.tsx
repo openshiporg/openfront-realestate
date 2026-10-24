@@ -220,8 +220,8 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
                 ? agent.imagePath ? <img src={agent.imagePath} alt="" /> : <span className="sf-advisor__initials" aria-hidden>{initials(agent.name)}</span>
                 : <span className="sf-advisor-card__mark" aria-hidden><BrokerageMark className="" logoIcon={settings.logoIcon} logoColor={settings.logoColor} /></span>}
               <div>
-                <strong>{agent ? agent.name : 'Contact the office'}</strong>
-                <span>{agent ? agent.brokerageTitle || 'Listing advisor' : settings.businessName}</span>
+                <strong title={agent ? agent.name : undefined}>{agent ? agent.name : 'Contact the office'}</strong>
+                <span title={agent ? undefined : settings.businessName}>{agent ? agent.brokerageTitle || 'Listing advisor' : settings.businessName}</span>
               </div>
               <span className="sf-advisor-card__links">
                 {phoneLink ? <a href={phoneLink} className="sf-icon-btn" aria-label={`Call ${advisorPhone}`}><Phone aria-hidden /></a> : null}

@@ -16,12 +16,12 @@ function toIso(local: string, timeZone: string | null) {
   return timeZone ? zonedWallTimeToIso(local, timeZone) : localDateTimeToIso(local)
 }
 
-function timeProblem(local: string, timeZone: string | null) {
+function timeProblem(local: string, timeZone: string | null, timeZoneName: string) {
   const iso = toIso(local, timeZone)
   if (!iso) return 'Choose a valid time.'
   const start = Date.parse(iso)
   if (start <= Date.now()) return 'Choose a time in the future.'
-  if (!withinShowingHours(start, timeZone || BROWSER_ZONE)) return `Choose a time from ${HOURS_LABEL}.`
+  if (!withinShowingHours(start, timeZone || BROWSER_ZONE)) return `Choose a time from ${HOURS_LABEL}${timeZoneName ? ` ${timeZoneName}` : ''}.`
   return ''
 }
 
@@ -44,7 +44,7 @@ export function ShowingRequestForm({ propertyId, customer, accountHref, timeZone
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const local = String(formData.get('requestedStart') || '')
-    const issue = timeProblem(local, timeZone) || (!String(formData.get('email') || '').trim() && !String(formData.get('phone') || '').trim() ? 'Add an email or phone number.' : '')
+    const issue = timeProblem(local, timeZone, timeZoneName) || (!String(formData.get('email') || '').trim() && !String(formData.get('phone') || '').trim() ? 'Add an email or phone number.' : '')
     setProblem(issue)
     if (issue) return
     requestKey.current ||= crypto.randomUUID()

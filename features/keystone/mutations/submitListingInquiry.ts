@@ -113,7 +113,7 @@ export async function submitListingInquiry(
 
   const body = [
     message || 'Website listing inquiry',
-    preferredTime ? `Preferred showing time: ${preferredTime}` : '',
+    preferredTime ? `Best time to reach: ${preferredTime}` : '',
   ].filter(Boolean).join('\n\n');
 
     const assignedAgentId = await findRoutingAgentId(transactionContext, property, intent);

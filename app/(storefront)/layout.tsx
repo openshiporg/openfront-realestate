@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { settings } = state
   return {
     ...shared,
-    title: { default: settings.businessName, template: `%s · ${settings.businessName}` },
+    title: { absolute: settings.businessName, template: `%s · ${settings.businessName}` },
     description: settings.description || settings.tagline,
     openGraph: { type: 'website', title: settings.businessName, description: settings.description || settings.tagline, siteName: settings.businessName },
   }

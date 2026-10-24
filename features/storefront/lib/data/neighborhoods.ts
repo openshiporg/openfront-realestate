@@ -27,7 +27,7 @@ export function groupStorefrontNeighborhoods(listings: StorefrontProperty[], fal
     name,
     city: group[0]?.city || fallbackCity,
     // A neighborhood photo when one exists, so the tile doesn't repeat a listing card's photo.
-    imagePath: getNeighborhoodImagePath(name) || group.find(listing => listing.imagePath)?.imagePath || '',
+    imagePath: getNeighborhoodImagePath(name) ?? group.find(listing => listing.imagePath)?.imagePath ?? '',
     listings: group,
   }))
 }

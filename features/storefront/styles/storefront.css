@@ -278,6 +278,7 @@
   .sf-advisor-card img, .sf-advisor-card .sf-advisor__initials { flex: none; width: 3.25rem; height: 3.25rem; border-radius: 999px; object-fit: cover; background: var(--sf-paper-3); }
   .sf-advisor-card { flex-wrap: wrap; }
   .sf-advisor-card div { display: grid; flex: 1 1 10rem; min-width: 0; gap: 0.1rem; }
+  .sf-advisor-card div > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sf-advisor-card strong { font-size: 0.9375rem; }
   .sf-advisor-card span { font-size: 0.8125rem; color: var(--sf-muted); }
   .sf-advisor-card__links { display: flex; gap: 0.4rem; margin-left: auto; }
