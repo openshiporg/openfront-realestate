@@ -4,6 +4,8 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { passwordResetEmailAvailable } from '@/features/dashboard/lib/authFlow'
+import { RESET_EMAIL_UNAVAILABLE } from '@/features/storefront/lib/passwordReset'
 import { getStorefrontBrokerageSlug } from '@/features/storefront/lib/brokerage'
 
 export type CustomerSession = { id: string; name: string; email: string; phone: string }
@@ -98,6 +100,8 @@ export type PasswordResetState = { ok: boolean; message: string; email?: string 
 export async function requestCustomerPasswordReset(_previous: PasswordResetState, form: FormData): Promise<PasswordResetState> {
   const email = String(form.get('email') || '').trim().toLowerCase()
   if (!email || email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, message: 'Enter your email.', email }
+  // Like the dashboard reset: with no mail transport nothing can be delivered, so say so for every email without calling Keystone.
+  if (!passwordResetEmailAvailable()) return { ok: false, message: RESET_EMAIL_UNAVAILABLE, email }
   const result = await keystoneClient<{ sendUserPasswordResetLink: boolean }>('mutation CustomerPasswordResetLink($email: String!) { sendUserPasswordResetLink(email: $email) }', { email }, { cache: 'no-store' })
   // Same answer whether or not the email has an account or the mail could be sent, so the form never reveals either.
   if (!result.success) console.error('Password reset email could not be sent.')

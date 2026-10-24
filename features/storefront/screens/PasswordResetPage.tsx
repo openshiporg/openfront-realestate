@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { AccountShell } from '../components/AccountShell'
+import { passwordResetEmailAvailable } from '@/features/dashboard/lib/authFlow'
+import { RESET_EMAIL_UNAVAILABLE } from '../lib/passwordReset'
 import { RedeemResetForm, RequestResetForm } from '../components/PasswordResetForms'
 
 export const metadata: Metadata = { title: 'Reset password', robots: { index: false, follow: false } }
@@ -14,7 +16,7 @@ export default async function PasswordResetPage({ searchParams }: { searchParams
       <div className="sf-auth">
         <div className="sf-auth__card">
           <h1>{token ? 'Set a new password' : 'Reset password'}</h1>
-          {token ? <RedeemResetForm token={token} email={email} /> : <RequestResetForm />}
+          {token ? <RedeemResetForm token={token} email={email} /> : passwordResetEmailAvailable() ? <RequestResetForm /> : <p className="sf-message" role="status">{RESET_EMAIL_UNAVAILABLE}</p>}
           <div className="sf-auth__foot"><Link href="/account" className="sf-link">Back to sign in</Link></div>
         </div>
       </div>
