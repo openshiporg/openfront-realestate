@@ -124,3 +124,10 @@ export async function cancelCustomerShowing(_previous: CancelShowingState, form:
   if (result.data.cancelCustomerShowing.ok) revalidatePath('/account')
   return result.data.cancelCustomerShowing
 }
+
+export async function getCustomerShowing(id: string) {
+  const brokerageSlug = await getStorefrontBrokerageSlug()
+  if (!brokerageSlug || !id || id.length > 200) return null
+  const result = await keystoneClient<{ customerShowingHistory: CustomerShowing[] }>(`query CustomerShowing($brokerageSlug: String!, $id: ID) { customerShowingHistory(brokerageSlug: $brokerageSlug, id: $id) { id status showingType scheduledStart scheduledEnd listingTitle listingSlug requestedStart } }`, { brokerageSlug, id }, { cache: 'no-store' })
+  return result.success ? result.data.customerShowingHistory[0] || null : null
+}

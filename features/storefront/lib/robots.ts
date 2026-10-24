@@ -6,7 +6,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   const [state, origin] = await Promise.all([getBrokerageSettings(), storefrontOrigin()])
   if (state.status !== 'ready') return { rules: { userAgent: '*', disallow: '/' } }
   return {
-    rules: { userAgent: '*', allow: '/', disallow: ['/dashboard', '/account', '/password-reset', '/api'] },
+    rules: { userAgent: '*', allow: '/', disallow: ['/dashboard', '/account', '/password-reset', '/calendar', '/api'] },
     ...(origin ? { sitemap: new URL('/sitemap.xml', origin).toString() } : {}),
   }
 }

@@ -51,7 +51,7 @@ type State = { ok: boolean; message: string; uncertain?: boolean }
 async function submit(mutation: string, field: string, data: Record<string, unknown>): Promise<State> {
   const response = await keystoneClient<any>(mutation, { data: { ...data, idempotencyKey: crypto.randomUUID() } }, { cache: 'no-store' })
   if (!response.success || !response.data[field].ok) return { ok: false, message: response.success ? response.data[field].message : 'Could not save. Please try again.' }
-  revalidatePath('/dashboard/platform/operations'); revalidatePath('/dashboard/platform/pipeline')
+  revalidatePath('/dashboard/platform/operations'); revalidatePath('/dashboard/platform/pipeline', 'layout'); revalidatePath('/dashboard/platform/listings', 'layout')
   return { ok: true, message: response.data[field].message }
 }
 
@@ -69,7 +69,7 @@ export async function transitionCommissionWorkflow(_state: State, form: FormData
   const response = await keystoneClient<any>('mutation CommissionStatus($data: OperatorTransitionInput!) { transitionCommissionStatus(data: $data) { ok message itemId status replayed } }', { data: { id, status, idempotencyKey: crypto.randomUUID() } }, { cache: 'no-store' })
   const feedback = classifyCommissionTransitionFeedback(response, id, status)
   if (feedback.kind === 'confirmed') {
-    revalidatePath('/dashboard/platform/operations'); revalidatePath('/dashboard/platform/pipeline')
+    revalidatePath('/dashboard/platform/operations'); revalidatePath('/dashboard/platform/pipeline', 'layout'); revalidatePath('/dashboard/platform/listings', 'layout')
     return { ok: true, message: feedback.message }
   }
   return { ok: false, message: feedback.message, ...(feedback.kind === 'unconfirmed' ? { uncertain: true } : {}) }

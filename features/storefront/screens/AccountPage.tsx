@@ -37,7 +37,7 @@ export default async function AccountPage() {
         {showings.items.map(showing => (
           <li key={showing.id} className="sf-trip">
             <div>
-              <h2><span className="sf-dot" data-tone={showingTone(showing.status)} aria-hidden />{showing.listingTitle}</h2>
+              <h2><span className="sf-dot" data-tone={showingTone(showing.status)} aria-hidden /><Link href={`/account/showings/${encodeURIComponent(showing.id)}`}>{showing.listingTitle}</Link></h2>
               <p className="sf-trip__meta">
                 <span><b>{showingStatusLabel(showing.status)}</b></span>
                 <LocalDateTime className="sf-num" value={showing.requestedStart} options={requestedTime} />

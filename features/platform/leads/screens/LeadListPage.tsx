@@ -8,6 +8,8 @@ import { LeadStatusForm } from '../components/LeadActionForms'
 import { LeadActivityForm } from '../components/LeadActivityForm'
 import { OriginalShowingRecovery, ScheduleShowingForm } from '../components/PendingShowingForms'
 import { DuplicateLeadResolver } from '../components/DuplicateLeadResolver'
+import { NewLeadDrawer } from '../components/NewLeadDrawer'
+import { getDealOptions } from '../../pipeline/lib/dealWorkspace'
 import type { OperatorViewer } from '../lib/leadDetail'
 import { activityTypeLabels, channelLabels, label, leadIntentLabels, leadSourceLabels, leadStatusColors, leadStatusLabels } from '../lib/labels'
 
@@ -146,10 +148,11 @@ export async function LeadListPage({ searchParams }: PageProps) {
   const q = typeof params.q === 'string' ? params.q : ''
   const after = cursorParam(params.after)
   const before = cursorParam(params.before)
-  const [{ leads, stats, error, pageInfo }, viewer, { groups: duplicateGroups, error: duplicateError }] = await Promise.all([
+  const [{ leads, stats, error, pageInfo }, viewer, { groups: duplicateGroups, error: duplicateError }, options] = await Promise.all([
     getPlatformLeads(status, q, after, before),
     getShowingRequestViewer(),
     getLeadDuplicateGroups(),
+    getDealOptions(),
   ])
 
   const tabItems = tabs.map((tab) => ({
@@ -164,6 +167,7 @@ export async function LeadListPage({ searchParams }: PageProps) {
       crumbs={[{ label: 'Leads' }]}
       title="Leads"
       meta={stats ? `${stats.new} new · ${stats.hot} qualified · ${stats.stale} stale` : null}
+      actions={<Track><NewLeadDrawer properties={options.properties} agents={options.agents} /></Track>}
       toolbar={<>
         <SearchField action="/dashboard/platform/leads" defaultValue={q} label="Search leads" placeholder="Name, email, phone or city" hidden={{ status: status !== 'all' ? status : undefined }} />
         <FilterTabs label="Lead status" items={tabItems} />

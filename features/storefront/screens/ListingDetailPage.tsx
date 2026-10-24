@@ -188,6 +188,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
                         <div>
                           <strong>{openHouse.title}</strong>
                           <p><LocalDateTime value={openHouse.startsAt} options={openHouseTime} />{openHouse.hostName ? ` · ${openHouse.hostName}` : ''}</p>
+                          <a className="sf-link" href={`/calendar/open-house/${encodeURIComponent(listing.slug)}/${encodeURIComponent(openHouse.id)}`}>Add to calendar</a>
                         </div>
                       </li>
                     )

@@ -6,7 +6,6 @@ import { classifyShowingFeedbackResponse, classifyShowingStatusResponse, type Sh
 import { readShowingDetail } from '../lib/showingDetail'
 import { isShowingBoardProjection, type ShowingBoardItem, type ShowingBoardStats } from '../lib/showingProjection'
 
-export type { ShowingActionState } from '../lib/showingActionFeedback'
 
 export type PlatformShowing = ShowingBoardItem
 export type ShowingStats = ShowingBoardStats

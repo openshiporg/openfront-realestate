@@ -2,20 +2,12 @@ import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatMoney as money } from '@/features/lib/money'
-import { EmptyState, ErrorBanner, Pager, PlatformPage, SearchField, TitleLine, Track, pillClass, type Tone } from '../../components/PlatformUI'
-import { getPlatformListings, type PlatformListing, type PlatformListingStats } from '../actions/listings'
-import { ListingStatusButton } from '../components/ListingStatusButton'
+import { EmptyState, ErrorBanner, Pager, PlatformPage, SearchField, TitleLine, pillClass } from '../../components/PlatformUI'
+import { getPlatformListings, type PlatformListing } from '../actions/listings'
+import { ListingStatusTrack } from '../components/ListingStatusTrack'
+import { listingStatuses as statuses } from '../lib/listingStatus'
 import { FilterTabs } from '../components/FilterTabs'
 
-const statuses: Array<{ value: string; label: string; tone: Tone; stat?: keyof PlatformListingStats }> = [
-  { value: 'active', label: 'Active', tone: 'emerald', stat: 'active' },
-  { value: 'coming_soon', label: 'Coming soon', tone: 'sky', stat: 'comingSoon' },
-  { value: 'pending', label: 'Pending', tone: 'amber', stat: 'pending' },
-  { value: 'draft', label: 'Draft', tone: 'zinc' },
-  { value: 'sold', label: 'Sold', tone: 'indigo', stat: 'sold' },
-  { value: 'rented', label: 'Rented', tone: 'violet' },
-  { value: 'off_market', label: 'Off market', tone: 'rose', stat: 'offMarket' },
-]
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
@@ -50,21 +42,12 @@ function factsLabel(item: PlatformListing) {
 }
 
 function ListingActions({ item }: { item: PlatformListing }) {
-  const isRental = item.listingType === 'rent'
-  const closeStatus = isRental ? 'rented' : 'sold'
-  const closeLabel = isRental ? 'Mark rented' : 'Mark sold'
   return (
-    <Track label={`${item.title} actions`}>
-      {['draft', 'coming_soon', 'off_market'].includes(item.status) ? <ListingStatusButton propertyId={item.id} status="active" label="Publish" primary /> : null}
-      {['draft', 'off_market'].includes(item.status) ? <ListingStatusButton propertyId={item.id} status="coming_soon" label="Coming soon" /> : null}
-      {item.status === 'active' ? <ListingStatusButton propertyId={item.id} status="pending" label="Mark pending" /> : null}
-      {item.status === 'pending' ? <ListingStatusButton propertyId={item.id} status="active" label="Back to active" /> : null}
-      {['active', 'pending'].includes(item.status) ? <ListingStatusButton propertyId={item.id} status={closeStatus} label={closeLabel} /> : null}
-      {['draft', 'active', 'coming_soon', 'pending', 'sold', 'rented'].includes(item.status) ? <ListingStatusButton propertyId={item.id} status="off_market" label="Withdraw" /> : null}
+    <ListingStatusTrack id={item.id} title={item.title} status={item.status} listingType={item.listingType}>
       <Button asChild variant="ghost" size="sm" className={pillClass}>
-        <Link href={`/dashboard/properties/${item.id}`}>Edit</Link>
+        <Link href={`/dashboard/platform/listings/${item.id}`}>Open</Link>
       </Button>
-    </Track>
+    </ListingStatusTrack>
   )
 }
 
@@ -82,7 +65,7 @@ function ListingRow({ item }: { item: PlatformListing }) {
       />
       <div className="min-w-0 space-y-1">
         <TitleLine tone={status?.tone || 'zinc'} status={status?.label || item.status} headingClassName="text-base">
-          <Link href={`/dashboard/properties/${item.id}`} className="hover:underline">{item.title}</Link>
+          <Link href={`/dashboard/platform/listings/${item.id}`} className="hover:underline">{item.title}</Link>
         </TitleLine>
         <p className="truncate text-sm text-muted-foreground">{address || 'No address'}</p>
         <p className="text-sm text-muted-foreground">
@@ -121,7 +104,7 @@ export async function ListingListPage({ searchParams }: PageProps) {
       crumbs={[{ label: 'Listings' }]}
       title="Listings"
       meta={stats ? `${stats.active} active · ${stats.pending} pending · ${stats.total} total` : null}
-      actions={<Button asChild className="rounded-full"><Link href="/dashboard/properties/create"><Plus aria-hidden /> New listing</Link></Button>}
+      actions={<Button asChild className="rounded-full"><Link href="/dashboard/platform/listings/new"><Plus aria-hidden /> New listing</Link></Button>}
       toolbar={<>
         <SearchField action="/dashboard/platform/listings" defaultValue={q} label="Search listings" placeholder="Address, city or title" hidden={{ status: status !== 'all' ? status : undefined }} />
         <FilterTabs label="Listing status" items={tabs} />
@@ -133,7 +116,7 @@ export async function ListingListPage({ searchParams }: PageProps) {
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">{items.map((item) => <ListingRow key={item.id} item={item} />)}</ul>
       ) : (
         <EmptyState title={q ? 'No listings match this search' : 'No listings'}>
-          {!q ? <Button asChild size="sm" className="rounded-full"><Link href="/dashboard/properties/create">New listing</Link></Button> : null}
+          {!q ? <Button asChild size="sm" className="rounded-full"><Link href="/dashboard/platform/listings/new">New listing</Link></Button> : null}
         </EmptyState>
       )}
       {!error && pageInfo ? (

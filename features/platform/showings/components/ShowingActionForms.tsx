@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { pillClass, pillPrimaryClass } from '../../components/styles'
-import { addShowingFeedback, updateShowingStatus, type ShowingActionState } from '../actions/showings'
+import { addShowingFeedback, updateShowingStatus } from '../actions/showings'
+import type { ShowingActionState } from '../lib/showingActionFeedback'
 
 const initialState: ShowingActionState = { ok: false, message: '' }
 

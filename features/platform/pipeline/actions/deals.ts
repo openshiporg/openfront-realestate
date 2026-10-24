@@ -92,7 +92,7 @@ export async function updateDealStage(_prevState: DealActionState, formData: For
     return { ok: false, message: response.success ? response.data.transitionDealStage.message : 'Could not update deal stage.' }
   }
 
-  revalidatePath('/dashboard/platform/pipeline')
+  revalidatePath('/dashboard/platform/pipeline', 'layout')
   revalidatePath('/dashboard/platform/reports')
   return { ok: true, message: 'Deal stage updated.' }
 }
@@ -110,7 +110,7 @@ export async function updateDealFinancialTerms(_prevState: DealActionState, form
   if (!response.success || !response.data.updateDealFinancialTermsCommand.ok) {
     return { ok: false, message: response.success ? response.data.updateDealFinancialTermsCommand.message : 'Could not record financial terms.' }
   }
-  revalidatePath('/dashboard/platform/pipeline')
+  revalidatePath('/dashboard/platform/pipeline', 'layout')
   revalidatePath('/dashboard/platform/reports')
   return { ok: true, message: 'Financial terms recorded.' }
 }
@@ -135,6 +135,6 @@ export async function updateDealNextStep(_prevState: DealActionState, formData: 
     return { ok: false, message: response.success ? response.data.updateDealNextStepCommand.message : 'Could not save next step.' }
   }
 
-  revalidatePath('/dashboard/platform/pipeline')
+  revalidatePath('/dashboard/platform/pipeline', 'layout')
   return { ok: true, message: 'Next step saved.' }
 }

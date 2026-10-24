@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { useActionState, useEffect, useRef, useState, useTransition, type FormEvent } from 'react'
 import { CalendarDays } from 'lucide-react'
 import { localDateTimeToIso, SHOWING_HOURS, withinShowingHours, zonedInputValue, zonedWallTimeToIso } from '@/features/lib/date-time'
-import { createShowingRequest, type ShowingRequestState } from '@/features/storefront/lib/data/showings'
+import { createShowingRequest } from '@/features/storefront/lib/data/showings'
+import type { ShowingRequestState } from '@/features/storefront/lib/data/showingRequestResult'
 
 const initialState: ShowingRequestState = { ok: false, message: '' }
 

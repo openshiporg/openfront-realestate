@@ -5,7 +5,6 @@ import { getStorefrontBrokerageSlug } from '@/features/storefront/lib/brokerage'
 import { explicitDateTimeToIso } from '@/features/lib/date-time'
 import { classifyShowingRequestResult, type ShowingRequestState } from './showingRequestResult'
 
-export type { ShowingRequestState } from './showingRequestResult'
 const initialFailure = (message: string): ShowingRequestState => ({ ok: false, message })
 
 function value(data: FormData, key: string) {

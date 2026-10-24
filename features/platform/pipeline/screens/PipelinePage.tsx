@@ -4,18 +4,11 @@ import { formatMoney as money } from '@/features/lib/money'
 import { LocalDateTime } from '../../showings/components/LocalDateTime'
 import { EmptyState, ErrorBanner, PlatformPage, Stats, StatusDot, TitleLine, Track, type Tone } from '../../components/PlatformUI'
 import { getPipelineDeals, type PlatformDeal } from '../actions/deals'
+import { dealStages as stages } from '../lib/stages'
+import { getDealOptions } from '../lib/dealWorkspace'
+import { NewDealDrawer } from '../components/DealRecordForms'
 import { DealFinancialTermsForm, DealNextStepForm, DealStageButton } from '../components/DealActionForms'
 
-const stages: Array<[string, string, Tone]> = [
-  ['prospecting', 'Prospecting', 'zinc'],
-  ['active_search', 'Active search', 'sky'],
-  ['offer_drafted', 'Offer drafted', 'violet'],
-  ['under_contract', 'Under contract', 'amber'],
-  ['inspection', 'Inspection', 'amber'],
-  ['financing', 'Financing', 'indigo'],
-  ['closed_won', 'Closed won', 'emerald'],
-  ['closed_lost', 'Closed lost', 'rose'],
-]
 
 const transactionTypeLabels: Record<string, string> = { buyer: 'Buyer', seller: 'Seller', tenant: 'Tenant', landlord: 'Landlord' }
 
@@ -25,7 +18,7 @@ function DealCard({ deal, tone }: { deal: PlatformDeal; tone: Tone }) {
   const open = !['closed_won', 'closed_lost'].includes(deal.stage)
   return (
     <article className="rounded-xl border border-border bg-card p-3 shadow-xs">
-      <TitleLine as="h3" tone={tone} status={transactionTypeLabels[deal.transactionType || ''] || 'Buyer'} headingClassName="text-sm">{deal.title}</TitleLine>
+      <TitleLine as="h3" tone={tone} status={transactionTypeLabels[deal.transactionType || ''] || 'Buyer'} headingClassName="text-sm"><Link href={`/dashboard/platform/pipeline/${deal.id}`} className="hover:underline">{deal.title}</Link></TitleLine>
       <p className="mt-1 text-xs text-muted-foreground">{deal.lead?.name || 'No client'} · {deal.assignedAgent?.name || 'Unassigned'}</p>
       {deal.property ? <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{deal.property.title} · {[deal.property.city, deal.property.state].filter(Boolean).join(', ')}</p> : null}
       <dl className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-muted/50 p-2 text-xs">
@@ -57,14 +50,17 @@ function DealCard({ deal, tone }: { deal: PlatformDeal; tone: Tone }) {
 }
 
 export async function PipelinePage() {
-  const { deals, stats, error } = await getPipelineDeals()
+  const [{ deals, stats, error }, options] = await Promise.all([getPipelineDeals(), getDealOptions()])
   const grouped = stages.map(([stage, label, tone]) => ({ stage, label, tone, deals: deals.filter((deal) => deal.stage === stage) }))
 
   return (
     <PlatformPage
       crumbs={[{ label: 'Pipeline' }]}
       title="Pipeline"
-      actions={<Button asChild variant="outline" className="rounded-full"><Link href="/dashboard/platform/reports">Reports</Link></Button>}
+      actions={<>
+        <Button asChild variant="outline" className="rounded-full"><Link href="/dashboard/platform/reports">Reports</Link></Button>
+        <Track><NewDealDrawer options={options} /></Track>
+      </>}
       toolbar={!error && deals.length ? (
         <Stats items={[
           ['Open', stats.open],
