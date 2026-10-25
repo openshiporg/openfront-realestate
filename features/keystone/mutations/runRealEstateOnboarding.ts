@@ -56,6 +56,24 @@ export async function runRealEstateOnboardingTransaction(
 
     const result = await (seedRunner || ((seedContext: SeedContext, seedTarget: SeedTarget) => runRealEstateOnboarding(seedContext, seedTarget, template)))(sudo as unknown as SeedContext, target)
 
+    // The tenancy migration inserts an empty "juniper-realty" brokerage marked primary,
+    // even on a fresh install. The storefront serves the first active primary brokerage,
+    // so that empty row would hide the brokerage set up here. Only primary brokerages
+    // with no members, settings or listings are demoted; any real brokerage is untouched.
+    const emptyPrimaries = await sudo.query.Brokerage.findMany({
+      where: {
+        id: { not: { equals: target.id } },
+        isPrimary: { equals: true },
+        memberships: { none: {} },
+        settings: { none: {} },
+        properties: { none: {} },
+      },
+      query: 'id',
+    })
+    for (const brokerage of emptyPrimaries) {
+      await sudo.db.Brokerage.updateOne({ where: { id: String(brokerage.id) }, data: { isPrimary: false } })
+    }
+
     await sudo.db.User.updateOne({
       where: { id: currentSession.itemId },
       data: { onboardingStatus: 'completed' },
