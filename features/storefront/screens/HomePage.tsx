@@ -80,15 +80,19 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
       <StorefrontNav settings={settings} sections={sections} />
       <main>
         <section className="sf-hero">
+          {featured?.imagePath ? (
+            <div className="sf-hero__backdrop" aria-hidden>
+              <img src={featured.imagePath} alt="" fetchPriority="high" />
+            </div>
+          ) : null}
           <div className="sf-container sf-hero__grid">
             <div className="sf-hero__copy">
               {marketLocation || settings.marketLabel ? <p className="sf-eyebrow">{[settings.marketLabel, marketLocation].filter(Boolean).join(' · ')}</p> : null}
               <h1 className="sf-hero__title">{settings.tagline || settings.businessName}</h1>
               <ListingSearchForm params={params} marketCity={settings.city} action="/#homes" />
             </div>
-            {featured?.imagePath ? (
+            {featured ? (
               <Link href={`/listings/${featured.slug}`} className="sf-hero__feature" aria-label={`${featured.title}, ${formatPrice(featured)}`}>
-                <img src={featured.imagePath} alt="" fetchPriority="high" />
                 <span className="sf-hero__feature-tag">{listingMarketLabel(featured)}</span>
                 <span className="sf-hero__feature-card">
                   <span>
