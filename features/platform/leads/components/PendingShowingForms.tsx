@@ -35,7 +35,7 @@ export function OriginalShowingRecovery({ viewer }: { viewer: OperatorViewer }) 
   const bytes = useSyncExternalStore(subscribe, snapshot, serverSnapshot)
   const [state, setState] = useState<LeadQuickActionState>({ ok: false, message: '' })
   const [busy, setBusy] = useState(false)
-  if (bytes === null) return state.message ? <p role="status" className={`rounded-lg border border-border bg-card p-4 text-sm ${messageTone(state)}`}>{state.message}</p> : null
+  if (bytes === null) return state.message ? <p role="status" className={`rounded-[6px] border border-border bg-card p-4 text-sm ${messageTone(state)}`}>{state.message}</p> : null
   const saved = parsePendingShowing(bytes)
   const owned = saved?.viewer.actorId === viewer.actorId && saved?.viewer.brokerageId === viewer.brokerageId
   async function recover(retrySame: boolean) {
@@ -45,7 +45,7 @@ export function OriginalShowingRecovery({ viewer }: { viewer: OperatorViewer }) 
     finally { setBusy(false) }
   }
   return (
-    <section className="rounded-xl border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30" aria-label="Unconfirmed showing request">
+    <section className="rounded-[6px] border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30" aria-label="Unconfirmed showing request">
       <h2 className="text-sm font-semibold text-foreground">Showing request not confirmed</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         {owned
@@ -86,14 +86,14 @@ export function ScheduleShowingForm({ leadId, propertyId, assignedAgentId, viewe
     }} className="space-y-3">
       <div className="space-y-1.5">
         <Label htmlFor={`${id}-start`}>Showing time</Label>
-        <Input id={`${id}-start`} name="scheduledStart" type="datetime-local" required disabled={blocked} />
+        <Input className="rounded-[6px]" id={`${id}-start`} name="scheduledStart" type="datetime-local" required disabled={blocked} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor={`${id}-notes`}>Notes</Label>
-        <Textarea id={`${id}-notes`} name="notes" rows={2} disabled={blocked} />
+        <Textarea className="rounded-[6px]" id={`${id}-notes`} name="notes" rows={2} disabled={blocked} />
       </div>
       {!propertyId ? <p className="text-xs text-muted-foreground">No listing on this lead</p> : null}
-      <Button type="submit" size="sm" className="w-full rounded-full" disabled={blocked}>{busy ? 'Scheduling…' : bytes !== null ? 'Earlier request unresolved' : 'Schedule showing'}</Button>
+      <Button type="submit" size="sm" className="w-full rounded-[6px] active:scale-[0.98]" disabled={blocked}>{busy ? 'Scheduling…' : bytes !== null ? 'Earlier request unresolved' : 'Schedule showing'}</Button>
       {state.message ? <p role="status" className={`text-xs ${messageTone(state)}`}>{state.message}</p> : null}
     </form>
   )

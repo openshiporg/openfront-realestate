@@ -102,3 +102,36 @@ export function showingTone(status?: string | null): StatusTone {
 export function initials(name?: string | null) {
   return String(name || '').split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase()
 }
+
+/** Sale price per finished square foot; empty for rentals, land without a building, or missing figures. */
+export function formatPricePerSqFt(listing: Pick<StorefrontProperty, 'price' | 'listingType' | 'squareFeet'>) {
+  const price = Number(listing.price)
+  const area = Number(listing.squareFeet)
+  if (listing.listingType === 'rent' || !Number.isFinite(price) || price <= 0 || !Number.isFinite(area) || area <= 0) return ''
+  return `$${Math.round(price / area).toLocaleString('en-US')}`
+}
+
+/** Literal market status for result modules: "Under contract" rather than a bare "Pending". */
+export function listingStatusPlate(listing: Pick<StorefrontProperty, 'status' | 'listingType'>) {
+  if (listing.status === 'pending') return 'Under contract'
+  return listingMarketLabel(listing)
+}
+
+/** The listing's place for a result module: its neighbourhood, else its city. */
+export function listingPlace(listing: Pick<StorefrontProperty, 'neighborhood' | 'city'>) {
+  return listing.neighborhood || listing.city || ''
+}
+
+/** "Homes for sale in Austin" style heading for a search. */
+export function resultsHeading(type: string | undefined, city: string) {
+  const what = type === 'sale' ? 'Homes for sale' : type === 'rent' ? 'Homes for rent' : 'Homes for sale and rent'
+  return city ? `${what} in ${city}` : what
+}
+
+/** The rail's count of the results on screen; the loader has no total, so a further page reads "25+". */
+export function resultCountLabel(result: { count: number; skip: number; hasMore: boolean; error: string | null }) {
+  if (result.error) return ''
+  const total = result.skip + result.count
+  if (result.count === 0) return 'No homes'
+  return result.hasMore ? `${total}+ homes` : `${total} ${total === 1 ? 'home' : 'homes'}`
+}

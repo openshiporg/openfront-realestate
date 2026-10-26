@@ -36,3 +36,33 @@ export async function getTaskOptions(): Promise<TaskOptions> {
     leads: response.data.leads, deals: response.data.deals, properties: response.data.properties,
   }
 }
+
+export type TaskCounts = { open: number; inProgress: number; blocked: number; done: number }
+
+/** The signed-in user's id, so the page can open on their own tasks. */
+export async function getViewerId(): Promise<string | null> {
+  const response = await keystoneClient<{ authenticatedItem: { id?: string } | null }>('query TaskViewer { authenticatedItem { ... on User { id } } }', {}, { cache: 'no-store' })
+  return response.success ? response.data.authenticatedItem?.id || null : null
+}
+
+/** Tasks in every status for one agent (or everyone), with counts in the same scope. */
+export async function getTaskQueue(agentId: string | null) {
+  const scope = agentId ? { assignedAgent: { id: { equals: agentId } } } : {}
+  const response = await keystoneClient<{ agentTasks: AgentTaskRow[] } & TaskCounts>(`
+    query PlatformTaskQueue($where: AgentTaskWhereInput!, $open: AgentTaskWhereInput!, $inProgress: AgentTaskWhereInput!, $blocked: AgentTaskWhereInput!, $done: AgentTaskWhereInput!) {
+      agentTasks(where: $where, orderBy: [{ dueAt: asc }, { createdAt: desc }], take: 200) { ${TASK_FIELDS} }
+      open: agentTasksCount(where: $open)
+      inProgress: agentTasksCount(where: $inProgress)
+      blocked: agentTasksCount(where: $blocked)
+      done: agentTasksCount(where: $done)
+    }`, {
+    where: scope,
+    open: { ...scope, status: { equals: 'open' } },
+    inProgress: { ...scope, status: { equals: 'in_progress' } },
+    blocked: { ...scope, status: { equals: 'blocked' } },
+    done: { ...scope, status: { equals: 'done' } },
+  }, { cache: 'no-store' })
+  if (!response.success) return { tasks: [] as AgentTaskRow[], counts: null as TaskCounts | null, error: response.error }
+  const { agentTasks, ...counts } = response.data
+  return { tasks: agentTasks, counts: counts as TaskCounts, error: null }
+}

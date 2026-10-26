@@ -42,10 +42,12 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
       meta={<>{address} · <span className="font-medium tabular-nums text-foreground">{price}</span></>}
       actions={<>
         {['active', 'coming_soon', 'pending'].includes(listing.status) ? <Link href={`/listings/${listing.slug}`} className={trackItemClass(false)}>Storefront <ArrowUpRight aria-hidden className="size-3.5" /></Link> : null}
+        <EditListingDrawer listing={listing} agents={agents} canAssign={viewer.canManagePeople} />
+        <span aria-hidden className="mx-0.5 hidden h-8 w-px bg-border sm:block" />
+        <ListingStatusTrack id={listing.id} title={listing.title} status={listing.status} listingType={listing.listingType} />
       </>}
-      toolbar={<ListingStatusTrack id={listing.id} title={listing.title} status={listing.status} listingType={listing.listingType}><EditListingDrawer listing={listing} agents={agents} canAssign={viewer.canManagePeople} /></ListingStatusTrack>}
     >
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <div className="grid gap-5 pb-16 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="min-w-0 space-y-5">
           <Panel title="Details">
             <dl className="grid gap-4 sm:grid-cols-3">
@@ -71,7 +73,7 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
             {media.length ? (
               <ul className="grid gap-3 sm:grid-cols-2">
                 {media.map(item => (
-                  <li key={item.id} className="overflow-hidden rounded-lg border border-border">
+                  <li key={item.id} className="overflow-hidden rounded-[6px] border border-border">
                     {mediaPreview(item.url, item.mediaType)
                       ? <div className="aspect-[4/3] bg-muted bg-cover bg-center" style={{ backgroundImage: `url(${item.url})` }} role="img" aria-label={item.altText || item.title} />
                       : <a href={item.url} className="flex aspect-[4/3] items-center justify-center bg-muted text-sm text-muted-foreground hover:underline">{label({ virtual_tour: 'Virtual tour', video: 'Video', document: 'Document' }, item.mediaType)}</a>}
@@ -145,7 +147,7 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
                 ))}
               </ul>
             ) : <p className="text-sm text-muted-foreground">Not syndicated</p>}
-            <Link href="/dashboard/platform/operations#syndication" className="mt-3 inline-block text-xs font-medium text-muted-foreground hover:text-foreground">Manage in Operations</Link>
+            <Link href="/dashboard/platform/operations?section=syndication" className="mt-3 inline-block text-xs font-medium text-muted-foreground hover:text-foreground">Manage in Operations</Link>
           </Panel>
         </aside>
       </div>

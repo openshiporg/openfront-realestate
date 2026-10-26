@@ -18,14 +18,13 @@ export default async function AccountQuestionsPage() {
 
   return <>
     <header className="sf-account__head">
-      <div>
-        <p className="sf-eyebrow">{customer.name}</p>
-        <h1 style={{ marginTop: '0.5rem' }}>Questions</h1>
-      </div>
-      <Link className="sf-btn sf-btn--quiet" href="/#homes">Browse homes</Link>
+      <h1>Questions</h1>
     </header>
     {inquiries.error ? <p className="sf-message" role="alert">{inquiries.error}</p> : !inquiries.items.length ? (
-      <div className="sf-state"><h2>No questions</h2></div>
+      <div className="sf-state">
+        <h2>No questions yet</h2>
+        <p>Questions you send from a home appear here with the advisor’s progress.</p>
+      </div>
     ) : (
       <ul className="sf-trips">
         {inquiries.items.map(inquiry => (
@@ -33,7 +32,7 @@ export default async function AccountQuestionsPage() {
             <div>
               <h2>{inquiry.listingTitle}</h2>
               <p className="sf-trip__meta">
-                <span><b>{statusLabels[inquiry.status] || 'Sent'}</b></span>
+                <span className="sf-plate" data-tone="closed">{statusLabels[inquiry.status] || 'Sent'}</span>
                 <LocalDateTime className="sf-num" value={inquiry.sentAt} options={{ month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }} />
               </p>
               <p className="sf-trip__message">{inquiry.message}</p>

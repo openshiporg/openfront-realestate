@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -8,7 +9,7 @@ import { storefrontTitle } from '../lib/metadata'
 import { ListingCard } from './ListingCard'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: await storefrontTitle('Saved') }
+  return { title: await storefrontTitle('Saved homes') }
 }
 
 function searchHref(search: SavedSearch) {
@@ -30,26 +31,26 @@ export default async function AccountSavedPage() {
 
   return <>
     <header className="sf-account__head">
-      <div>
-        <p className="sf-eyebrow">{customer.name}</p>
-        <h1 style={{ marginTop: '0.5rem' }}>Saved</h1>
-      </div>
-      <Link className="sf-btn sf-btn--quiet" href="/#homes">Browse homes</Link>
+      <h1>Saved homes</h1>
     </header>
 
     <section className="sf-account__section" aria-labelledby="saved-homes">
-      <h2 id="saved-homes">Homes</h2>
+      <h2 id="saved-homes" className="sr-only">Homes</h2>
       {homes.error ? <p className="sf-message" role="alert">{homes.error}</p> : homes.items.length ? (
-        <div className="sf-listing-grid">
+        <div className="sf-modules" style={{ '--sf-count': homes.items.length } as CSSProperties}>
           {homes.items.map(listing => <ListingCard key={listing.id} listing={listing} save={{ signedIn: true, savedIds }} />)}
         </div>
       ) : (
-        <div className="sf-state"><h3>No saved homes</h3></div>
+        <div className="sf-state">
+          <h3>No saved homes yet</h3>
+          <p>Use the heart on any home to keep it here.</p>
+          <Link className="sf-btn sf-btn--primary" href="/listings">Browse homes</Link>
+        </div>
       )}
     </section>
 
     <section className="sf-account__section" aria-labelledby="saved-searches">
-      <h2 id="saved-searches">Searches</h2>
+      <h2 id="saved-searches">Saved searches</h2>
       {searches.error ? <p className="sf-message" role="alert">{searches.error}</p> : searches.items.length ? (
         <ul className="sf-trips">
           {searches.items.map(search => (
@@ -66,7 +67,7 @@ export default async function AccountSavedPage() {
           ))}
         </ul>
       ) : (
-        <div className="sf-state"><h3>No saved searches</h3></div>
+        <p className="sf-account__note">No saved searches. Filter the results, then choose Save search.</p>
       )}
     </section>
   </>

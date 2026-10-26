@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation'
+import ListingsPage, { generateListingsMetadata } from '@/features/storefront/screens/ListingsPage'
 
-export default function ListingsIndex() {
-  redirect('/#homes')
-}
+export const generateMetadata = generateListingsMetadata
+
+export default ListingsPage

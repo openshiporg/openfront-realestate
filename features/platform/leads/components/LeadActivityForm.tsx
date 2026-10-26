@@ -16,7 +16,7 @@ function FieldSelect({ id, name, label, defaultValue, options }: { id: string; n
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
       <Select name={name} defaultValue={defaultValue}>
-        <SelectTrigger id={id} className="h-9 text-sm"><SelectValue /></SelectTrigger>
+        <SelectTrigger id={id} className="h-9 rounded-[6px] text-sm"><SelectValue /></SelectTrigger>
         <SelectContent>
           {options.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}
         </SelectContent>
@@ -37,7 +37,7 @@ export function LeadActivityForm({ leadId, propertyId }: { leadId: string; prope
 
   return (
     <form ref={formRef} action={action} className="space-y-3">
-            <input type="hidden" name="leadId" value={leadId} />
+      <input type="hidden" name="leadId" value={leadId} />
       <input type="hidden" name="propertyId" value={propertyId || ''} />
       <div className="grid gap-3 sm:grid-cols-3">
         <FieldSelect id={`${id}-type`} name="activityType" label="Type" defaultValue="note" options={[['note', 'Note'], ['call', 'Call'], ['email', 'Email'], ['text', 'Text']]} />
@@ -46,13 +46,13 @@ export function LeadActivityForm({ leadId, propertyId }: { leadId: string; prope
       </div>
       <div className="space-y-1.5">
         <Label htmlFor={`${id}-subject`}>Subject</Label>
-        <Input id={`${id}-subject`} name="subject" />
+        <Input className="rounded-[6px]" id={`${id}-subject`} name="subject" />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor={`${id}-body`}>Notes</Label>
-        <Textarea id={`${id}-body`} name="body" required rows={3} />
+        <Textarea className="rounded-[6px]" id={`${id}-body`} name="body" required rows={3} />
       </div>
-      <Button type="submit" size="sm" className="rounded-full" disabled={pending}>{pending ? 'Saving…' : 'Log activity'}</Button>
+      <Button type="submit" size="sm" className="rounded-[6px] active:scale-[0.98]" disabled={pending}>{pending ? 'Saving…' : 'Log activity'}</Button>
     </form>
   )
 }

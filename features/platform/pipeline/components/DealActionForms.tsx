@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { pillClass } from '../../components/styles'
+import { pillClass, pillPrimaryClass } from '../../components/styles'
 import { updateDealFinancialTerms, updateDealNextStep, updateDealStage, type DealActionState } from '../actions/deals'
 
 const initialState: DealActionState = { ok: false, message: '' }
@@ -30,7 +30,7 @@ function useResultToast(state: DealActionState) {
   }, [state])
 }
 
-export function DealStageButton({ dealId, stage, label, confirm }: { dealId: string; stage: string; label: string; confirm?: { title: string; description: string } }) {
+export function DealStageButton({ dealId, stage, label, confirm, primary = false }: { dealId: string; stage: string; label: string; confirm?: { title: string; description: string }; primary?: boolean }) {
   const [state, action, pending] = useActionState(updateDealStage, initialState)
   const formRef = useRef<HTMLFormElement>(null)
   useResultToast(state)
@@ -55,7 +55,7 @@ export function DealStageButton({ dealId, stage, label, confirm }: { dealId: str
           </AlertDialogContent>
         </AlertDialog>
       ) : (
-        <Button type="submit" variant="ghost" size="sm" className={pillClass} disabled={pending}>{pending ? 'Moving…' : label}</Button>
+        <Button type="submit" variant="ghost" size="sm" className={primary ? pillPrimaryClass : pillClass} disabled={pending}>{pending ? 'Moving…' : label}</Button>
       )}
     </form>
   )
@@ -71,14 +71,14 @@ export function DealFinancialTermsForm({ dealId, offerAmount, commissionAmount }
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-offer`}>Offer amount</Label>
-          <Input id={`${id}-offer`} name="offerAmount" inputMode="decimal" defaultValue={offerAmount || ''} required />
+          <Input className="rounded-[6px]" id={`${id}-offer`} name="offerAmount" inputMode="decimal" defaultValue={offerAmount || ''} required />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-commission`}>Commission</Label>
-          <Input id={`${id}-commission`} name="commissionAmount" inputMode="decimal" defaultValue={commissionAmount || ''} />
+          <Input className="rounded-[6px]" id={`${id}-commission`} name="commissionAmount" inputMode="decimal" defaultValue={commissionAmount || ''} />
         </div>
       </div>
-      <Button type="submit" size="sm" className="rounded-full" disabled={pending}>{pending ? 'Saving…' : 'Save amounts'}</Button>
+      <Button type="submit" size="sm" className="rounded-[6px] active:scale-[0.98]" disabled={pending}>{pending ? 'Saving…' : 'Save amounts'}</Button>
     </form>
   )
 }
@@ -92,13 +92,13 @@ export function DealNextStepForm({ dealId, nextStep, notes }: { dealId: string; 
       <input type="hidden" name="dealId" value={dealId} />
       <div className="space-y-1.5">
         <Label htmlFor={`${id}-next`}>Next step</Label>
-        <Input id={`${id}-next`} name="nextStep" defaultValue={nextStep || ''} required />
+        <Input className="rounded-[6px]" id={`${id}-next`} name="nextStep" defaultValue={nextStep || ''} required />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor={`${id}-notes`}>Notes</Label>
-        <Textarea id={`${id}-notes`} name="notes" defaultValue={notes || ''} rows={3} />
+        <Textarea className="rounded-[6px]" id={`${id}-notes`} name="notes" defaultValue={notes || ''} rows={3} />
       </div>
-      <Button type="submit" size="sm" className="rounded-full" disabled={pending}>{pending ? 'Saving…' : 'Save next step'}</Button>
+      <Button type="submit" size="sm" className="rounded-[6px] active:scale-[0.98]" disabled={pending}>{pending ? 'Saving…' : 'Save next step'}</Button>
     </form>
   )
 }

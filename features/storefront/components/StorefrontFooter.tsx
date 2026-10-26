@@ -27,10 +27,19 @@ export function StorefrontFooter({ settings, sections = { neighborhoods: true, a
           <nav aria-label="Footer navigation">
             <h2>Browse</h2>
             <ul>
-              <li><Link href="/#homes">Homes</Link></li>
+              <li><Link href="/listings?type=sale">Homes for sale</Link></li>
+              <li><Link href="/listings?type=rent">Homes for rent</Link></li>
               {sections.neighborhoods ? <li><Link href="/#neighborhoods">Neighborhoods</Link></li> : null}
               {sections.advisors ? <li><Link href="/#advisors">Advisors</Link></li> : null}
+            </ul>
+          </nav>
+
+          <nav aria-label="Your account">
+            <h2>Your account</h2>
+            <ul>
+              <li><Link href="/account/saved">Saved homes</Link></li>
               <li><Link href="/account">My showings</Link></li>
+              <li><Link href="/account/questions">Questions</Link></li>
             </ul>
           </nav>
 
@@ -38,7 +47,7 @@ export function StorefrontFooter({ settings, sections = { neighborhoods: true, a
             <div>
               <h2>Contact</h2>
               <address>
-                {phone ? <a href={phone}>{settings.publicPhone}</a> : null}
+                {phone ? <a href={phone} className="sf-num">{settings.publicPhone}</a> : null}
                 {email ? <a href={email}>{settings.publicEmail}</a> : null}
                 {location ? <span>{location}</span> : null}
               </address>
@@ -47,8 +56,13 @@ export function StorefrontFooter({ settings, sections = { neighborhoods: true, a
         </div>
 
         <div className="sf-footer__legal">
+          {settings.equalHousingNotice ? (
+            <p className="sf-footer__eho">
+              <svg viewBox="0 0 24 24" aria-hidden className="sf-footer__eho-mark"><path d="M3 11 12 4l9 7M5 10v10h14V10M9 13h6M9 16h6" fill="none" stroke="currentColor" strokeWidth="1.25" vectorEffect="non-scaling-stroke" /></svg>
+              {settings.equalHousingNotice}
+            </p>
+          ) : null}
           <p>© {new Date().getFullYear()} {settings.businessName}</p>
-          {settings.equalHousingNotice ? <p>{settings.equalHousingNotice}</p> : null}
         </div>
       </div>
     </footer>

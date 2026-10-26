@@ -1,11 +1,18 @@
 'use client'
 
-import { ActionButton, Choice, Field, FormDrawer, RecordForm, Toggle } from '../../components/RecordForm'
+import { startTransition, useActionState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { MoreHorizontal } from 'lucide-react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
+import { Choice, Field, FormDrawer, RecordForm, Toggle } from '../../components/RecordForm'
+import { pillClass } from '../../components/styles'
 import { deleteRoutingRule, saveRoutingRule, setRoutingRuleStatus } from '../actions/routing'
 import type { RoutingOptions, RoutingRule } from '../lib/rules'
+import { intentOptions, sourceOptions } from '../lib/options'
 
-export const intentOptions: Array<[string, string]> = [['any', 'Any intent'], ['buy', 'Buying'], ['rent', 'Renting'], ['sell', 'Selling'], ['invest', 'Investing']]
-export const sourceOptions: Array<[string, string]> = [['any', 'Any source'], ['website', 'Website'], ['zillow', 'Zillow'], ['referral', 'Referral'], ['open_house', 'Open house'], ['phone', 'Phone'], ['import', 'Import']]
 
 export function RoutingRuleDrawer({ rule, options, nextPriority }: { rule?: RoutingRule; options: RoutingOptions; nextPriority?: number }) {
   return (
@@ -31,9 +38,43 @@ export function RoutingRuleDrawer({ rule, options, nextPriority }: { rule?: Rout
   )
 }
 
+function useCommand(action: typeof setRoutingRuleStatus) {
+  const [state, run, pending] = useActionState(action, { ok: false, message: '' })
+  const router = useRouter()
+  useEffect(() => {
+    if (!state.message) return
+    if (state.ok) { toast.success(state.message); router.refresh() } else toast.error(state.message)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state])
+  return { run, pending }
+}
+
+/** Pause/activate and delete behind one menu; Delete is last, after a rule, and asks first. */
 export function RoutingRuleActions({ rule }: { rule: RoutingRule }) {
-  return <>
-    <ActionButton action={setRoutingRuleStatus} fields={{ id: rule.id, status: rule.status === 'active' ? 'paused' : 'active' }} label={rule.status === 'active' ? 'Pause' : 'Activate'} />
-    <ActionButton action={deleteRoutingRule} fields={{ id: rule.id }} label="Delete" confirm={`Delete "${rule.name}"?`} />
-  </>
+  const status = useCommand(setRoutingRuleStatus)
+  const remove = useCommand(deleteRoutingRule)
+  const pending = status.pending || remove.pending
+  const send = (command: ReturnType<typeof useCommand>, fields: Record<string, string>) => {
+    const form = new FormData()
+    Object.entries(fields).forEach(([name, value]) => form.set(name, value))
+    startTransition(() => command.run(form))
+  }
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="ghost" size="sm" className={cn(pillClass, 'w-8 px-0 data-[state=open]:border-foreground/40')} disabled={pending} aria-label={`More actions for ${rule.name}`}>
+          <MoreHorizontal aria-hidden className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-40 rounded-[6px] shadow-md">
+        <DropdownMenuItem className="h-9 rounded-[4px]" onSelect={() => send(status, { id: rule.id, status: rule.status === 'active' ? 'paused' : 'active' })}>
+          {rule.status === 'active' ? 'Pause rule' : 'Activate rule'}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="h-9 rounded-[4px] text-muted-foreground focus:text-destructive" onSelect={() => { if (window.confirm(`Delete "${rule.name}"?`)) send(remove, { id: rule.id }) }}>
+          Delete rule
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }

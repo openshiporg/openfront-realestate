@@ -12,7 +12,7 @@ import { pillClass, pillPrimaryClass } from './styles'
 export type FormResult = { ok: boolean; message: string; id?: string | null }
 type Action = (state: FormResult, form: FormData) => Promise<FormResult>
 
-const fieldClass = 'h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50'
+const fieldClass = 'h-9 w-full min-w-0 rounded-[6px] border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50'
 
 /** datetime-local inputs carry the browser's wall time; send them as ISO instants. */
 function normalizeDates(form: FormData, element: HTMLFormElement) {
@@ -47,7 +47,7 @@ export function RecordForm({ action, children, submitLabel, pendingLabel = 'Savi
     >
       {children}
       {!state.ok && state.message ? <p role="alert" className="text-sm text-destructive sm:col-span-2">{state.message}</p> : null}
-      <div className="sm:col-span-2"><Button type="submit" size="sm" className="rounded-full" disabled={pending}>{pending ? pendingLabel : submitLabel}</Button></div>
+      <div className="sm:col-span-2"><Button type="submit" size="sm" className="rounded-[6px] active:scale-[0.98]" disabled={pending}>{pending ? pendingLabel : submitLabel}</Button></div>
     </form>
   )
 }
@@ -120,7 +120,7 @@ export function Toggle({ name, label, defaultChecked }: { name: string; label: s
   const id = useId()
   return (
     <div className="flex items-center gap-2 sm:col-span-2">
-      <input id={id} name={name} type="checkbox" value="true" defaultChecked={defaultChecked} className="size-4 rounded border-input" />
+      <input id={id} name={name} type="checkbox" value="true" defaultChecked={defaultChecked} className="size-4 rounded-[4px] border-input" />
       <label htmlFor={id} className="text-sm text-foreground">{label}</label>
     </div>
   )

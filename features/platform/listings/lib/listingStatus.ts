@@ -10,3 +10,18 @@ export const listingStatuses: Array<{ value: string; label: string; tone: Tone; 
   { value: 'rented', label: 'Rented', tone: 'violet' },
   { value: 'off_market', label: 'Off market', tone: 'rose', stat: 'offMarket' },
 ]
+
+export type ListingTransition = { status: string; label: string; kind: 'primary' | 'normal' | 'withdraw' }
+
+/** Status changes allowed from the current status (mirrors transitionPropertyStatus). Publish is the forward step; Withdraw is last. */
+export function listingTransitions(status: string, listingType: string | null): ListingTransition[] {
+  const isRental = listingType === 'rent'
+  const moves: ListingTransition[] = []
+  if (['draft', 'coming_soon', 'off_market'].includes(status)) moves.push({ status: 'active', label: 'Publish', kind: 'primary' })
+  if (['draft', 'off_market'].includes(status)) moves.push({ status: 'coming_soon', label: 'Mark coming soon', kind: 'normal' })
+  if (status === 'active') moves.push({ status: 'pending', label: 'Mark pending', kind: 'normal' })
+  if (status === 'pending') moves.push({ status: 'active', label: 'Back to active', kind: 'normal' })
+  if (['active', 'pending'].includes(status)) moves.push({ status: isRental ? 'rented' : 'sold', label: isRental ? 'Mark rented' : 'Mark sold', kind: 'normal' })
+  if (['draft', 'active', 'coming_soon', 'pending', 'sold', 'rented'].includes(status)) moves.push({ status: 'off_market', label: 'Withdraw', kind: 'withdraw' })
+  return moves
+}

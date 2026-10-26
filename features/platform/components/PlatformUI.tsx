@@ -3,9 +3,9 @@ import type { ReactNode } from 'react'
 import { Search } from 'lucide-react'
 import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
 import { cn } from '@/lib/utils'
-import { trackClass, trackItemClass } from './styles'
+import { tableWrapClass, tdClass, thClass, trackClass, trackItemClass } from './styles'
 
-export { pillClass, pillPrimaryClass, trackClass, trackItemClass } from './styles'
+export { pillClass, pillPrimaryClass, trackClass, trackItemClass, tabClass, tableWrapClass, thClass, tdClass } from './styles'
 
 export type Tone = 'emerald' | 'sky' | 'blue' | 'amber' | 'indigo' | 'violet' | 'fuchsia' | 'rose' | 'zinc'
 
@@ -54,7 +54,7 @@ export function PlatformPage({ crumbs, title, meta, actions, children, toolbar }
       />
       <header className="flex flex-col gap-3 px-4 pt-5 md:px-6 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          {typeof title === 'string' ? <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1> : title}
+          {typeof title === 'string' ? <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-[1.375rem]">{title}</h1> : title}
           {meta ? <div className="mt-1 text-sm text-muted-foreground">{meta}</div> : null}
         </div>
         {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
@@ -76,7 +76,7 @@ export function SearchField({ action, defaultValue, placeholder, label, hidden =
         defaultValue={defaultValue}
         aria-label={label}
         placeholder={placeholder}
-        className="h-9 w-full rounded-full border border-input bg-background pl-9 pr-4 text-sm shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        className="h-9 w-full rounded-[6px] border border-input bg-background pl-9 pr-3 text-sm outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
       />
     </form>
   )
@@ -84,10 +84,10 @@ export function SearchField({ action, defaultValue, placeholder, label, hidden =
 
 export function Panel({ title, actions, children, className, bodyClassName }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; bodyClassName?: string }) {
   return (
-    <section className={cn('min-w-0 rounded-xl border border-border bg-card shadow-xs', className)}>
+    <section className={cn('min-w-0 overflow-hidden rounded-[6px] border border-border bg-card', className)}>
       {title || actions ? (
-        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
-          {typeof title === 'string' ? <h2 className="text-sm font-semibold text-foreground">{title}</h2> : title}
+        <header className="flex min-h-10 flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-1.5">
+          {typeof title === 'string' ? <h2 className="text-[13px] font-semibold text-foreground">{title}</h2> : title}
           {actions}
         </header>
       ) : null}
@@ -98,24 +98,24 @@ export function Panel({ title, actions, children, className, bodyClassName }: { 
 
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border px-6 py-12 text-center">
-      <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+    <div className="flex flex-col gap-3 rounded-[6px] border border-dashed border-border px-5 py-6 sm:flex-row sm:items-center sm:justify-between">
+      <h2 className="text-sm font-medium text-muted-foreground">{title}</h2>
       {children}
     </div>
   )
 }
 
 export function ErrorBanner({ children }: { children: ReactNode }) {
-  return <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{children}</div>
+  return <div role="alert" className="rounded-[6px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{children}</div>
 }
 
 export function Stats({ items }: { items: Array<[string, ReactNode]> }) {
   return (
-    <dl className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]">
+    <dl className="grid grid-cols-2 overflow-hidden rounded-[6px] border border-border bg-card sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]">
       {items.map(([label, value]) => (
-        <div key={label} className="min-w-0 border-b border-r border-border px-4 py-3 last:border-r-0 sm:border-b-0">
+        <div key={label} className="min-w-0 border-b border-r border-border px-4 py-2.5 last:border-r-0 sm:border-b-0">
           <dt className="truncate text-xs font-medium text-muted-foreground">{label}</dt>
-          <dd className="mt-1 truncate text-xl font-semibold tabular-nums tracking-tight text-foreground">{value}</dd>
+          <dd className="mt-0.5 truncate text-lg font-semibold leading-tight tabular-nums text-foreground">{value}</dd>
         </div>
       ))}
     </dl>
@@ -126,8 +126,8 @@ export function Pager({ label, previous, next }: { label: string; previous?: str
   if (!previous && !next) return null
   return (
     <nav aria-label={label} className="mt-6 flex items-center justify-between gap-3">
-      {previous ? <Link href={previous} className={cn(trackItemClass(true), 'h-9 px-4')}>Previous</Link> : <span />}
-      {next ? <Link href={next} className={cn(trackItemClass(true), 'h-9 px-4')}>Next</Link> : <span />}
+      {previous ? <Link href={previous} className={cn(trackItemClass(false), 'h-9 px-4')}>Previous</Link> : <span />}
+      {next ? <Link href={next} className={cn(trackItemClass(false), 'h-9 px-4')}>Next</Link> : <span />}
     </nav>
   )
 }
@@ -139,4 +139,25 @@ export function Meta({ label, children }: { label: string; children: ReactNode }
       <dd className="mt-0.5 truncate text-sm font-medium text-foreground">{children}</dd>
     </div>
   )
+}
+
+/** Dense operator table. Rows are plain <tr>s using `Td`. */
+export function DataTable({ label, head, children, className }: { label: string; head: Array<{ label: ReactNode; className?: string }>; children: ReactNode; className?: string }) {
+  return (
+    <div className={cn(tableWrapClass, className)}>
+      <table className="w-full border-collapse text-sm" aria-label={label}>
+        <thead><tr>{head.map((column, index) => <th key={index} scope="col" className={cn(thClass, column.className)}>{column.label}</th>)}</tr></thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  )
+}
+
+export function Td({ children, className, colSpan }: { children?: ReactNode; className?: string; colSpan?: number }) {
+  return <td colSpan={colSpan} className={cn(tdClass, className)}>{children}</td>
+}
+
+/** Status in a table cell: dot + word, never a coloured pill. */
+export function StatusCell({ tone, children }: { tone: Tone; children: ReactNode }) {
+  return <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[13px] font-medium"><StatusDot tone={tone} />{children}</span>
 }

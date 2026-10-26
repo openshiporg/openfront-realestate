@@ -11,7 +11,7 @@ export default async function StoreSettingsPage() {
         items={[
           { type: 'link', label: 'Dashboard', href: '/' },
           { type: 'page', label: 'Platform' },
-          { type: 'page', label: 'Store Settings' },
+          { type: 'page', label: 'Store settings' },
         ]}
       />
       <StoreSettingsPageClient

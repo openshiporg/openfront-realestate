@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { formatMoney } from '@/features/lib/money'
-import { ErrorBanner, Meta, Panel, PlatformPage, TitleLine, Track, trackItemClass } from '../../components/PlatformUI'
+import { ErrorBanner, Meta, Panel, PlatformPage, TitleLine, trackItemClass } from '../../components/PlatformUI'
 import { label } from '../../leads/lib/labels'
 import { getShowingDetail } from '../actions/showings'
 import { ShowingFeedbackForm, ShowingStatusButton } from '../components/ShowingActionForms'
@@ -37,17 +37,17 @@ export async function ShowingDetailPage({ params, searchParams }: PageProps) {
         const version = { expectedStatus: current.status, expectedUpdatedAt: updatedAt, expectedRevision: detail.revision }
         const open = ['requested', 'scheduled'].includes(current.status)
         return (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+          <div className="grid gap-5 pb-16 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
             <div className="min-w-0 space-y-5">
               {open ? (
-                <Panel title={current.status === 'requested' ? 'Confirm' : 'Outcome'}>
+                <Panel title={current.status === 'requested' ? 'Confirm this showing' : 'Outcome'}>
                   <div className="space-y-4">
-                    <Track label="Showing status">
-                      {current.status === 'requested' ? <ShowingStatusButton showingId={id} status="scheduled" label="Confirm showing" {...version} /> : null}
-                      {current.status === 'scheduled' ? <ShowingStatusButton showingId={id} status="no_show" label="No show" {...version} /> : null}
-                      <ShowingStatusButton showingId={id} status="cancelled" label="Cancel" {...version} />
-                    </Track>
-                    {current.status === 'scheduled' ? <ShowingFeedbackForm showingId={id} {...version} /> : null}
+                    <div role="group" aria-label="Showing status" className="flex flex-wrap items-start gap-1.5">
+                      {current.status === 'requested' ? <ShowingStatusButton showingId={id} leadId={current.lead?.id} status="scheduled" label="Confirm showing" {...version} /> : null}
+                      {current.status === 'scheduled' ? <ShowingStatusButton showingId={id} leadId={current.lead?.id} status="no_show" label="Mark no show" {...version} /> : null}
+                      <ShowingStatusButton showingId={id} leadId={current.lead?.id} status="cancelled" label="Cancel showing" quiet {...version} />
+                    </div>
+                    {current.status === 'scheduled' ? <ShowingFeedbackForm showingId={id} leadId={current.lead?.id} {...version} /> : null}
                   </div>
                 </Panel>
               ) : null}
@@ -109,10 +109,10 @@ export async function ShowingDetailPage({ params, searchParams }: PageProps) {
                 )}
                 {before || nextHistoryCursor ? (
                   <nav aria-label="History pages" className="mt-4">
-                    <Track>
+                    <div className="flex gap-1.5">
                       {before ? <Link href={href} className={trackItemClass(false)}>Latest</Link> : null}
                       {nextHistoryCursor ? <Link href={`${href}?before=${encodeURIComponent(nextHistoryCursor)}`} className={trackItemClass(false)}>Older</Link> : null}
-                    </Track>
+                    </div>
                   </nav>
                 ) : null}
               </Panel>

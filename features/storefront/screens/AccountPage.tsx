@@ -21,27 +21,24 @@ export default async function AccountPage() {
 
   return <>
     <header className="sf-account__head">
-      <div>
-        <p className="sf-eyebrow">{customer.name}</p>
-        <h1 style={{ marginTop: '0.5rem' }}>My showings</h1>
-      </div>
-      <Link className="sf-btn sf-btn--quiet" href="/#homes">Browse homes</Link>
+      <h1>My showings</h1>
     </header>
     {showings.error ? <p className="sf-message" role="alert">{showings.error}</p> : !showings.items.length ? (
       <div className="sf-state">
-        <h2>No showings</h2>
-        <Link className="sf-btn sf-btn--primary" href="/#homes">Browse homes</Link>
+        <h2>No showings yet</h2>
+        <p>Request a showing from any home and it appears here with its status.</p>
+        <Link className="sf-btn sf-btn--primary" href="/listings">Browse homes</Link>
       </div>
     ) : (
       <ul className="sf-trips">
         {showings.items.map(showing => (
           <li key={showing.id} className="sf-trip">
             <div>
-              <h2><span className="sf-dot" data-tone={showingTone(showing.status)} aria-hidden /><Link href={`/account/showings/${encodeURIComponent(showing.id)}`}>{showing.listingTitle}</Link></h2>
+              <h2><Link href={`/account/showings/${encodeURIComponent(showing.id)}`}>{showing.listingTitle}</Link></h2>
               <p className="sf-trip__meta">
-                <span><b>{showingStatusLabel(showing.status)}</b></span>
+                <span className="sf-plate" data-tone={showingTone(showing.status)}>{showingStatusLabel(showing.status)}</span>
                 <LocalDateTime className="sf-num" value={showing.requestedStart} options={requestedTime} />
-                <span>{showingTypeLabel(showing.showingType)}{showing.showingType === 'virtual' && ['requested', 'scheduled'].includes(showing.status) ? ' · Link sent by your advisor' : ''}</span>
+                <span>{showingTypeLabel(showing.showingType)}{showing.showingType === 'virtual' && ['requested', 'scheduled'].includes(showing.status) ? ', link sent by your advisor' : ''}</span>
               </p>
             </div>
             <div className="sf-trip__actions">

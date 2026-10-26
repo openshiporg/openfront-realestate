@@ -45,5 +45,5 @@ export function listingPageHref(params: ListingPageParams, skip: number) {
   }
   if (Number.isSafeInteger(skip) && skip > 0) search.set('skip', String(skip))
   const query = search.toString()
-  return `${query ? `/?${query}` : '/'}#homes`
+  return query ? `/listings?${query}` : '/listings'
 }

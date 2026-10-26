@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { CalendarPlus } from 'lucide-react'
+import { ArrowLeft, CalendarPlus } from 'lucide-react'
 import { LocalDateTime } from '@/features/platform/showings/components/LocalDateTime'
 import { CancelShowingButton } from '../components/CancelShowingButton'
 import { getCustomer, getCustomerShowing } from '../lib/data/account'
@@ -27,11 +27,10 @@ export default async function AccountShowingPage({ params }: Props) {
   const open = ['requested', 'scheduled'].includes(showing.status)
 
   return <>
+    <nav className="sf-crumbs sf-crumbs--flush" aria-label="Breadcrumb"><Link href="/account"><ArrowLeft aria-hidden />My showings</Link></nav>
     <header className="sf-account__head">
-      <div>
-        <p className="sf-eyebrow"><Link href="/account">My showings</Link></p>
-        <h1 style={{ marginTop: '0.5rem' }}><span className="sf-dot" data-tone={showingTone(showing.status)} aria-hidden />{showing.listingTitle}</h1>
-      </div>
+      <h1>{showing.listingTitle}</h1>
+      <span className="sf-plate" data-tone={showingTone(showing.status)}>{showingStatusLabel(showing.status)}</span>
     </header>
     <div className="sf-panel">
       <dl className="sf-facts">

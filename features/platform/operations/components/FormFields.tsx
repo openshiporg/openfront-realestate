@@ -25,7 +25,7 @@ function FieldShell({ id, label, wide, children }: { id: string; label: string; 
 
 export function TextField({ name, label, required = true, placeholder, inputMode, wide }: { name: string; label: string; required?: boolean; placeholder?: string; inputMode?: 'decimal' | 'numeric' | 'text'; wide?: boolean }) {
   const id = useId()
-  return <FieldShell id={id} label={label} wide={wide}><Input id={id} name={name} required={required} placeholder={placeholder} inputMode={inputMode} /></FieldShell>
+  return <FieldShell id={id} label={label} wide={wide}><Input className="rounded-[6px]" id={id} name={name} required={required} placeholder={placeholder} inputMode={inputMode} /></FieldShell>
 }
 
 export function SelectField({ name, label, options, defaultValue, wide }: { name: string; label: string; options: Array<[string, string]>; defaultValue?: string; wide?: boolean }) {
@@ -33,8 +33,8 @@ export function SelectField({ name, label, options, defaultValue, wide }: { name
   return (
     <FieldShell id={id} label={label} wide={wide}>
       <Select name={name} defaultValue={defaultValue ?? options[0]?.[0]}>
-        <SelectTrigger id={id} className="h-9 text-sm"><SelectValue /></SelectTrigger>
-        <SelectContent>{options.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}</SelectContent>
+        <SelectTrigger id={id} className="h-9 w-full rounded-[6px] text-sm"><SelectValue /></SelectTrigger>
+        <SelectContent className="rounded-[6px]">{options.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}</SelectContent>
       </Select>
     </FieldShell>
   )
@@ -49,8 +49,8 @@ export function RecordField({ name, label, options, required = true, wide, place
     <FieldShell id={id} label={label} wide={wide}>
       <input type="hidden" name={name} value={value === NONE ? '' : value} />
       <Select value={value} onValueChange={setValue}>
-        <SelectTrigger id={id} className="h-9 text-sm"><SelectValue placeholder={required ? 'Select…' : 'None'} /></SelectTrigger>
-        <SelectContent>
+        <SelectTrigger id={id} className="h-9 w-full rounded-[6px] text-sm"><SelectValue placeholder={required ? 'Select…' : 'None'} /></SelectTrigger>
+        <SelectContent className="rounded-[6px]">
           {required ? null : <SelectItem value={NONE}>None</SelectItem>}
           {options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
         </SelectContent>
@@ -66,7 +66,7 @@ export function DateTimeField({ name, label, required = true }: { name: string; 
   return (
     <FieldShell id={id} label={label}>
       <input type="hidden" name={name} value={local ? localDateTimeToIso(local) : ''} />
-      <Input id={id} type="datetime-local" required={required} value={local} onChange={(event) => setLocal(event.target.value)} />
+      <Input className="rounded-[6px]" id={id} type="datetime-local" required={required} value={local} onChange={(event) => setLocal(event.target.value)} />
     </FieldShell>
   )
 }
@@ -85,7 +85,7 @@ export function MoneyField({ name, label, required = true }: { name: string; lab
   return (
     <FieldShell id={id} label={label}>
       <input type="hidden" name={name} value={toCents(amount)} />
-      <Input id={id} inputMode="decimal" required={required} value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" />
+      <Input className="rounded-[6px]" id={id} inputMode="decimal" required={required} value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" />
     </FieldShell>
   )
 }
@@ -94,7 +94,7 @@ export function CheckboxField({ name, label }: { name: string; label: string }) 
   const id = useId()
   return (
     <div className="flex items-center gap-2">
-      <Checkbox id={id} name={name} />
+      <Checkbox id={id} name={name} className="rounded-[4px]" />
       <Label htmlFor={id} className="font-normal">{label}</Label>
     </div>
   )
@@ -124,22 +124,22 @@ export function RowsField({ name, label, columns, addLabel = 'Add row' }: { name
                   <Label htmlFor={fieldId} className="text-xs text-muted-foreground">{column.label}</Label>
                   {column.options?.length ? (
                     <Select value={row[column.key]} onValueChange={(value) => update(index, column.key, value)}>
-                      <SelectTrigger id={fieldId} className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                      <SelectContent>{column.options.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}</SelectContent>
+                      <SelectTrigger id={fieldId} className="h-9 w-full rounded-[6px] text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent className="rounded-[6px]">{column.options.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}</SelectContent>
                     </Select>
                   ) : (
-                    <Input id={fieldId} value={row[column.key]} inputMode={column.money ? 'decimal' : undefined} placeholder={column.money ? '0.00' : undefined} onChange={(event) => update(index, column.key, event.target.value)} />
+                    <Input className="rounded-[6px]" id={fieldId} value={row[column.key]} inputMode={column.money ? 'decimal' : undefined} placeholder={column.money ? '0.00' : undefined} onChange={(event) => update(index, column.key, event.target.value)} />
                   )}
                 </div>
               )
             })}
           </div>
-          <Button type="button" variant="ghost" size="icon" aria-label="Remove row" disabled={rows.length === 1} onClick={() => setRows((current) => current.filter((_, i) => i !== index))}>
+          <Button type="button" variant="ghost" size="icon" className="rounded-[6px]" aria-label="Remove row" disabled={rows.length === 1} onClick={() => setRows((current) => current.filter((_, i) => i !== index))}>
             <X />
           </Button>
         </div>
       ))}
-      <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setRows((current) => [...current, blank()])}><Plus />{addLabel}</Button>
+      <Button type="button" variant="outline" size="sm" className="rounded-[6px] shadow-none active:scale-[0.98]" onClick={() => setRows((current) => [...current, blank()])}><Plus />{addLabel}</Button>
     </fieldset>
   )
 }

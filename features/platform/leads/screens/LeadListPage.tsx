@@ -1,17 +1,16 @@
 import Link from 'next/link'
-import { Mail, Phone } from 'lucide-react'
 import { formatMoney as exactMoney, moneyToMinor } from '@/features/lib/money'
-import { EmptyState, ErrorBanner, Pager, PlatformPage, SearchField, TitleLine, Track, trackItemClass } from '../../components/PlatformUI'
+import { DataTable, EmptyState, ErrorBanner, Pager, PlatformPage, SearchField, StatusCell, Td } from '../../components/PlatformUI'
 import { FilterTabs } from '../../listings/components/FilterTabs'
 import { getLeadDuplicateGroups, getPlatformLeads, getShowingRequestViewer, type LeadStats, type PlatformLead } from '../actions/leads'
-import { LeadStatusForm } from '../components/LeadActionForms'
-import { LeadActivityForm } from '../components/LeadActivityForm'
-import { OriginalShowingRecovery, ScheduleShowingForm } from '../components/PendingShowingForms'
+import { OriginalShowingRecovery } from '../components/PendingShowingForms'
 import { DuplicateLeadResolver } from '../components/DuplicateLeadResolver'
 import { NewLeadDrawer } from '../components/NewLeadDrawer'
+import { LeadRowActions } from '../components/LeadRowActions'
+import { ResponseClock, elapsedLabel, minutesSince } from '../components/ResponseClock'
 import { getDealOptions } from '../../pipeline/lib/dealWorkspace'
 import type { OperatorViewer } from '../lib/leadDetail'
-import { activityTypeLabels, channelLabels, label, leadIntentLabels, leadSourceLabels, leadStatusColors, leadStatusLabels } from '../lib/labels'
+import { label, leadIntentLabels, leadStatusColors, leadStatusLabels } from '../lib/labels'
 
 const tabs: Array<{ value: string; label: string; stat?: keyof LeadStats }> = [
   { value: 'all', label: 'All', stat: 'total' },
@@ -23,6 +22,9 @@ const tabs: Array<{ value: string; label: string; stat?: keyof LeadStats }> = [
   { value: 'closed', label: 'Closed' },
   { value: 'lost', label: 'Lost' },
 ]
+
+/** Statuses where the next move is ours: the call list. */
+const NEEDS_RESPONSE = ['new', 'attempted_contact']
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
@@ -48,97 +50,70 @@ function formatMoney(value?: string | null, listingType?: string | null) {
   return listingType === 'rent' ? `${formatted}/mo` : formatted
 }
 
-function ageLabel(iso?: string | null) {
-  if (!iso) return '—'
-  const diff = Date.now() - new Date(iso).getTime()
-  const hours = Math.max(0, Math.floor(diff / 36e5))
-  if (hours < 1) return 'Just now'
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
+/** A lead waiting on us is timed from the last contact, or from when it arrived. */
+function waitingSince(lead: PlatformLead) {
+  return NEEDS_RESPONSE.includes(lead.status) ? lead.lastContactedAt || lead.createdAt : lead.createdAt
 }
 
-function LeadStatusActions({ lead }: { lead: PlatformLead }) {
-  const actions = [
-    lead.status === 'new' ? <LeadStatusForm key="contacted" leadId={lead.id} nextStatus="attempted_contact" label="Mark contacted" primary /> : null,
-    ['new', 'attempted_contact'].includes(lead.status) ? <LeadStatusForm key="qualify" leadId={lead.id} nextStatus="qualified" label="Qualify" primary={lead.status !== 'new'} /> : null,
-    !['closed', 'lost'].includes(lead.status) ? <LeadStatusForm key="lost" leadId={lead.id} nextStatus="lost" label="Mark lost" /> : null,
-  ].filter(Boolean)
+function byLongestWait(a: PlatformLead, b: PlatformLead) {
+  return (Date.parse(waitingSince(a) || '') || Infinity) - (Date.parse(waitingSince(b) || '') || Infinity)
+}
+
+const head = [
+  { label: 'Lead' },
+  { label: 'Status' },
+  { label: 'Waiting', className: 'hidden w-20 sm:table-cell' },
+  { label: 'Intent', className: 'hidden xl:table-cell' },
+  { label: 'Listing', className: 'hidden md:table-cell' },
+  { label: 'Agent', className: 'hidden lg:table-cell' },
+  { label: <span className="sr-only">Next action</span>, className: 'w-px' },
+]
+
+function LeadRow({ lead, viewer }: { lead: PlatformLead; viewer: OperatorViewer | null }) {
+  const href = `/dashboard/platform/leads/${encodeURIComponent(lead.id)}`
+  const waiting = NEEDS_RESPONSE.includes(lead.status)
   return (
-    <Track label={`${lead.name} actions`}>
-      {actions}
-      <Link href={`/dashboard/platform/leads/${encodeURIComponent(lead.id)}`} className={trackItemClass(false)}>Open</Link>
-    </Track>
+    <tr className="transition-colors hover:bg-muted/30">
+      <Td className="min-w-0 py-2 sm:min-w-44">
+        <Link href={href} className="font-medium text-foreground underline-offset-2 hover:underline">{lead.name}</Link>
+        <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+          <ResponseClock since={waitingSince(lead)} waiting={waiting} className="text-xs sm:hidden" />
+          {lead.phone ? <a href={`tel:${lead.phone.replace(/[^+\d]/g, '')}`} className="tabular-nums hover:text-foreground hover:underline">{lead.phone}</a>
+            : lead.email ? <a href={`mailto:${lead.email}`} className="max-w-[16rem] truncate hover:text-foreground hover:underline">{lead.email}</a>
+            : <span>No contact details</span>}
+          {lead.property ? <span className="truncate md:hidden">{lead.property.title}</span> : null}
+        </div>
+      </Td>
+      <Td className="py-2"><StatusCell tone={leadStatusColors[lead.status] || 'zinc'}>{label(leadStatusLabels, lead.status)}</StatusCell></Td>
+      <Td className="hidden py-2 sm:table-cell"><ResponseClock since={waitingSince(lead)} waiting={waiting} /></Td>
+      <Td className="hidden whitespace-nowrap py-2 text-[13px] text-muted-foreground xl:table-cell">{label(leadIntentLabels, lead.intent, 'Unknown')}</Td>
+      <Td className="hidden max-w-64 py-2 md:table-cell">
+        {lead.property ? (
+          <>
+            <Link href={`/dashboard/properties/${encodeURIComponent(lead.property.id)}`} className="block truncate text-[13px] text-foreground hover:underline">{lead.property.title || 'Listing'}</Link>
+            <span className="text-xs tabular-nums text-muted-foreground">{formatMoney(lead.property.price, lead.property.listingType)}</span>
+          </>
+        ) : <span className="text-[13px] text-muted-foreground">None</span>}
+      </Td>
+      <Td className="hidden whitespace-nowrap py-2 text-[13px] lg:table-cell">{lead.assignedAgent ? lead.assignedAgent.name || 'Assigned' : <span className="text-muted-foreground">Unassigned</span>}</Td>
+      <Td className="py-2">
+        <LeadRowActions
+          viewer={viewer}
+          lead={{ id: lead.id, name: lead.name, status: lead.status, phone: lead.phone, email: lead.email, propertyId: lead.property?.id, assignedAgentId: lead.assignedAgent?.id }}
+        />
+      </Td>
+    </tr>
   )
 }
 
-function LeadCard({ lead, viewer }: { lead: PlatformLead; viewer: OperatorViewer | null }) {
-  const activityCount = lead.activitiesCount ?? lead.activities?.length ?? 0
+function LeadTable({ title, count, leads, viewer }: { title?: string; count?: number; leads: PlatformLead[]; viewer: OperatorViewer | null }) {
   return (
-    <article className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
-      <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="min-w-0 space-y-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <TitleLine tone={leadStatusColors[lead.status] || 'zinc'} status={label(leadStatusLabels, lead.status)} headingClassName="text-base">
-              <Link href={`/dashboard/platform/leads/${encodeURIComponent(lead.id)}`} className="hover:underline">{lead.name}</Link>
-            </TitleLine>
-            <p className="text-xs tabular-nums text-muted-foreground">{ageLabel(lead.createdAt)}</p>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {[label(leadIntentLabels, lead.intent, 'Intent unknown'), label(leadSourceLabels, lead.source, 'Website'), lead.assignedAgent ? lead.assignedAgent.name || 'Assigned' : 'Unassigned', `${lead.showingsCount ?? 0} ${lead.showingsCount === 1 ? 'showing' : 'showings'}`].join(' · ')}
-          </p>
-          {lead.email || lead.phone ? (
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              {lead.phone ? <a href={`tel:${lead.phone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center gap-1.5 font-medium text-foreground hover:underline"><Phone aria-hidden className="size-3.5 text-muted-foreground" />{lead.phone}</a> : null}
-              {lead.email ? <a href={`mailto:${lead.email}`} className="inline-flex min-w-0 items-center gap-1.5 break-all font-medium text-foreground hover:underline"><Mail aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />{lead.email}</a> : null}
-            </div>
-          ) : <p className="text-sm text-muted-foreground">No contact details</p>}
-          {lead.property ? (
-            <Link href={`/dashboard/properties/${encodeURIComponent(lead.property.id)}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm hover:bg-muted">
-              <span className="min-w-0">
-                <span className="font-medium text-foreground">{lead.property.title || 'Listing'}</span>
-                {lead.property.city ? <span className="text-muted-foreground"> · {[lead.property.city, lead.property.state].filter(Boolean).join(', ')}</span> : null}
-              </span>
-              {lead.property.title ? <span className="font-semibold tabular-nums text-foreground">{formatMoney(lead.property.price, lead.property.listingType)}</span> : null}
-            </Link>
-          ) : null}
-          {lead.message ? <blockquote className="line-clamp-3 border-l-2 border-border pl-3 text-sm text-foreground/90">{lead.message}</blockquote> : null}
-          <LeadStatusActions lead={lead} />
-        </div>
-
-        {viewer ? (
-          <div className="rounded-lg border border-border bg-muted/30 p-3">
-            <h3 className="mb-3 text-sm font-semibold text-foreground">Schedule showing</h3>
-            <ScheduleShowingForm viewer={viewer} leadId={lead.id} propertyId={lead.property?.id} assignedAgentId={lead.assignedAgent?.id} />
-          </div>
-        ) : null}
-      </div>
-
-      <details className="group border-t border-border">
-        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground">
-          <span>Activity</span>
-          <span className="tabular-nums text-xs">{activityCount}</span>
-        </summary>
-        <div className="grid gap-4 border-t border-border p-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
-          {lead.activityAccess === 'restricted' ? (
-            <p className="text-sm text-muted-foreground">No access to this lead’s activity</p>
-          ) : lead.activities?.length ? (
-            <ol className="space-y-3">
-              {lead.activities.map((activity) => (
-                <li key={activity.id} className="relative border-l border-border pl-4">
-                  <span aria-hidden className="absolute -left-[3px] top-1.5 size-1.5 rounded-full bg-muted-foreground" />
-                  <p className="text-sm font-medium text-foreground">{activity.subject || label(activityTypeLabels, activity.activityType)}</p>
-                  {activity.body ? <p className="mt-0.5 line-clamp-3 text-sm text-foreground/90">{activity.body}</p> : null}
-                  <p className="mt-0.5 text-xs text-muted-foreground">{[label(activityTypeLabels, activity.activityType), label(channelLabels, activity.channel, 'CRM'), activity.occurredAt ? ageLabel(activity.occurredAt) : '', activity.agent?.name].filter(Boolean).join(' · ')}</p>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="text-sm text-muted-foreground">No activity</p>
-          )}
-          <LeadActivityForm leadId={lead.id} propertyId={lead.property?.id} />
-        </div>
-      </details>
-    </article>
+    <section className="space-y-2">
+      {title ? <h2 className="flex items-baseline gap-2 text-sm font-semibold text-foreground">{title}<span className="text-xs font-medium tabular-nums text-muted-foreground">{count ?? leads.length}</span></h2> : null}
+      <DataTable label={title || 'Leads'} head={head}>
+        {leads.map(lead => <LeadRow key={lead.id} lead={lead} viewer={viewer} />)}
+      </DataTable>
+    </section>
   )
 }
 
@@ -162,23 +137,52 @@ export async function LeadListPage({ searchParams }: PageProps) {
     count: tab.stat && stats ? stats[tab.stat] : null,
   }))
 
+  const waiting = leads.filter(lead => NEEDS_RESPONSE.includes(lead.status)).sort(byLongestWait)
+  const rest = leads.filter(lead => !NEEDS_RESPONSE.includes(lead.status))
+  const paged = Boolean(pageInfo && (pageInfo.nextCursor || pageInfo.previousCursor))
+  const oldest = waiting.length ? minutesSince(waitingSince(waiting[0])) : null
+  const meta = !error && waiting.length
+    ? `${waiting.length} waiting for a response${paged ? ' on this page' : ''}${oldest !== null ? ` · longest ${elapsedLabel(oldest)}` : ''}`
+    : null
+
   return (
     <PlatformPage
       crumbs={[{ label: 'Leads' }]}
       title="Leads"
-      meta={stats ? `${stats.new} new · ${stats.hot} qualified · ${stats.stale} stale` : null}
-      actions={<Track><NewLeadDrawer properties={options.properties} agents={options.agents} /></Track>}
+      meta={meta}
+      actions={<NewLeadDrawer properties={options.properties} agents={options.agents} />}
       toolbar={<>
         <SearchField action="/dashboard/platform/leads" defaultValue={q} label="Search leads" placeholder="Name, email, phone or city" hidden={{ status: status !== 'all' ? status : undefined }} />
         <FilterTabs label="Lead status" items={tabItems} />
       </>}
     >
-      <div className="space-y-6">
+      <div className="space-y-6 pb-16">
         {viewer ? <OriginalShowingRecovery viewer={viewer} /> : null}
 
+        {error ? (
+          <ErrorBanner>{error}</ErrorBanner>
+        ) : !leads.length ? (
+          <EmptyState title={q ? 'No leads match this search' : 'No leads'} />
+        ) : status === 'all' ? (
+          <>
+            {waiting.length ? <LeadTable title="Needs response" leads={waiting} viewer={viewer} /> : <EmptyState title="No leads waiting for a response" />}
+            {rest.length ? <LeadTable title="In progress" leads={rest} viewer={viewer} /> : null}
+          </>
+        ) : (
+          <LeadTable leads={NEEDS_RESPONSE.includes(status) ? waiting : leads} viewer={viewer} />
+        )}
+
+        {!error && pageInfo ? (
+          <Pager
+            label="Lead pages"
+            previous={pageInfo.previousCursor ? leadsHref(status, q, { direction: 'before', value: pageInfo.previousCursor }) : null}
+            next={pageInfo.nextCursor ? leadsHref(status, q, { direction: 'after', value: pageInfo.nextCursor }) : null}
+          />
+        ) : null}
+
         {duplicateGroups.length ? (
-          <details className="rounded-xl border border-amber-300/60 bg-amber-50/60 dark:border-amber-900/50 dark:bg-amber-950/20">
-            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-foreground">
+          <details className="group rounded-[6px] border border-amber-300/60 bg-amber-50/60 dark:border-amber-900/50 dark:bg-amber-950/20">
+            <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between rounded-[6px] px-4 py-2 text-sm font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
               <span>Possible duplicates</span>
               <span className="tabular-nums text-xs font-medium text-muted-foreground">{duplicateGroups.length}</span>
             </summary>
@@ -189,25 +193,7 @@ export async function LeadListPage({ searchParams }: PageProps) {
         ) : duplicateError ? (
           <ErrorBanner>Duplicates could not be loaded. {duplicateError}</ErrorBanner>
         ) : null}
-
-        {error ? (
-          <ErrorBanner>{error}</ErrorBanner>
-        ) : leads.length ? (
-          <div className="space-y-3">
-            {leads.map((lead) => <LeadCard key={lead.id} lead={lead} viewer={viewer} />)}
-          </div>
-        ) : (
-          <EmptyState title={q ? 'No leads match this search' : 'No leads'} />
-        )}
       </div>
-
-      {!error && pageInfo ? (
-        <Pager
-          label="Lead pages"
-          previous={pageInfo.previousCursor ? leadsHref(status, q, { direction: 'before', value: pageInfo.previousCursor }) : null}
-          next={pageInfo.nextCursor ? leadsHref(status, q, { direction: 'after', value: pageInfo.nextCursor }) : null}
-        />
-      ) : null}
     </PlatformPage>
   )
 }

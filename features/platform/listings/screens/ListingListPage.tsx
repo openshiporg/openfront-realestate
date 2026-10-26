@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatMoney as money } from '@/features/lib/money'
-import { EmptyState, ErrorBanner, Pager, PlatformPage, SearchField, TitleLine, pillClass } from '../../components/PlatformUI'
+import { DataTable, EmptyState, ErrorBanner, Pager, PlatformPage, SearchField, StatusCell, Td, pillPrimaryClass } from '../../components/PlatformUI'
 import { getPlatformListings, type PlatformListing } from '../actions/listings'
 import { ListingStatusTrack } from '../components/ListingStatusTrack'
 import { listingStatuses as statuses } from '../lib/listingStatus'
@@ -41,44 +41,72 @@ function factsLabel(item: PlatformListing) {
   return facts.join(' · ')
 }
 
-function ListingActions({ item }: { item: PlatformListing }) {
+const DAY = 86_400_000
+
+function updatedLabel(iso: string, now: number) {
+  const days = Math.floor((now - new Date(iso).getTime()) / DAY)
+  if (!Number.isFinite(days) || days <= 0) return 'Today'
+  if (days === 1) return '1 day ago'
+  return `${days} days ago`
+}
+
+function countCell(value: number | null) {
+  return value === null ? <span className="text-muted-foreground">—</span> : <span className={value === 0 ? 'text-muted-foreground' : 'text-foreground'}>{value}</span>
+}
+
+function ListingRow({ item, now }: { item: PlatformListing; now: number }) {
+  const status = statuses.find((entry) => entry.value === item.status)
+  const facts = factsLabel(item)
+  const place = [item.addressLine1, item.city].filter(Boolean).join(', ')
+  const href = `/dashboard/platform/listings/${item.id}`
+  const statusCell = <StatusCell tone={status?.tone || 'zinc'}>{status?.label || item.status}</StatusCell>
   return (
-    <ListingStatusTrack id={item.id} title={item.title} status={item.status} listingType={item.listingType}>
-      <Button asChild variant="ghost" size="sm" className={pillClass}>
-        <Link href={`/dashboard/platform/listings/${item.id}`}>Open</Link>
-      </Button>
-    </ListingStatusTrack>
+    <tr className="transition-colors hover:bg-muted/30">
+      <Td className="min-w-0 py-2">
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            className="hidden h-9 w-12 shrink-0 rounded-[4px] bg-muted bg-cover bg-center sm:block"
+            style={item.primaryImageUrl ? { backgroundImage: `url(${item.primaryImageUrl})` } : undefined}
+            role="img"
+            aria-label={item.primaryImageUrl ? `${item.title} photo` : 'No photo'}
+          />
+          <div className="min-w-0">
+            <Link href={href} className="block max-w-[11rem] truncate font-medium sm:max-w-[22rem] text-foreground underline-offset-2 hover:underline">{item.title}</Link>
+            <p className="max-w-[11rem] truncate text-xs text-muted-foreground sm:max-w-[22rem]">{[place || 'No address', facts].filter(Boolean).join(' · ')}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs md:hidden">
+              {statusCell}
+              <span className="font-semibold tabular-nums text-foreground">{priceLabel(item)}</span>
+              <span className={item.assignedAgent ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-400'}>{item.assignedAgent?.name || 'Unassigned'}</span>
+            </div>
+          </div>
+        </div>
+      </Td>
+      <Td className="hidden whitespace-nowrap md:table-cell">{statusCell}</Td>
+      <Td className="hidden whitespace-nowrap text-right font-medium tabular-nums md:table-cell">{priceLabel(item)}</Td>
+      <Td className="hidden text-right tabular-nums lg:table-cell">{countCell(item.leadsCount)}</Td>
+      <Td className="hidden text-right tabular-nums lg:table-cell">{countCell(item.showingsCount)}</Td>
+      <Td className="hidden max-w-[10rem] truncate md:table-cell">{item.assignedAgent ? item.assignedAgent.name : <span className="text-amber-700 dark:text-amber-400">Unassigned</span>}</Td>
+      <Td className="hidden whitespace-nowrap text-muted-foreground tabular-nums xl:table-cell">{updatedLabel(item.updatedAt, now)}</Td>
+      <Td className="w-px whitespace-nowrap py-2 text-right">
+        <div className="flex justify-end">
+          <ListingStatusTrack id={item.id} title={item.title} status={item.status} listingType={item.listingType} />
+        </div>
+      </Td>
+    </tr>
   )
 }
 
-function ListingRow({ item }: { item: PlatformListing }) {
-  const status = statuses.find((entry) => entry.value === item.status)
-  const facts = factsLabel(item)
-  const address = [item.addressLine1, item.city, [item.state, item.postalCode].filter(Boolean).join(' ')].filter(Boolean).join(', ')
-  return (
-    <li className="grid gap-4 p-4 sm:grid-cols-[7.5rem_minmax(0,1fr)] lg:grid-cols-[7.5rem_minmax(0,1fr)_auto] lg:items-start">
-      <div
-        className="aspect-[4/3] w-full rounded-lg bg-muted bg-cover bg-center sm:w-30"
-        style={item.primaryImageUrl ? { backgroundImage: `url(${item.primaryImageUrl})` } : undefined}
-        role="img"
-        aria-label={item.primaryImageUrl ? `${item.title} photo` : 'No photo'}
-      />
-      <div className="min-w-0 space-y-1">
-        <TitleLine tone={status?.tone || 'zinc'} status={status?.label || item.status} headingClassName="text-base">
-          <Link href={`/dashboard/platform/listings/${item.id}`} className="hover:underline">{item.title}</Link>
-        </TitleLine>
-        <p className="truncate text-sm text-muted-foreground">{address || 'No address'}</p>
-        <p className="text-sm text-muted-foreground">
-          {[facts, item.listingType === 'rent' ? 'Rental' : 'Sale', item.assignedAgent?.name || 'Unassigned'].filter(Boolean).join(' · ')}
-        </p>
-        <p className="pt-1 text-lg font-semibold tabular-nums tracking-tight text-foreground lg:hidden">{priceLabel(item)}</p>
-      </div>
-      <div className="flex min-w-0 flex-col gap-3 sm:col-span-2 lg:col-span-1 lg:items-end">
-        <p className="hidden text-lg font-semibold tabular-nums tracking-tight text-foreground lg:block">{priceLabel(item)}</p>
-        <ListingActions item={item} />
-      </div>
-    </li>
-  )
+function attentionLine(items: PlatformListing[], partial: boolean) {
+  const unassigned = items.filter(item => !item.assignedAgent).length
+  const noPhoto = items.filter(item => !item.primaryImageUrl).length
+  const quiet = items.filter(item => item.status === 'active' && item.leadsCount === 0).length
+  const parts = [
+    unassigned ? `${unassigned} unassigned` : '',
+    noPhoto ? `${noPhoto} without a photo` : '',
+    quiet ? `${quiet} active with no leads` : '',
+  ].filter(Boolean)
+  if (!parts.length) return null
+  return `${parts.join(' · ')}${partial ? ' on this page' : ''}`
 }
 
 export async function ListingListPage({ searchParams }: PageProps) {
@@ -88,6 +116,7 @@ export async function ListingListPage({ searchParams }: PageProps) {
   const after = cursorParam(params.after)
   const before = cursorParam(params.before)
   const { items, stats, pageInfo, error } = await getPlatformListings(status, q, after, before)
+  const now = Date.now()
 
   const tabs = [
     { label: 'All', href: listingPageHref('all', q), active: status === 'all', count: stats?.total ?? null },
@@ -103,20 +132,35 @@ export async function ListingListPage({ searchParams }: PageProps) {
     <PlatformPage
       crumbs={[{ label: 'Listings' }]}
       title="Listings"
-      meta={stats ? `${stats.active} active · ${stats.pending} pending · ${stats.total} total` : null}
-      actions={<Button asChild className="rounded-full"><Link href="/dashboard/platform/listings/new"><Plus aria-hidden /> New listing</Link></Button>}
+      meta={!error && items.length ? attentionLine(items, Boolean(pageInfo?.hasNextPage || pageInfo?.hasPreviousPage)) : null}
+      actions={<Button asChild variant="ghost" size="sm" className={pillPrimaryClass}><Link href="/dashboard/platform/listings/new"><Plus aria-hidden /> New listing</Link></Button>}
       toolbar={<>
         <SearchField action="/dashboard/platform/listings" defaultValue={q} label="Search listings" placeholder="Address, city or title" hidden={{ status: status !== 'all' ? status : undefined }} />
         <FilterTabs label="Listing status" items={tabs} />
       </>}
     >
+      <div className="pb-16">
       {error ? (
         <ErrorBanner>Listings could not be loaded. {error}</ErrorBanner>
       ) : items.length ? (
-        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">{items.map((item) => <ListingRow key={item.id} item={item} />)}</ul>
+        <DataTable
+          label="Listings"
+          head={[
+            { label: 'Listing' },
+            { label: 'Status', className: 'hidden md:table-cell' },
+            { label: 'Price', className: 'hidden text-right md:table-cell' },
+            { label: 'Leads', className: 'hidden text-right lg:table-cell' },
+            { label: 'Showings', className: 'hidden text-right lg:table-cell' },
+            { label: 'Agent', className: 'hidden md:table-cell' },
+            { label: 'Updated', className: 'hidden xl:table-cell' },
+            { label: <span className="sr-only">Actions</span>, className: 'text-right' },
+          ]}
+        >
+          {items.map((item) => <ListingRow key={item.id} item={item} now={now} />)}
+        </DataTable>
       ) : (
         <EmptyState title={q ? 'No listings match this search' : 'No listings'}>
-          {!q ? <Button asChild size="sm" className="rounded-full"><Link href="/dashboard/platform/listings/new">New listing</Link></Button> : null}
+          {!q ? <Button asChild variant="ghost" size="sm" className={pillPrimaryClass}><Link href="/dashboard/platform/listings/new">New listing</Link></Button> : null}
         </EmptyState>
       )}
       {!error && pageInfo ? (
@@ -126,6 +170,7 @@ export async function ListingListPage({ searchParams }: PageProps) {
           next={pageInfo.hasNextPage && pageInfo.nextCursor ? listingPageHref(status, q, { after: pageInfo.nextCursor }) : null}
         />
       ) : null}
+      </div>
     </PlatformPage>
   )
 }

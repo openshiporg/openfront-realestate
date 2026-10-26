@@ -9,7 +9,11 @@ const listingTypes: Array<[string, string]> = [['sale', 'For sale'], ['rent', 'F
 const propertyTypes: Array<[string, string]> = [['house', 'House'], ['condo', 'Condo'], ['townhome', 'Townhome'], ['multi_family', 'Multi-family'], ['land', 'Land'], ['commercial', 'Commercial']]
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
-  return <fieldset className="grid gap-3 sm:col-span-2 sm:grid-cols-2"><legend className="mb-1 text-sm font-semibold text-foreground">{title}</legend>{children}</fieldset>
+  return (
+    <div className="border-t border-border pt-4 first-of-type:border-t-0 first-of-type:pt-0 sm:col-span-2">
+      <fieldset className="grid gap-3 sm:grid-cols-2"><legend className="mb-3 text-sm font-semibold text-foreground">{title}</legend>{children}</fieldset>
+    </div>
+  )
 }
 
 /** Create (no listing) or edit a listing. Agent assignment shows only when the viewer can manage people. */

@@ -24,13 +24,13 @@ interface StoreSettingsPageClientProps {
 }
 
 const swatch = (hue: string | number) => `hsl(${(240 + Number(hue)) % 360}, 70%, 50%)`
-const triggerClass = 'flex h-12 w-12 shrink-0 rounded-lg border border-input bg-background focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 p-0 overflow-hidden items-center justify-center'
+const triggerClass = 'flex h-12 w-12 shrink-0 rounded-[6px] border border-input bg-background outline-none transition-[border-color,box-shadow] hover:border-foreground/25 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 p-0 overflow-hidden items-center justify-center'
 
 function TextField({ id, label, value, onChange, required, type = 'text', maxLength }: { id: string; label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; maxLength?: number }) {
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} type={type} value={value} onChange={event => onChange(event.target.value)} required={required} maxLength={maxLength} />
+      <Input className="h-9 rounded-[6px]" id={id} type={type} value={value} onChange={event => onChange(event.target.value)} required={required} maxLength={maxLength} />
     </div>
   )
 }
@@ -83,7 +83,7 @@ export function StoreSettingsPageClient({ initialData, initialError }: StoreSett
   if (initialError) {
     return (
       <div className="px-4 py-5 md:px-6">
-        <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">Store settings could not be loaded. {initialError}</div>
+        <div role="alert" className="rounded-[6px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">Store settings could not be loaded. {initialError}</div>
       </div>
     )
   }
@@ -96,7 +96,7 @@ export function StoreSettingsPageClient({ initialData, initialError }: StoreSett
   return (
     <div className="px-4 pb-24 pt-5 md:px-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Store Settings</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-[1.375rem]">Store settings</h1>
       </header>
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
@@ -120,9 +120,9 @@ export function StoreSettingsPageClient({ initialData, initialError }: StoreSett
                     <SelectPrimitive.Trigger className={cn(triggerClass)} aria-label="Logo icon">
                       <StoreLogo logoIcon={logoIcon} logoColor={logoColor} className="size-6" />
                     </SelectPrimitive.Trigger>
-                    <SelectContent className="border-border">
+                    <SelectContent className="rounded-[6px] border-border">
                       {LOGO_ICONS.map(icon => (
-                        <SelectItem key={icon.id} value={icon.id}>
+                        <SelectItem key={icon.id} value={icon.id} className="rounded-[4px]">
                           <span className="flex items-center gap-3">
                             <StoreLogo logoIcon={icon.lightSvg} logoColor={logoColor} className="size-6" />
                             <span className="block font-medium text-foreground">{icon.name}</span>
@@ -134,17 +134,17 @@ export function StoreSettingsPageClient({ initialData, initialError }: StoreSett
 
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="icon" className="h-12 w-12 shrink-0" type="button" aria-label="Edit SVG code">
+                      <Button variant="outline" size="icon" className="h-12 w-12 shrink-0 rounded-[6px] shadow-none active:scale-[0.98]" type="button" aria-label="Edit SVG code">
                         <Code className="h-4 w-4" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[min(500px,calc(100vw-2rem))]" align="start">
+                    <PopoverContent className="w-[min(500px,calc(100vw-2rem))] rounded-[6px]" align="start">
                       <div className="space-y-4">
                         <h4 className="font-medium">SVG code</h4>
                         <Textarea
                           value={logoIcon}
                           onChange={event => setLogoIcon(event.target.value)}
-                          className="min-h-[300px] font-mono text-xs"
+                          className="min-h-[300px] rounded-[6px] font-mono text-xs"
                           placeholder="<svg>...</svg>"
                           aria-label="SVG code"
                         />
@@ -160,19 +160,19 @@ export function StoreSettingsPageClient({ initialData, initialError }: StoreSett
                 <Select value={colorValue ?? ''} onValueChange={value => setLogoColor(normalizeStoreLogoColor(value))}>
                   <SelectPrimitive.Trigger className={cn(triggerClass)} aria-label="Logo color">
                     <SelectValue>
-                      <div className="h-6 w-6 rounded-full" style={{ background: swatch(logoColor) }} />
+                      <div className="h-6 w-6 rounded-[4px]" style={{ background: swatch(logoColor) }} />
                     </SelectValue>
                   </SelectPrimitive.Trigger>
-                  <SelectContent className="border-border">
+                  <SelectContent className="rounded-[6px] border-border">
                     <div className="grid grid-cols-4 gap-2 p-2">
                       {HUE_PRESETS.map(preset => (
                         <SelectItem
                           key={preset.value}
                           value={preset.value.toString()}
                           aria-label={preset.name}
-                          className="flex h-12 w-12 cursor-pointer items-center justify-center p-0 [&>span:first-child]:hidden"
+                          className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-[4px] p-0 [&>span:first-child]:hidden"
                         >
-                          <div className="h-6 w-6 rounded-full" style={{ background: swatch(preset.value) }} />
+                          <div className="h-6 w-6 rounded-[4px]" style={{ background: swatch(preset.value) }} />
                         </SelectItem>
                       ))}
                     </div>
@@ -191,7 +191,7 @@ export function StoreSettingsPageClient({ initialData, initialError }: StoreSett
             <TextField id="tagline" label="Headline" value={tagline} onChange={setTagline} required maxLength={220} />
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea id="description" value={description} onChange={event => setDescription(event.target.value)} rows={4} maxLength={1000} />
+              <Textarea className="rounded-[6px]" id="description" value={description} onChange={event => setDescription(event.target.value)} rows={4} maxLength={1000} />
             </div>
           </SettingsSection>
 
@@ -205,36 +205,38 @@ export function StoreSettingsPageClient({ initialData, initialError }: StoreSett
           <SettingsSection title="Showings & compliance">
             <div className="max-w-xs space-y-2">
               <Label htmlFor="showing-duration">Showing length (minutes)</Label>
-              <Input id="showing-duration" type="number" min={15} max={240} step={5} value={showingDurationMinutes} onChange={event => setShowingDurationMinutes(event.target.value)} />
+              <Input className="h-9 rounded-[6px]" id="showing-duration" type="number" min={15} max={240} step={5} value={showingDurationMinutes} onChange={event => setShowingDurationMinutes(event.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="equal-housing-notice">Equal housing notice</Label>
-              <Textarea id="equal-housing-notice" value={equalHousingNotice} onChange={event => setEqualHousingNotice(event.target.value)} rows={2} maxLength={240} />
+              <Textarea className="rounded-[6px]" id="equal-housing-notice" value={equalHousingNotice} onChange={event => setEqualHousingNotice(event.target.value)} rows={2} maxLength={240} />
             </div>
           </SettingsSection>
 
           <div className="sticky bottom-0 -mx-4 flex items-center justify-end gap-3 border-t border-border bg-background/90 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
             {!logoSupported ? <p role="alert" className="mr-auto text-sm text-destructive">Unsupported logo SVG</p> : null}
-            <Button type="submit" className="rounded-full" disabled={isLoading || !logoSupported}>
+            <Button type="submit" className="h-9 rounded-[6px] shadow-none active:scale-[0.98]" disabled={isLoading || !logoSupported}>
               {isLoading ? 'Saving…' : 'Save settings'}
             </Button>
           </div>
         </form>
 
-        <aside className="hidden xl:sticky xl:top-4 xl:block" aria-label="Storefront preview">
-          <p className="mb-2 text-xs font-medium text-muted-foreground">Preview</p>
-          <div className="overflow-hidden rounded-xl border border-border bg-[#f8f6f1] text-[#23262b] shadow-xs">
-            <div className="flex items-center gap-2.5 border-b border-black/10 px-4 py-3">
+        <aside className="hidden xl:sticky xl:top-4 xl:block" aria-labelledby="storefront-preview-title">
+          <div className="overflow-hidden rounded-[6px] border border-border bg-background">
+            <h2 id="storefront-preview-title" className="border-b border-border bg-muted/30 px-4 py-2 text-[13px] font-semibold text-foreground">Storefront header</h2>
+            <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
               <StoreLogo logoIcon={logoSupported ? logoIcon : ''} logoColor={logoColor} className="size-7" />
               <div className="min-w-0 leading-tight">
-                <p className="truncate text-sm font-bold">{businessName || 'Business name'}</p>
-                <p className="truncate text-[11px] text-black/50">{marketLabel || 'Market label'}</p>
+                <p className="truncate text-sm font-semibold text-foreground">{businessName || 'Business name'}</p>
+                <p className="truncate text-xs text-muted-foreground">{marketLabel || 'Market label'}</p>
               </div>
             </div>
-            <div className="space-y-2 px-4 py-6">
-              {location ? <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-black/50">{location}</p> : null}
-              <p className="font-serif text-3xl leading-[0.95] tracking-tight">{tagline || 'Headline'}</p>
+            <div className="space-y-2 px-4 py-5">
+              <p className="text-lg font-semibold leading-snug tracking-tight text-foreground">{tagline || 'Headline'}</p>
+              {location ? <p className="text-sm text-muted-foreground">{location}</p> : null}
+              {publicPhone || publicEmail ? <p className="truncate text-sm text-muted-foreground tabular-nums">{[publicPhone, publicEmail].filter(Boolean).join(' · ')}</p> : null}
             </div>
+            <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">{equalHousingNotice || 'No equal housing notice'}</p>
           </div>
         </aside>
       </div>

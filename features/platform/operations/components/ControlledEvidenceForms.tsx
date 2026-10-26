@@ -1,10 +1,13 @@
 'use client'
 
-import { useActionState, useEffect, useId, useRef, type ReactNode } from 'react'
+import { useActionState, useEffect, useId, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { cn } from '@/lib/utils'
+import { pillClass, pillPrimaryClass } from '../../components/styles'
 import {
   appendDocumentEvidence,
   approveCommissionAllocation,
@@ -28,29 +31,36 @@ import { CheckboxField, DateTimeField, MoneyField, RecordField, RowsField, Selec
 type State = { ok: boolean; message: string; uncertain?: boolean }
 const initial: State = { ok: false, message: '' }
 
-function CommandForm({ action, title, submitLabel = 'Save', children }: { action: (state: State, form: FormData) => Promise<State>; title: string; submitLabel?: string; children: ReactNode }) {
+/** A recorded command behind a drawer trigger; the drawer closes when the command is confirmed. */
+function CommandForm({ action, title, trigger, submitLabel = 'Save', children }: { action: (state: State, form: FormData) => Promise<State>; title: string; trigger?: string; submitLabel?: string; children: ReactNode }) {
   const [state, formAction, pending] = useActionState(action, initial)
+  const [open, setOpen] = useState(false)
   const id = useId()
-  const formRef = useRef<HTMLFormElement>(null)
   useEffect(() => {
     if (!state.message) return
-    if (state.ok) toast.success(state.message)
+    if (state.ok) { toast.success(state.message); setOpen(false) }
     else toast.error(state.message)
   }, [state])
   return (
-    <details className="rounded-xl border border-border bg-card shadow-xs">
-      <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-foreground">{title}</summary>
-      <form ref={formRef} action={formAction} className="grid gap-3 border-t border-border p-4 sm:grid-cols-2">
-        {children}
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor={`${id}-reason`}>Note</Label>
-          <Textarea id={`${id}-reason`} required name="reason" rows={2} />
-        </div>
-        <div className="sm:col-span-2">
-          <Button type="submit" size="sm" className="rounded-full" disabled={pending}>{pending ? 'Saving…' : submitLabel}</Button>
-        </div>
-      </form>
-    </details>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button type="button" variant="ghost" size="sm" className={pillClass}>{trigger || title}</Button>
+      </SheetTrigger>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        <SheetHeader><SheetTitle>{title}</SheetTitle></SheetHeader>
+        <form action={formAction} className="grid gap-3 px-4 pb-6 sm:grid-cols-2">
+          {children}
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor={`${id}-reason`}>Note</Label>
+            <Textarea id={`${id}-reason`} required name="reason" rows={2} className="rounded-[6px]" />
+          </div>
+          {!state.ok && state.message ? <p role="alert" className="text-sm text-destructive sm:col-span-2">{state.message}</p> : null}
+          <div className="sm:col-span-2">
+            <Button type="submit" variant="ghost" size="sm" className={cn(pillPrimaryClass, 'h-9')} disabled={pending}>{pending ? 'Saving…' : submitLabel}</Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -158,7 +168,7 @@ const allocationTypes: Array<[string, string]> = [['brokerage', 'Brokerage'], ['
 
 export function CommissionLedgerForms({ options }: { options: OperationsOptions }) {
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
+    <div className="flex flex-wrap gap-2">
       <CommandForm action={proposeCommissionAllocation} title="Split a commission">
         <RecordField name="commissionId" label="Commission" options={options.commissions} />
         <TextField name="currencyCode" label="Currency" placeholder="USD" />
@@ -190,7 +200,7 @@ export function CommissionLedgerForms({ options }: { options: OperationsOptions 
 
 export function RetentionForms({ options }: { options: OperationsOptions }) {
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
+    <div className="flex flex-wrap gap-2">
       <CommandForm action={recordRetentionPolicy} title="Add retention policy">
         <SelectField name="retentionClass" label="Records" options={[['transaction_file', 'Transaction file'], ['listing_no_close', 'Listing without a sale'], ['consent_proof', 'Consent records'], ['security_incident', 'Security incident']]} />
         <TextField name="jurisdictionCode" label="State or jurisdiction" />
@@ -228,7 +238,7 @@ export function SyndicationAuthorityAction({ syndicationId, status }: { syndicat
   if (status === 'removed') return <span className="text-xs text-muted-foreground">—</span>
   const next = status === 'published' ? 'removed' : 'published'
   return (
-    <CommandForm action={transitionSyndicationAuthority} title={next === 'published' ? 'Mark published' : 'Mark removed'}>
+    <CommandForm action={transitionSyndicationAuthority} title={next === 'published' ? 'Mark published' : 'Mark removed'} submitLabel={next === 'published' ? 'Mark published' : 'Mark removed'}>
       <input type="hidden" name="syndicationId" value={syndicationId} />
       <input type="hidden" name="status" value={next} />
       <TextField name="providerReference" label="Provider reference" required={false} wide />

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, ArrowUpRight, Mail, Phone } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, CalendarDays, Mail, Phone } from 'lucide-react'
 import { LocalDateTime } from '@/features/platform/showings/components/LocalDateTime'
 import { BrokerageMark } from '@/features/storefront/components/BrokerageMark'
 import { SaveHomeButton } from '@/features/storefront/components/SaveHomeButton'
@@ -12,7 +12,8 @@ import { getCustomer } from '@/features/storefront/lib/data/account'
 import { getSavedPropertyIds } from '@/features/storefront/lib/data/saved'
 import { getStorefrontListingBySlug } from '@/features/storefront/lib/data/properties'
 import { getBrokerageSettings } from '@/features/storefront/lib/data/settings'
-import { emailHref, formatLocation, formatPrice, initials, listingMarketLabel, listingStatusLabel, listingTone, phoneHref, propertyTypeLabel } from '@/features/storefront/lib/format'
+import { ListingGallery } from '@/features/storefront/components/ListingGallery'
+import { emailHref, formatLocation, formatPrice, formatPricePerSqFt, initials, listingStatusLabel, listingStatusPlate, listingTone, phoneHref, propertyTypeLabel, resultsHeading } from '@/features/storefront/lib/format'
 import { formatMoney } from '@/features/lib/money'
 import { stateTimeZone, timeZoneLabel } from '@/features/lib/date-time'
 import { ListingActionPanel } from './ListingActionPanel'
@@ -76,7 +77,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
           <div className="sf-state" role="alert">
             <h1>This home could not be loaded</h1>
             <p>Try again later.</p>
-            <Link href="/" className="sf-btn sf-btn--primary">All homes</Link>
+            <Link href="/listings" className="sf-btn sf-btn--primary">All homes</Link>
           </div>
         </main>
         <StorefrontFooter settings={settings} />
@@ -92,6 +93,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
     ...(!land && Number(listing.bathrooms) > 0 ? [['Baths', String(Number(listing.bathrooms))] as [string, string]] : []),
     ...(listing.squareFeet ? [['Sq ft', listing.squareFeet.toLocaleString()] as [string, string]] : []),
     ...(listing.lotSizeSquareFeet ? [['Lot sq ft', listing.lotSizeSquareFeet.toLocaleString()] as [string, string]] : []),
+    ...(listing.yearBuilt ? [['Built', String(listing.yearBuilt)] as [string, string]] : []),
   ]
   const facts: Array<[string, string]> = [
     ['Status', listingStatusLabel(listing.status)],
@@ -114,9 +116,10 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
     .map(item => [item.imagePath, item])).values()]
   const photos = [
     ...(listing.imagePath ? [{ imagePath: listing.imagePath, altText: listing.title, caption: '' }] : []),
-    ...extraPhotos,
-  ].slice(0, 5)
-  const galleryClass = photos.length === 1 ? 'sf-gallery sf-gallery--solo' : photos.length === 2 ? 'sf-gallery sf-gallery--two' : photos.length === 3 ? 'sf-gallery sf-gallery--three' : 'sf-gallery'
+    ...extraPhotos.map(item => ({ imagePath: item.imagePath, altText: item.altText, caption: item.caption })),
+  ].slice(0, 12)
+  const perFoot = formatPricePerSqFt(listing)
+  const nextOpenHouse = listing.openHouses.find(openHouse => Date.parse(openHouse.endsAt || openHouse.startsAt) > Date.now()) || null
   const agent = listing.assignedAgent
   const advisorEmail = agent?.email || settings.publicEmail
   const advisorPhone = agent?.phone || settings.publicPhone
@@ -131,45 +134,47 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
     <>
       <StorefrontNav settings={settings} />
       <main>
-        <div className="sf-container sf-crumbs">
-          <Link href="/#homes"><ArrowLeft aria-hidden /> All homes</Link>
-          {location ? <span>{location}</span> : null}
-        </div>
+        <nav className="sf-container sf-crumbs" aria-label="Breadcrumb">
+          <Link href={listing.listingType === 'rent' ? '/listings?type=rent' : '/listings?type=sale'}><ArrowLeft aria-hidden />{resultsHeading(listing.listingType === 'rent' ? 'rent' : 'sale', settings.city)}</Link>
+          {location ? <Link href={`/listings?q=${encodeURIComponent(location)}`}>{location}</Link> : null}
+        </nav>
 
-        <div className="sf-container">
-          {photos.length ? (
-            <section className={galleryClass} aria-label="Photos">
-              {photos.map((item, index) => (
-                <figure key={item.imagePath}>
-                  <img src={item.imagePath} alt={item.altText || ''} decoding="async" fetchPriority={index === 0 ? 'high' : 'low'} loading={index === 0 ? 'eager' : 'lazy'} />
-                  {item.caption ? <figcaption>{item.caption}</figcaption> : null}
-                </figure>
-              ))}
-            </section>
-          ) : (
-            <div className="sf-gallery__empty" role="img" aria-label={`${listing.title}: no photo`}>No photo</div>
-          )}
+        <div className="sf-container sf-detail-top">
+          <ListingGallery photos={photos} title={listing.title} plaque={formatLocation(listing)} />
+
+          <section className="sf-signplate" aria-labelledby="listing-title" data-saved={savedIds[listing.id] ? true : undefined}>
+            <div className="sf-signplate__status">
+              <span className="sf-plate" data-tone={listingTone(listing.status)}>{listingStatusPlate(listing)}</span>
+              <span>{propertyTypeLabel(listing.propertyType)}</span>
+              <SaveHomeButton className="sf-signplate__save" propertyId={listing.id} title={listing.title} slug={listing.slug} savedId={savedIds[listing.id] || null} signedIn={Boolean(customer)} />
+            </div>
+            <h1 id="listing-title" className="sf-signplate__title">{listing.title}</h1>
+            <p className="sf-signplate__address">{formatLocation(listing)}</p>
+            <p className="sf-signplate__price">
+              <span className="sf-num">{formatPrice(listing)}</span>
+              {perFoot ? <small className="sf-num">{perFoot}/sq ft</small> : null}
+            </p>
+            {keyFacts.length ? (
+              <dl className="sf-keyfacts">
+                {keyFacts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="sf-num">{value}</dd></div>)}
+              </dl>
+            ) : null}
+            {nextOpenHouse ? (
+              <p className="sf-signplate__openhouse">
+                <CalendarDays aria-hidden />
+                <span>Open house <LocalDateTime value={nextOpenHouse.startsAt} options={openHouseTime} /></span>
+              </p>
+            ) : null}
+            <div className="sf-signplate__actions">
+              <a href="#showing" className="sf-btn sf-btn--primary">Request a showing</a>
+              <a href="#ask" className="sf-btn sf-btn--quiet">{listing.listingType === 'rent' ? 'Ask about applying' : 'Ask a question'}</a>
+            </div>
+            {listing.virtualTourUrl ? <a href={listing.virtualTourUrl} className="sf-link" target="_blank" rel="noopener noreferrer">Virtual tour <ArrowUpRight aria-hidden /></a> : null}
+          </section>
         </div>
 
         <div className="sf-container sf-detail">
           <div className="sf-detail__main">
-            <header className="sf-detail__head">
-              <div className="sf-detail__top">
-                <p className="sf-eyebrow">{listingMarketLabel(listing)} · {propertyTypeLabel(listing.propertyType)}</p>
-                <SaveHomeButton propertyId={listing.id} title={listing.title} slug={listing.slug} savedId={savedIds[listing.id] || null} signedIn={Boolean(customer)} />
-              </div>
-              <h1 className="sf-detail__title"><span className="sf-dot" data-tone={listingTone(listing.status)} aria-hidden />{listing.title}</h1>
-              <p className="sf-detail__address">{formatLocation(listing)}</p>
-              <p className="sf-detail__price">{formatPrice(listing)}</p>
-              {listing.virtualTourUrl ? <a href={listing.virtualTourUrl} className="sf-link" target="_blank" rel="noopener noreferrer">Virtual tour <ArrowUpRight aria-hidden /></a> : null}
-            </header>
-
-            {keyFacts.length ? (
-              <dl className="sf-keyfacts">
-                {keyFacts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-              </dl>
-            ) : null}
-
             {listing.description || listing.shortDescription ? (
               <section className="sf-prose">
                 <h2>About this home</h2>
@@ -181,18 +186,16 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
               <section className="sf-prose">
                 <h2>Open houses</h2>
                 <ul className="sf-openhouses">
-                  {listing.openHouses.map(openHouse => {
-                    return (
-                      <li key={openHouse.id} className="sf-openhouse">
-                        <span className="sf-openhouse__date" aria-hidden><LocalDateTime value={openHouse.startsAt} options={openHouseMonth} /><b><LocalDateTime value={openHouse.startsAt} options={openHouseDay} /></b></span>
-                        <div>
-                          <strong>{openHouse.title}</strong>
-                          <p><LocalDateTime value={openHouse.startsAt} options={openHouseTime} />{openHouse.hostName ? ` · ${openHouse.hostName}` : ''}</p>
-                          <a className="sf-link" href={`/calendar/open-house/${encodeURIComponent(listing.slug)}/${encodeURIComponent(openHouse.id)}`}>Add to calendar</a>
-                        </div>
-                      </li>
-                    )
-                  })}
+                  {listing.openHouses.map(openHouse => (
+                    <li key={openHouse.id} className="sf-openhouse">
+                      <span className="sf-openhouse__date" aria-hidden><LocalDateTime value={openHouse.startsAt} options={openHouseMonth} /><b><LocalDateTime value={openHouse.startsAt} options={openHouseDay} /></b></span>
+                      <div>
+                        <strong>{openHouse.title}</strong>
+                        <p><LocalDateTime value={openHouse.startsAt} options={openHouseTime} />{openHouse.hostName ? <>, hosted by {openHouse.hostName}</> : null}</p>
+                        <a className="sf-link" href={`/calendar/open-house/${encodeURIComponent(listing.slug)}/${encodeURIComponent(openHouse.id)}`}>Add to calendar</a>
+                      </div>
+                    </li>
+                  ))}
                 </ul>
               </section>
             ) : null}
@@ -203,7 +206,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
                 <dl className="sf-facts">
                   {rentalTerms.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
                 </dl>
-                <p style={{ marginTop: '1rem' }}><a href="#ask" className="sf-link">Ask about applying</a></p>
+                <p className="sf-prose__after"><a href="#ask" className="sf-link">Ask about applying</a></p>
               </section>
             ) : null}
 
@@ -218,7 +221,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
           <aside className="sf-detail__aside">
             <div className="sf-advisor-card">
               {agent
-                ? agent.imagePath ? <img src={agent.imagePath} alt="" /> : <span className="sf-advisor__initials" aria-hidden>{initials(agent.name)}</span>
+                ? agent.imagePath ? <img src={agent.imagePath} alt="" loading="eager" /> : <span className="sf-advisor__initials" aria-hidden>{initials(agent.name)}</span>
                 : <span className="sf-advisor-card__mark" aria-hidden><BrokerageMark className="" logoIcon={settings.logoIcon} logoColor={settings.logoColor} /></span>}
               <div>
                 <strong title={agent ? agent.name : undefined}>{agent ? agent.name : 'Contact the office'}</strong>
@@ -236,7 +239,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
       <StickyShowingBar>
         <div>
           <strong>{formatPrice(listing)}</strong>
-          <span>{listingMarketLabel(listing)}</span>
+          <span>{listingStatusPlate(listing)}</span>
         </div>
         <a href="#showing" className="sf-btn sf-btn--primary">Request a showing</a>
       </StickyShowingBar>

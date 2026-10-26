@@ -13,7 +13,10 @@ export async function AccountPageLayout({ dashboard, login }: { children?: React
           <div className="sf-account">
             <div className="sf-account__bar">
               <AccountTabs />
-              <form action={customerSignOut}><button className="sf-btn sf-btn--quiet">Sign out</button></form>
+              <div className="sf-account__who">
+                <span title={customer.email}>{customer.name.trim() || customer.email}</span>
+                <form action={customerSignOut}><button className="sf-link">Sign out</button></form>
+              </div>
             </div>
             <div className="sf-account__body">{dashboard}</div>
           </div>

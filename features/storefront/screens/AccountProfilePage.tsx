@@ -14,10 +14,7 @@ export default async function AccountProfilePage() {
 
   return <>
     <header className="sf-account__head">
-      <div>
-        <p className="sf-eyebrow">{customer.name}</p>
-        <h1 style={{ marginTop: '0.5rem' }}>Profile</h1>
-      </div>
+      <h1>Profile</h1>
     </header>
     <div className="sf-account__forms">
       <ProfileDetailsForm customer={customer} />
