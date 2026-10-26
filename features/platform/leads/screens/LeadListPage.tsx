@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { formatMoney as exactMoney, moneyToMinor } from '@/features/lib/money'
-import { DataTable, EmptyState, ErrorBanner, Pager, PlatformPage, SearchField, StatusCell, Td } from '../../components/PlatformUI'
+import { DataTable, EmptyState, ErrorBanner, Pager, PlatformPage, SearchField, StatusCell, Td, rowActionLineClass, rowActionsBlockClass } from '../../components/PlatformUI'
 import { FilterTabs } from '../../listings/components/FilterTabs'
 import { getLeadDuplicateGroups, getPlatformLeads, getShowingRequestViewer, type LeadStats, type PlatformLead } from '../actions/leads'
 import { OriginalShowingRecovery } from '../components/PendingShowingForms'
@@ -15,12 +15,12 @@ import { label, leadIntentLabels, leadStatusColors, leadStatusLabels } from '../
 const tabs: Array<{ value: string; label: string; stat?: keyof LeadStats }> = [
   { value: 'all', label: 'All', stat: 'total' },
   { value: 'new', label: 'New', stat: 'new' },
-  { value: 'attempted_contact', label: 'Attempted' },
+  { value: 'attempted_contact', label: 'Attempted', stat: 'attemptedContact' },
   { value: 'qualified', label: 'Qualified', stat: 'hot' },
   { value: 'tour_scheduled', label: 'Tours', stat: 'tourScheduled' },
   { value: 'offer', label: 'Offers', stat: 'offer' },
-  { value: 'closed', label: 'Closed' },
-  { value: 'lost', label: 'Lost' },
+  { value: 'closed', label: 'Closed', stat: 'closed' },
+  { value: 'lost', label: 'Lost', stat: 'lost' },
 ]
 
 /** Statuses where the next move is ours: the call list. */
@@ -61,31 +61,38 @@ function byLongestWait(a: PlatformLead, b: PlatformLead) {
 
 const head = [
   { label: 'Lead' },
-  { label: 'Status' },
-  { label: 'Waiting', className: 'hidden w-20 sm:table-cell' },
+  { label: 'Status', className: 'hidden md:table-cell' },
+  { label: 'Waiting', className: 'hidden w-20 md:table-cell' },
   { label: 'Intent', className: 'hidden xl:table-cell' },
   { label: 'Listing', className: 'hidden md:table-cell' },
   { label: 'Agent', className: 'hidden lg:table-cell' },
-  { label: <span className="sr-only">Next action</span>, className: 'w-px' },
+  { label: <span className="sr-only">Next action</span>, className: 'hidden w-px md:table-cell' },
 ]
 
 function LeadRow({ lead, viewer }: { lead: PlatformLead; viewer: OperatorViewer | null }) {
   const href = `/dashboard/platform/leads/${encodeURIComponent(lead.id)}`
   const waiting = NEEDS_RESPONSE.includes(lead.status)
+  const actionTarget = { id: lead.id, name: lead.name, status: lead.status, phone: lead.phone, email: lead.email, propertyId: lead.property?.id, assignedAgentId: lead.assignedAgent?.id }
   return (
     <tr className="transition-colors hover:bg-muted/30">
       <Td className="min-w-0 py-2 sm:min-w-44">
         <Link href={href} className="font-medium text-foreground underline-offset-2 hover:underline">{lead.name}</Link>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 md:hidden">
+          <StatusCell tone={leadStatusColors[lead.status] || 'zinc'}>{label(leadStatusLabels, lead.status)}</StatusCell>
+          <ResponseClock since={waitingSince(lead)} waiting={waiting} className="text-xs" />
+        </div>
         <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-          <ResponseClock since={waitingSince(lead)} waiting={waiting} className="text-xs sm:hidden" />
           {lead.phone ? <a href={`tel:${lead.phone.replace(/[^+\d]/g, '')}`} className="tabular-nums hover:text-foreground hover:underline">{lead.phone}</a>
             : lead.email ? <a href={`mailto:${lead.email}`} className="max-w-[16rem] truncate hover:text-foreground hover:underline">{lead.email}</a>
             : <span>No contact details</span>}
           {lead.property ? <span className="truncate md:hidden">{lead.property.title}</span> : null}
         </div>
+        <div className={rowActionLineClass}>
+          <LeadRowActions viewer={viewer} lead={actionTarget} className={rowActionsBlockClass} />
+        </div>
       </Td>
-      <Td className="py-2"><StatusCell tone={leadStatusColors[lead.status] || 'zinc'}>{label(leadStatusLabels, lead.status)}</StatusCell></Td>
-      <Td className="hidden py-2 sm:table-cell"><ResponseClock since={waitingSince(lead)} waiting={waiting} /></Td>
+      <Td className="hidden py-2 md:table-cell"><StatusCell tone={leadStatusColors[lead.status] || 'zinc'}>{label(leadStatusLabels, lead.status)}</StatusCell></Td>
+      <Td className="hidden py-2 md:table-cell"><ResponseClock since={waitingSince(lead)} waiting={waiting} /></Td>
       <Td className="hidden whitespace-nowrap py-2 text-[13px] text-muted-foreground xl:table-cell">{label(leadIntentLabels, lead.intent, 'Unknown')}</Td>
       <Td className="hidden max-w-64 py-2 md:table-cell">
         {lead.property ? (
@@ -96,11 +103,8 @@ function LeadRow({ lead, viewer }: { lead: PlatformLead; viewer: OperatorViewer 
         ) : <span className="text-[13px] text-muted-foreground">None</span>}
       </Td>
       <Td className="hidden whitespace-nowrap py-2 text-[13px] lg:table-cell">{lead.assignedAgent ? lead.assignedAgent.name || 'Assigned' : <span className="text-muted-foreground">Unassigned</span>}</Td>
-      <Td className="py-2">
-        <LeadRowActions
-          viewer={viewer}
-          lead={{ id: lead.id, name: lead.name, status: lead.status, phone: lead.phone, email: lead.email, propertyId: lead.property?.id, assignedAgentId: lead.assignedAgent?.id }}
-        />
+      <Td className="hidden py-2 md:table-cell">
+        <LeadRowActions viewer={viewer} lead={actionTarget} />
       </Td>
     </tr>
   )

@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { pillClass, pillPrimaryClass } from '../../components/styles'
 import { sanitizeStoreLogoSvg } from '@/features/lib/sanitize-store-logo'
 import { normalizeStoreLogoColor } from '@/features/lib/store-logo'
 import { StoreLogo } from '@/features/lib/store-logo-renderer'
@@ -134,7 +135,7 @@ export function StoreSettingsPageClient({ initialData, initialError }: StoreSett
 
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="icon" className="h-12 w-12 shrink-0 rounded-[6px] shadow-none active:scale-[0.98]" type="button" aria-label="Edit SVG code">
+                      <Button variant="ghost" size="icon" className={cn(pillClass, 'h-12 w-12 shrink-0 px-0')} type="button" aria-label="Edit SVG code">
                         <Code className="h-4 w-4" />
                       </Button>
                     </PopoverTrigger>
@@ -215,7 +216,7 @@ export function StoreSettingsPageClient({ initialData, initialError }: StoreSett
 
           <div className="sticky bottom-0 -mx-4 flex items-center justify-end gap-3 border-t border-border bg-background/90 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
             {!logoSupported ? <p role="alert" className="mr-auto text-sm text-destructive">Unsupported logo SVG</p> : null}
-            <Button type="submit" className="h-9 rounded-[6px] shadow-none active:scale-[0.98]" disabled={isLoading || !logoSupported}>
+            <Button type="submit" variant="ghost" className={cn(pillPrimaryClass, 'h-9 px-4')} disabled={isLoading || !logoSupported}>
               {isLoading ? 'Saving…' : 'Save settings'}
             </Button>
           </div>

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { formatMoney as money } from '@/features/lib/money'
+import { cn } from '@/lib/utils'
 import { humanize } from '../../leads/lib/labels'
 import { getPlatformLeads } from '../../leads/actions/leads'
 import { getPlatformListings } from '../../listings/actions/listings'
@@ -9,7 +10,7 @@ import { getPlatformPeople } from '../../people/actions/people'
 import { LocalDateTime } from '../../showings/components/LocalDateTime'
 import { getPlatformOperations, type OperationsWorkspace } from '../actions/operations'
 import { buildOperationsOptions, type OperationsOptions } from '../lib/options'
-import { DataTable, EmptyState, ErrorBanner, PlatformPage, StatusCell, Td, trackItemClass, type Tone } from '../../components/PlatformUI'
+import { DataTable, EmptyState, ErrorBanner, PlatformPage, StatusCell, Td, rowSingleActionLineClass, trackItemClass, type Tone } from '../../components/PlatformUI'
 import { AlertDrawer, CommissionAction, CounterOfferDrawer, DealFileDrawer, DisclosureAction, DocumentAction, ImportDrawer, InspectionAction, MilestoneAction, NewOfferDrawer, OfferAction, OpenHouseAction, TaskAction } from '../components/TaskForms'
 import { CommissionLedgerForms, DocumentEvidenceForm, ListingEngagementForm, ListingPublicationForm, PractitionerLicenseForm, RepresentationForm, RetentionForms, SyndicationAuthorityAction } from '../components/ControlledEvidenceForms'
 import { SectionSelect } from '../components/SectionSelect'
@@ -194,21 +195,31 @@ function AttentionSection({ rows }: { rows: AttentionRow[] }) {
       {rows.length ? (
         <DataTable
           label="Needs attention"
-          className={wide}
-          head={[{ label: 'Item' }, { label: 'Type' }, { label: 'Due' }, { label: 'Status' }, { label: <span className="sr-only">Action</span>, className: 'text-right' }]}
+          head={[{ label: 'Item' }, { label: 'Type', className: 'hidden md:table-cell' }, { label: 'Due', className: 'hidden md:table-cell' }, { label: 'Status', className: 'hidden md:table-cell' }, { label: <span className="sr-only">Action</span>, className: 'hidden text-right md:table-cell' }]}
         >
-          {rows.map((row) => (
-            <Row key={row.key}>
-              <Td>
-                <p className="max-w-[18rem] truncate font-medium text-foreground">{row.title}</p>
-                {row.context ? <p className="max-w-[18rem] truncate text-xs text-muted-foreground">{row.context}</p> : null}
-              </Td>
-              <Td className="whitespace-nowrap text-muted-foreground">{row.kind}</Td>
-              <Td className={row.overdue ? 'whitespace-nowrap font-medium text-rose-700 tabular-nums dark:text-rose-400' : 'whitespace-nowrap tabular-nums'}>{row.due ? <DateText value={row.due} /> : <span className="text-muted-foreground">—</span>}</Td>
-              <Td className="whitespace-nowrap"><StatusCell tone={row.tone}>{row.state}</StatusCell></Td>
-              <Actions>{row.action}</Actions>
-            </Row>
-          ))}
+          {rows.map((row) => {
+            const due = row.due ? <DateText value={row.due} /> : <span className="text-muted-foreground">—</span>
+            const dueClass = row.overdue ? 'whitespace-nowrap font-medium text-rose-700 tabular-nums dark:text-rose-400' : 'whitespace-nowrap tabular-nums'
+            return (
+              <Row key={row.key}>
+                <Td>
+                  <p className="max-w-[19rem] truncate font-medium text-foreground md:max-w-[18rem]">{row.title}</p>
+                  {row.context ? <p className="max-w-[19rem] truncate text-xs text-muted-foreground md:max-w-[18rem]">{row.context}</p> : null}
+                  {/* Phone: type, due and status fold into the item; the action is a full-width line under it. */}
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs md:hidden">
+                    <StatusCell tone={row.tone}>{row.state}</StatusCell>
+                    <span className={dueClass}>{due}</span>
+                    <span className="text-muted-foreground">{row.kind}</span>
+                  </div>
+                  <div className={rowSingleActionLineClass}>{row.action}</div>
+                </Td>
+                <Td className="hidden whitespace-nowrap text-muted-foreground md:table-cell">{row.kind}</Td>
+                <Td className={cn('hidden md:table-cell', dueClass)}>{due}</Td>
+                <Td className="hidden whitespace-nowrap md:table-cell"><StatusCell tone={row.tone}>{row.state}</StatusCell></Td>
+                <Td className="hidden w-px whitespace-nowrap py-2 text-right md:table-cell"><div className="flex items-start justify-end gap-1.5">{row.action}</div></Td>
+              </Row>
+            )
+          })}
         </DataTable>
       ) : <EmptyState title="Nothing overdue or blocking" />}
     </Section>
@@ -685,7 +696,7 @@ export async function OperationsPage({ searchParams }: { searchParams?: Promise<
       meta={error ? null : attention.length ? `${overdue} overdue or blocked · ${attention.length - overdue} due soon or waiting` : 'Nothing overdue or blocking'}
       toolbar={<>
         <SectionSelect current={section} sections={tabs} />
-        <div className="hidden md:block"><FilterTabs label="Operations sections" items={tabs} /></div>
+        <FilterTabs label="Operations sections" items={tabs} className="hidden md:block" />
       </>}
     >
       <div className="min-w-0 space-y-6 pb-20">

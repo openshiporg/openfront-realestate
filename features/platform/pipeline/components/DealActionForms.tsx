@@ -49,8 +49,8 @@ export function DealStageButton({ dealId, stage, label, confirm, primary = false
               <AlertDialogDescription>{confirm.description}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => formRef.current?.requestSubmit()}>{label}</AlertDialogAction>
+              <AlertDialogCancel className={pillClass}>Cancel</AlertDialogCancel>
+              <AlertDialogAction className={pillPrimaryClass} onClick={() => formRef.current?.requestSubmit()}>{label}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -78,7 +78,7 @@ export function DealFinancialTermsForm({ dealId, offerAmount, commissionAmount }
           <Input className="rounded-[6px]" id={`${id}-commission`} name="commissionAmount" inputMode="decimal" defaultValue={commissionAmount || ''} />
         </div>
       </div>
-      <Button type="submit" size="sm" className="rounded-[6px] active:scale-[0.98]" disabled={pending}>{pending ? 'Saving…' : 'Save amounts'}</Button>
+      <Button type="submit" variant="ghost" size="sm" className={pillPrimaryClass} disabled={pending}>{pending ? 'Saving…' : 'Save amounts'}</Button>
     </form>
   )
 }
@@ -98,7 +98,7 @@ export function DealNextStepForm({ dealId, nextStep, notes }: { dealId: string; 
         <Label htmlFor={`${id}-notes`}>Notes</Label>
         <Textarea className="rounded-[6px]" id={`${id}-notes`} name="notes" defaultValue={notes || ''} rows={3} />
       </div>
-      <Button type="submit" size="sm" className="rounded-[6px] active:scale-[0.98]" disabled={pending}>{pending ? 'Saving…' : 'Save next step'}</Button>
+      <Button type="submit" variant="ghost" size="sm" className={pillPrimaryClass} disabled={pending}>{pending ? 'Saving…' : 'Save next step'}</Button>
     </form>
   )
 }

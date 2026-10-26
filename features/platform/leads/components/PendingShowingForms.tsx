@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { pillClass, trackClass } from '../../components/styles'
+import { cn } from '@/lib/utils'
+import { pillClass, pillPrimaryClass, trackClass } from '../../components/styles'
 import { submitRetainedShowing, verifyRetainedShowing, type LeadQuickActionState } from '../actions/leads'
 import { PENDING_SHOWING_KEY, parsePendingShowing, recoverPendingShowing, submitNewPendingShowing, type PendingShowing } from '../lib/pendingShowing'
 import type { OperatorViewer } from '../lib/leadDetail'
@@ -93,7 +94,7 @@ export function ScheduleShowingForm({ leadId, propertyId, assignedAgentId, viewe
         <Textarea className="rounded-[6px]" id={`${id}-notes`} name="notes" rows={2} disabled={blocked} />
       </div>
       {!propertyId ? <p className="text-xs text-muted-foreground">No listing on this lead</p> : null}
-      <Button type="submit" size="sm" className="w-full rounded-[6px] active:scale-[0.98]" disabled={blocked}>{busy ? 'Scheduling…' : bytes !== null ? 'Earlier request unresolved' : 'Schedule showing'}</Button>
+      <Button type="submit" variant="ghost" size="sm" className={cn(pillPrimaryClass, 'w-full')} disabled={blocked}>{busy ? 'Scheduling…' : bytes !== null ? 'Earlier request unresolved' : 'Schedule showing'}</Button>
       {state.message ? <p role="status" className={`text-xs ${messageTone(state)}`}>{state.message}</p> : null}
     </form>
   )

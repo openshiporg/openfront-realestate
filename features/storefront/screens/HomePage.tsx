@@ -2,12 +2,11 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Mail, Phone } from 'lucide-react'
 import { ListingSearchForm } from '@/features/storefront/components/ListingSearchForm'
-import { HomePhotoFallback } from '@/features/storefront/components/HomePhotoFallback'
 import { StorefrontFooter } from '@/features/storefront/components/StorefrontFooter'
 import { StorefrontNav } from '@/features/storefront/components/StorefrontNav'
-import { groupStorefrontNeighborhoods } from '@/features/storefront/lib/data/neighborhoods'
+import { groupStorefrontNeighborhoods, type StorefrontNeighborhood } from '@/features/storefront/lib/data/neighborhoods'
 import { getCustomer } from '@/features/storefront/lib/data/account'
-import { getStorefrontListingPageHref, getStorefrontListings, hasListingFilters, normalizeListingParams, type ListingSearchParams } from '@/features/storefront/lib/data/properties'
+import { getStorefrontListingPageHref, getStorefrontListings, hasListingFilters, normalizeListingParams, type ListingSearchParams, type StorefrontProperty } from '@/features/storefront/lib/data/properties'
 import { getSavedPropertyIds } from '@/features/storefront/lib/data/saved'
 import { getBrokerageSettings } from '@/features/storefront/lib/data/settings'
 import { emailHref, formatPrice, formatPricePerSqFt, initials, listingPlace, listingStatusPlate, listingTone, phoneHref, resultCountLabel, resultsHeading } from '@/features/storefront/lib/format'
@@ -15,6 +14,42 @@ import { ListingCard } from './ListingCard'
 
 const RASTER = /\.(?:jpe?g|png|webp)$/i
 const HOME_ROWS = 4
+
+const minorOf = (listing: StorefrontProperty) => Number(listing.price || 0)
+
+/** Price span of one kind of listing in an area, e.g. "$1,250,000 to $2,400,000" or "$3,200/mo". */
+function priceSpan(listings: StorefrontProperty[]) {
+  const priced = listings.filter(listing => minorOf(listing) > 0).sort((a, b) => minorOf(a) - minorOf(b))
+  if (!priced.length) return null
+  const low = formatPrice(priced[0])
+  const high = formatPrice(priced[priced.length - 1])
+  return low === high ? low : `${low} to ${high}`
+}
+
+/**
+ * No photo of the area or of any home in it: a stamped plate with the area's real facts
+ * (where it is, what is listed, the price span) instead of an empty roof-metal window.
+ */
+function PlacePlate({ neighborhood }: { neighborhood: StorefrontNeighborhood }) {
+  const sale = neighborhood.listings.filter(listing => listing.listingType !== 'rent')
+  const rent = neighborhood.listings.filter(listing => listing.listingType === 'rent')
+  const facts = [
+    sale.length ? { label: `${sale.length} for sale`, value: priceSpan(sale) } : null,
+    rent.length ? { label: `${rent.length} for rent`, value: priceSpan(rent) } : null,
+  ].filter((fact): fact is { label: string; value: string | null } => Boolean(fact))
+  const where = [neighborhood.city !== neighborhood.name ? neighborhood.city : '', neighborhood.listings[0]?.state].filter(Boolean).join(', ')
+  return (
+    <span className="sf-place-plate">
+      <span className="sf-place-plate__name">{neighborhood.name}</span>
+      {where ? <span className="sf-place-plate__where">{where}</span> : null}
+      <span className="sf-place-plate__facts">
+        {facts.map(fact => (
+          <span key={fact.label}><b className="sf-num">{fact.label}</b>{fact.value ? <span className="sf-num">{fact.value}</span> : null}</span>
+        ))}
+      </span>
+    </span>
+  )
+}
 
 export async function generateHomeMetadata(): Promise<Metadata> {
   const [settingsState, listings] = await Promise.all([getBrokerageSettings(), getStorefrontListings()])
@@ -45,8 +80,12 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
   const save = { signedIn: Boolean(customer), savedIds: customer ? await getSavedPropertyIds() : {} }
   const { listings, error, hasMore, skip, overflow } = listingsResult
   const inventory = (allListingsResult || listingsResult).listings
-  const featured = inventory.find(listing => listing.isFeatured && listing.imagePath) || inventory.find(listing => listing.imagePath)
   const shown = listings.slice(0, HOME_ROWS)
+  // The featured panel shows a home that is not already in the rows beside it; with nothing else
+  // photographed to show (a short inventory), the panel is dropped and the rows take the width.
+  const shownIds = new Set(shown.map(listing => listing.id))
+  const candidates = inventory.filter(listing => listing.imagePath && !shownIds.has(listing.id))
+  const featured = candidates.find(listing => listing.isFeatured) || candidates[0]
   const countLabel = resultCountLabel(listingsResult)
   const moreHref = getStorefrontListingPageHref(params, 0)
   const contactEmail = emailHref(settings.publicEmail)
@@ -115,10 +154,10 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
               {neighborhoods.map(neighborhood => (
                 <li key={neighborhood.id}>
                   <Link href={`/listings?q=${encodeURIComponent(neighborhood.name)}`} className="sf-place">
-                    <span className="sf-place__photo">
+                    <span className="sf-place__photo" data-plate={neighborhood.imagePath ? undefined : true}>
                       {neighborhood.imagePath
                         ? <img src={neighborhood.imagePath} alt="" decoding="async" loading="eager" fetchPriority="low" />
-                        : <HomePhotoFallback label={neighborhood.name} note={neighborhood.city && neighborhood.city !== neighborhood.name ? `${neighborhood.city} neighborhood` : 'Neighborhood'} showLabel={false} />}
+                        : <PlacePlate neighborhood={neighborhood} />}
                     </span>
                     <span className="sf-place__plaque">
                       <strong>{neighborhood.name}</strong>

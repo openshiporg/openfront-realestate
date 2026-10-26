@@ -65,6 +65,9 @@ export type LeadStats = {
   hot: number
   tourScheduled: number
   offer: number
+  attemptedContact: number
+  closed: number
+  lost: number
   stale: number
 }
 
@@ -122,19 +125,38 @@ const CONTACT_WORKSPACE_QUERY = `
   }
 `
 
+/** The workspace projection counts five statuses; the other tabs read the same access-scoped Lead list. */
+const LEAD_STATUS_COUNTS_QUERY = `
+  query PlatformLeadStatusCounts {
+    attemptedContact: leadsCount(where: { status: { equals: "attempted_contact" } })
+    closed: leadsCount(where: { status: { equals: "closed" } })
+    lost: leadsCount(where: { status: { equals: "lost" } })
+  }
+`
+
+async function leadStatusCounts(): Promise<{ attemptedContact: number; closed: number; lost: number } | null> {
+  const response = await keystoneClient<{ attemptedContact?: unknown; closed?: unknown; lost?: unknown }>(LEAD_STATUS_COUNTS_QUERY, {}, { cache: 'no-store' })
+  if (!response.success) return null
+  const data = response.data as { attemptedContact?: unknown; closed?: unknown; lost?: unknown } | null
+  const read = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? value : null)
+  const attemptedContact = read(data?.attemptedContact), closed = read(data?.closed), lost = read(data?.lost)
+  return attemptedContact === null || closed === null || lost === null ? null : { attemptedContact, closed, lost }
+}
+
 async function contactWorkspace(status = 'all', q = '', after?: string, before?: string) {
   return keystoneClient<unknown>(CONTACT_WORKSPACE_QUERY, { status, q, after, before }, { cache: 'no-store' })
 }
 
 export async function getPlatformLeads(status?: string, q?: string, after?: string, before?: string): Promise<GetLeadsResult> {
-  const response = await contactWorkspace(status, q, after, before)
+  const [response, extraCounts] = await Promise.all([contactWorkspace(status, q, after, before), leadStatusCounts()])
   if (!response.success) return { leads: [], stats: null, pageInfo: null, viewer: null, error: 'Leads could not be loaded. Please try again.' }
   const projection = readLeadListProjection(response.data)
   const page = readLeadPageInfo(response.data)
   if (!projection || !page || projection.items.some(item => !['available', 'restricted'].includes(String(item.activityAccess)))) return { leads: [], stats: null, error: 'Leads could not be loaded. Please refresh and try again.', pageInfo: null, viewer: null }
   return {
     leads: projection.items, ...page,
-    stats: { total: projection.stats.total, new: projection.stats.new, hot: projection.stats.qualified, tourScheduled: projection.stats.tourScheduled, offer: projection.stats.offer, stale: 0 },
+    // Every tab carries a count or none does: without the extra counts the tabs show no numbers.
+    stats: extraCounts ? { total: projection.stats.total, new: projection.stats.new, hot: projection.stats.qualified, tourScheduled: projection.stats.tourScheduled, offer: projection.stats.offer, ...extraCounts, stale: 0 } : null,
     error: null,
   }
 }

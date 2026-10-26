@@ -47,7 +47,7 @@ export function RecordForm({ action, children, submitLabel, pendingLabel = 'Savi
     >
       {children}
       {!state.ok && state.message ? <p role="alert" className="text-sm text-destructive sm:col-span-2">{state.message}</p> : null}
-      <div className="sm:col-span-2"><Button type="submit" size="sm" className="rounded-[6px] active:scale-[0.98]" disabled={pending}>{pending ? pendingLabel : submitLabel}</Button></div>
+      <div className="sm:col-span-2"><Button type="submit" variant="ghost" size="sm" className={pillPrimaryClass} disabled={pending}>{pending ? pendingLabel : submitLabel}</Button></div>
     </form>
   )
 }

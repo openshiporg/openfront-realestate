@@ -3,7 +3,7 @@ import { Fragment } from 'react'
 import { formatMoney as money, moneyToMinor } from '@/features/lib/money'
 import { cn } from '@/lib/utils'
 import { LocalDateTime } from '../../showings/components/LocalDateTime'
-import { DataTable, EmptyState, ErrorBanner, PlatformPage, StatusDot, Td, trackItemClass } from '../../components/PlatformUI'
+import { DataTable, EmptyState, ErrorBanner, PlatformPage, StatusDot, Td, rowActionLineClass, rowActionsBlockClass, trackItemClass } from '../../components/PlatformUI'
 import { FilterTabs } from '../../listings/components/FilterTabs'
 import { getPipelineDeals, type PlatformDeal } from '../actions/deals'
 import { dealStages as stages } from '../lib/stages'
@@ -35,27 +35,39 @@ function daysUntil(iso?: string | null, now = Date.now()) {
 
 const isOpen = (deal: PlatformDeal) => !['closed_won', 'closed_lost'].includes(deal.stage)
 
-/** Days since the deal last changed; heavier the longer an open deal sits. */
+const SINCE_UPDATE_TITLE = 'Days since the deal last changed'
+
+/**
+ * Days since the deal last changed. A fresh deal shows the date it changed (a column of
+ * "Today" says nothing); from a week idle the day count appears and gets heavier the
+ * longer an open deal sits.
+ */
 function Idle({ deal, className }: { deal: PlatformDeal; className?: string }) {
-  const days = daysSince(deal.updatedAt || deal.createdAt)
+  const changed = deal.updatedAt || deal.createdAt
+  const days = daysSince(changed)
   if (days === null) return <span className={cn('text-muted-foreground', className)}>—</span>
   const tone = !isOpen(deal) ? 'font-normal text-muted-foreground'
     : days >= 30 ? 'font-bold text-destructive'
     : days >= IDLE_DAYS ? 'font-semibold text-amber-700 dark:text-amber-400'
-    : days >= 7 ? 'font-medium text-foreground'
-    : 'font-normal text-muted-foreground'
-  return <span className={cn('whitespace-nowrap text-[13px] tabular-nums', tone, className)}>{days === 0 ? 'Today' : `${days}d`}</span>
+    : 'font-medium text-foreground'
+  const title = `${SINCE_UPDATE_TITLE}: ${days === 0 ? 'changed today' : `${days} day${days === 1 ? '' : 's'}`}`
+  return (
+    <span title={title} className={cn('whitespace-nowrap text-[13px] tabular-nums', className)}>
+      {days >= 7 ? <span className={cn('mr-1.5', tone)}>{days}d</span> : null}
+      <LocalDateTime value={changed} options={{ month: 'short', day: 'numeric' }} className="text-muted-foreground" />
+    </span>
+  )
 }
 
-function Closing({ deal }: { deal: PlatformDeal }) {
-  if (!deal.expectedCloseDate) return <span className="text-[13px] text-muted-foreground">Not set</span>
+function Closing({ deal, inline = false }: { deal: PlatformDeal; inline?: boolean }) {
+  if (!deal.expectedCloseDate) return <span className={cn('text-muted-foreground', inline ? 'text-xs' : 'text-[13px]')}>Not set</span>
   const days = daysUntil(deal.expectedCloseDate)
   const open = isOpen(deal)
   return (
-    <span className="block whitespace-nowrap text-[13px]">
-      <LocalDateTime value={deal.expectedCloseDate} options={{ month: 'short', day: 'numeric', year: 'numeric' }} className="tabular-nums text-foreground" />
+    <span className={cn('whitespace-nowrap', inline ? 'inline-flex items-baseline gap-1.5 text-xs' : 'block text-[13px]')}>
+      <LocalDateTime value={deal.expectedCloseDate} options={inline ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' }} className="tabular-nums text-foreground" />
       {open && days !== null ? (
-        <span className={cn('block text-xs tabular-nums', days < 0 ? 'font-medium text-destructive' : days <= CLOSING_WINDOW_DAYS ? 'font-medium text-amber-700 dark:text-amber-400' : 'text-muted-foreground')}>
+        <span className={cn(inline ? 'inline' : 'block', 'text-xs tabular-nums', days < 0 ? 'font-medium text-destructive' : days <= CLOSING_WINDOW_DAYS ? 'font-medium text-amber-700 dark:text-amber-400' : 'text-muted-foreground')}>
           {days < 0 ? `${-days}d overdue` : days === 0 ? 'Today' : `in ${days}d`}
         </span>
       ) : null}
@@ -65,27 +77,35 @@ function Closing({ deal }: { deal: PlatformDeal }) {
 
 const head = [
   { label: 'Deal' },
-  { label: 'Since update', className: 'hidden w-24 sm:table-cell' },
+  { label: <span title={SINCE_UPDATE_TITLE} className="cursor-help underline decoration-dotted decoration-muted-foreground/50 underline-offset-4">Since update</span>, className: 'hidden w-28 md:table-cell' },
   { label: 'Expected close', className: 'hidden w-32 md:table-cell' },
   { label: 'Offer', className: 'hidden w-32 lg:table-cell' },
-  { label: <span className="sr-only">Actions</span>, className: 'w-px' },
+  { label: <span className="sr-only">Actions</span>, className: 'hidden w-px md:table-cell' },
 ]
 
 function DealRow({ deal }: { deal: PlatformDeal }) {
   const people = [deal.lead?.name || 'No client', deal.assignedAgent?.name || 'Unassigned'].join(' · ')
+  const actionTarget = { id: deal.id, title: deal.title, stage: deal.stage, offerAmount: deal.offerAmount, commissionAmount: deal.commissionAmount, nextStep: deal.nextStep, notes: deal.notes }
   return (
     <tr className="transition-colors hover:bg-muted/30">
       <Td className="min-w-0 max-w-[26rem] py-2">
         <Link href={`/dashboard/platform/pipeline/${deal.id}`} className="block truncate font-medium text-foreground underline-offset-2 hover:underline">{deal.title}</Link>
         <span className="block truncate text-xs text-muted-foreground">{transactionTypeLabels[deal.transactionType || ''] || 'Buyer'} · {people}</span>
         {deal.nextStep ? <span className="block truncate text-xs text-foreground/80">Next: {deal.nextStep}</span> : null}
-        <span className="mt-0.5 flex gap-2 text-xs text-muted-foreground sm:hidden">Updated <Idle deal={deal} className="text-xs" /></span>
+        {/* Phone: expected close (with overdue) and last change fold into the first cell. */}
+        <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs md:hidden">
+          <span className="flex items-baseline gap-1.5"><span className="text-muted-foreground">Close</span><Closing deal={deal} inline /></span>
+          <span className="flex items-baseline gap-1.5"><span className="text-muted-foreground">Changed</span><Idle deal={deal} className="text-xs" /></span>
+        </div>
+        <div className={rowActionLineClass}>
+          <DealRowActions deal={actionTarget} className={rowActionsBlockClass} />
+        </div>
       </Td>
-      <Td className="hidden py-2 sm:table-cell"><Idle deal={deal} /></Td>
+      <Td className="hidden py-2 md:table-cell"><Idle deal={deal} /></Td>
       <Td className="hidden py-2 md:table-cell"><Closing deal={deal} /></Td>
       <Td className="hidden whitespace-nowrap py-2 text-[13px] tabular-nums lg:table-cell">{moneyToMinor(deal.offerAmount || '0') > 0n ? money(deal.offerAmount) : <span className="text-muted-foreground">—</span>}</Td>
-      <Td className="py-2">
-        <DealRowActions deal={{ id: deal.id, title: deal.title, stage: deal.stage, offerAmount: deal.offerAmount, commissionAmount: deal.commissionAmount, nextStep: deal.nextStep, notes: deal.notes }} />
+      <Td className="hidden py-2 md:table-cell">
+        <DealRowActions deal={actionTarget} />
       </Td>
     </tr>
   )

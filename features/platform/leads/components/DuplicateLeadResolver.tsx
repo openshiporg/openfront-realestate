@@ -3,6 +3,8 @@
 import { useActionState, useEffect, useId, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { pillPrimaryClass } from '../../components/styles'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
@@ -69,7 +71,7 @@ export function DuplicateLeadResolver({ group }: { group: LeadDuplicateGroup }) 
             <Label htmlFor={`${id}-note`}>Note</Label>
             <Textarea className="rounded-[6px]" id={`${id}-note`} name="note" rows={2} />
           </div>
-          <Button type="submit" size="sm" className="w-full rounded-[6px] active:scale-[0.98]" disabled={pending || state.uncertain === true || !duplicateId}>
+          <Button type="submit" variant="ghost" size="sm" className={cn(pillPrimaryClass, 'w-full')} disabled={pending || state.uncertain === true || !duplicateId}>
             {pending ? 'Resolving…' : state.uncertain ? 'Refresh to check' : 'Resolve duplicate'}
           </Button>
           {state.uncertain && state.message ? <p role="status" className="text-xs text-amber-700 dark:text-amber-400">{state.message}</p> : null}

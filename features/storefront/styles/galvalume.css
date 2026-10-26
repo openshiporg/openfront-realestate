@@ -107,6 +107,20 @@
   .sf-field:hover { border-color: var(--sf-ink-2); }
   .sf-field:focus-visible { outline: 2px solid var(--sf-cedar); outline-offset: -1px; background: oklch(98.5% 0.003 240); }
   .sf-field:disabled { opacity: 0.7; }
+  /* Date and time inputs: the browser draws the segments and picker itself, in placeholder grey.
+     Paint them from the palette so the value reads as ink (>=4.5:1 on metal-hi) and the picker as a stamped mark. */
+  .sf-field[type="datetime-local"], .sf-field[type="date"], .sf-field[type="time"] { font-variant-numeric: tabular-nums; color: var(--sf-ink); }
+  .sf-field::-webkit-datetime-edit { color: var(--sf-ink); padding: 0; }
+  .sf-field::-webkit-datetime-edit-fields-wrapper { color: var(--sf-ink); }
+  .sf-field::-webkit-datetime-edit-text { color: var(--sf-muted); padding-inline: 0.125em; }
+  .sf-field::-webkit-datetime-edit-month-field, .sf-field::-webkit-datetime-edit-day-field, .sf-field::-webkit-datetime-edit-year-field,
+  .sf-field::-webkit-datetime-edit-hour-field, .sf-field::-webkit-datetime-edit-minute-field, .sf-field::-webkit-datetime-edit-ampm-field { color: var(--sf-ink); }
+  .sf-field:invalid::-webkit-datetime-edit-month-field, .sf-field:invalid::-webkit-datetime-edit-day-field, .sf-field:invalid::-webkit-datetime-edit-year-field,
+  .sf-field:invalid::-webkit-datetime-edit-hour-field, .sf-field:invalid::-webkit-datetime-edit-minute-field, .sf-field:invalid::-webkit-datetime-edit-ampm-field { color: var(--sf-muted); }
+  .sf-field::-webkit-datetime-edit-month-field:focus, .sf-field::-webkit-datetime-edit-day-field:focus, .sf-field::-webkit-datetime-edit-year-field:focus,
+  .sf-field::-webkit-datetime-edit-hour-field:focus, .sf-field::-webkit-datetime-edit-minute-field:focus, .sf-field::-webkit-datetime-edit-ampm-field:focus { background: var(--sf-cedar); color: var(--sf-cedar-ink); outline: none; }
+  .sf-field::-webkit-calendar-picker-indicator { width: 1.125rem; height: 1.125rem; margin-left: 0.5rem; padding: 0.25rem; cursor: pointer; background-color: transparent; filter: brightness(0) saturate(100%); opacity: 0.78; }
+  .sf-field::-webkit-calendar-picker-indicator:hover { opacity: 1; background-color: var(--sf-metal-lo); }
   select.sf-field { appearance: none; padding-right: 2rem; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: calc(100% - 1rem) 52%, calc(100% - 0.7rem) 52%; background-size: 0.3rem 0.3rem; background-repeat: no-repeat; }
   textarea.sf-field { min-height: 6rem; padding: 0.625rem 0.75rem; resize: vertical; line-height: 1.5; }
   .sf-label { display: inline-flex; }
@@ -262,7 +276,9 @@
   .sf-card--row .sf-photo-fallback__roof { width: 3rem; height: 1.875rem; top: 0.75rem; left: 0.75rem; }
 
   /* Panels of modules share their seams, so a short row never leaves an empty bay. */
-  .sf-modules { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16.5rem), 1fr)); gap: 1px; padding: 1px; max-width: calc(var(--sf-count, 4) * 24rem); }
+  /* auto-fit collapses unused tracks so the cards stretch across the panel; the width cap only keeps one or two
+     results from becoming billboards (three or more fill the container: 3 x 28rem = the 84rem container). */
+  .sf-modules { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16.5rem), 1fr)); gap: 1px; padding: 1px; max-width: calc(var(--sf-count, 4) * 28rem); }
   .sf-modules > .sf-card, .sf-places > li, .sf-advisor-grid > li { outline: 1px solid var(--sf-seam); }
   .sf-rows { display: grid; gap: 1px; border: 1px solid var(--sf-seam); background: var(--sf-seam); }
   .sf-card--row { grid-template-columns: 8.5rem minmax(0, 1fr); }
@@ -304,10 +320,15 @@
   .sf-feature__figures { display: flex; align-items: baseline; gap: 0.75rem; font-family: var(--sf-display); font-weight: 700; font-size: 1.5rem; }
   .sf-feature__figures small { font-weight: 500; font-size: 1rem; color: var(--sf-muted); }
   .sf-feature__place { font-size: 0.875rem; color: var(--sf-muted); }
+  /* Desktop: the feature stands beside the rows and is exactly as tall as them (photo fills the bay),
+     so the section ends with the last row instead of leaving a dead bay under it. */
   @media (min-width: 64rem) {
-    .sf-lead[data-featured] { grid-template-columns: minmax(0, 1.6fr) minmax(19rem, 1fr); gap: 2rem; align-items: start; }
-    .sf-lead__feature { position: sticky; top: calc(var(--sf-header-h) + var(--sf-rail-h) + 1.25rem); margin-top: clamp(1.25rem, 3vw, 2rem); }
-    .sf-feature__photo { aspect-ratio: 4 / 5; max-height: calc(100svh - var(--sf-header-h) - var(--sf-rail-h) - 9rem); width: 100%; }
+    .sf-lead[data-featured] { grid-template-columns: minmax(0, 1.6fr) minmax(19rem, 1fr); gap: 2rem; align-items: stretch; }
+    .sf-lead[data-featured] .sf-lead__results { align-self: start; }
+    .sf-lead__feature { display: grid; margin-top: clamp(1.25rem, 3vw, 2rem); min-height: 0; }
+    .sf-lead[data-featured] .sf-feature { grid-template-rows: minmax(0, 1fr) auto; }
+    .sf-lead[data-featured] .sf-feature__photo { aspect-ratio: auto; min-height: 16rem; width: 100%; }
+    .sf-lead[data-featured] .sf-feature__photo img { position: absolute; inset: 0; }
   }
   @media (prefers-reduced-motion: reduce) { .sf-feature__photo img { transition: none; } }
 
@@ -316,6 +337,14 @@
   .sf-place:hover { background: oklch(98% 0.003 240); }
   .sf-place__photo { position: relative; display: block; aspect-ratio: 4 / 3; overflow: hidden; background-color: var(--sf-roof); background-image: var(--sf-roof-seams); }
   .sf-place__photo img { width: 100%; height: 100%; object-fit: cover; }
+  /* No photo of the area or its homes: a stamped facts plate on the panel, not an empty roof window. */
+  .sf-place__photo[data-plate] { background: var(--sf-metal-lo); border-bottom: 1px solid var(--sf-seam); }
+  .sf-place-plate { position: absolute; inset: 0; display: grid; align-content: space-between; gap: 0.75rem; padding: 1rem; color: var(--sf-ink); }
+  .sf-place-plate__name { font-family: var(--sf-display); font-weight: 700; font-size: clamp(1.5rem, 2.6vw, 2rem); line-height: 1; letter-spacing: 0.005em; text-transform: uppercase; text-wrap: balance; }
+  .sf-place-plate__where { margin-top: -0.375rem; font-size: 0.875rem; color: var(--sf-ink-2); }
+  .sf-place-plate__facts { display: grid; gap: 1px; border: 1px solid var(--sf-seam-strong); background: var(--sf-seam-strong); }
+  .sf-place-plate__facts > span { display: grid; gap: 0.125rem; padding: 0.375rem 0.625rem; background: var(--sf-metal-hi); font-size: 0.8125rem; color: var(--sf-ink-2); }
+  .sf-place-plate__facts b { font-family: var(--sf-display); font-weight: 700; font-size: 1rem; color: var(--sf-ink); }
   .sf-place__plaque { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; padding: 0.75rem 0.875rem; }
   .sf-place__plaque strong { font-family: var(--sf-display); font-weight: 700; font-size: 1.25rem; line-height: 1.1; }
   .sf-place__plaque span { font-size: 0.875rem; color: var(--sf-muted); white-space: nowrap; }
@@ -325,6 +354,13 @@
     .sf-place__photo { aspect-ratio: 1 / 1; }
     .sf-place__plaque { flex-direction: column; align-items: flex-start; gap: 0.125rem; }
     .sf-place .sf-photo-fallback__roof { width: 3rem; height: 1.875rem; top: 0.75rem; left: 0.75rem; }
+    .sf-place__photo[data-plate] { border-bottom: 0; border-right: 1px solid var(--sf-seam); }
+    .sf-place-plate { padding: 0.5rem; gap: 0.25rem; align-content: center; }
+    .sf-place-plate__name { font-size: 1rem; }
+    .sf-place-plate__where { display: none; }
+    .sf-place-plate__facts > span { padding: 0.25rem 0.375rem; font-size: 0.6875rem; }
+    .sf-place-plate__facts > span > span { display: none; }
+    .sf-place-plate__facts b { font-size: 0.875rem; }
   }
   .sf-advisor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1px; padding: 1px; }
   .sf-advisor { display: flex; gap: 1rem; padding: 1rem; background: var(--sf-metal-hi); min-width: 0; }

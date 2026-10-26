@@ -1,4 +1,4 @@
-import { getNeighborhoodImagePath } from '@/features/lib/real-estate-images'
+import { getNeighborhoodImagePath, upgradeLegacyImagePath } from '@/features/lib/real-estate-images'
 import type { StorefrontProperty } from './properties'
 
 export type StorefrontNeighborhood = {
@@ -26,8 +26,11 @@ export function groupStorefrontNeighborhoods(listings: StorefrontProperty[], fal
     id: slugify(name),
     name,
     city: group[0]?.city || fallbackCity,
-    // A neighborhood photo when one exists, so the tile doesn't repeat a listing card's photo.
-    imagePath: getNeighborhoodImagePath(name) ?? group.find(listing => listing.imagePath)?.imagePath ?? '',
+    // The area's own photo when the pack has one; otherwise a real photo of a home in it. The pack maps
+    // areas without a photo to '' (Westlake Hills), and `??` let that empty string through, so the tile
+    // showed the fallback even with a photographed listing in the area. `||` falls through on ''.
+    // The fallback plate renders only when no photo exists at all.
+    imagePath: getNeighborhoodImagePath(name) || upgradeLegacyImagePath(group.find(listing => listing.imagePath)?.imagePath || ''),
     listings: group,
   }))
 }

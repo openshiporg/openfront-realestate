@@ -116,11 +116,12 @@ export function ChecklistForm({ dealId, onDone }: { dealId: string; onDone?: () 
       const local = String(formData.get('dueAt') || '')
       if (local) formData.set('dueAt', localDateTimeToIso(local))
       action(formData)
-    }} className="mt-3 grid gap-3 sm:grid-cols-[1fr_12rem_auto] sm:items-end">
+    }} className="mt-3 grid gap-3">
       <input type="hidden" name="dealId" value={dealId} />
-      <div className="space-y-1.5"><Label htmlFor={`${id}-name`}>New item</Label><Input className={fieldRadius} id={`${id}-name`} required name="name" /></div>
-      <div className="space-y-1.5"><Label htmlFor={`${id}-due`}>Due</Label><Input className={fieldRadius} id={`${id}-due`} name="dueAt" type="datetime-local" /></div>
-      <Button type="submit" variant="ghost" size="sm" className={submitClass} disabled={pending}>{pending ? 'Adding…' : 'Add'}</Button>
+      <div className="space-y-1.5"><Label htmlFor={`${id}-name`}>Item</Label><Input className={fieldRadius} id={`${id}-name`} required name="name" /></div>
+      {/* A datetime-local needs about 15rem for "mm/dd/yyyy, hh:mm AM" plus the picker; never squeeze it into a fixed narrow column. */}
+      <div className="space-y-1.5"><Label htmlFor={`${id}-due`}>Due</Label><Input className={cn(fieldRadius, 'w-full min-w-[15rem] tabular-nums sm:max-w-[18rem]')} id={`${id}-due`} name="dueAt" type="datetime-local" /></div>
+      <div><Button type="submit" variant="ghost" size="sm" className={submitClass} disabled={pending}>{pending ? 'Adding…' : 'Add item'}</Button></div>
     </form>
   )
 }
@@ -226,6 +227,15 @@ export function OpsDrawer({ trigger, title, primary = false, children }: { trigg
 
 export function CounterOfferDrawer({ offerId, offerLabel }: { offerId: string; offerLabel: string }) {
   return <OpsDrawer trigger="Counter" title={`Counter ${offerLabel}`}>{close => <CounterOfferForm offerId={offerId} onDone={close} />}</OpsDrawer>
+}
+
+/** Deal page: Offers and Closing checklist open their forms from the section header. */
+export function DealOfferDrawer({ dealId }: { dealId: string }) {
+  return <OpsDrawer trigger="New offer" title="New offer">{close => <OfferDraftForm dealId={dealId} onDone={close} />}</OpsDrawer>
+}
+
+export function ChecklistDrawer({ dealId }: { dealId: string }) {
+  return <OpsDrawer trigger="Add item" title="Add checklist item">{close => <ChecklistForm dealId={dealId} onDone={close} />}</OpsDrawer>
 }
 
 export function NewOfferDrawer({ deals }: { deals: Array<[string, string]> }) {

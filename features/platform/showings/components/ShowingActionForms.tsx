@@ -63,7 +63,7 @@ export function ShowingFeedbackForm({ showingId, leadId, expectedStatus, expecte
         <Label htmlFor={`${id}-feedback`}>Feedback</Label>
         <Textarea className="rounded-[6px]" id={`${id}-feedback`} disabled={state.uncertain} name="feedback" rows={3} />
       </div>
-      <Button type="submit" size="sm" className="rounded-[6px] active:scale-[0.98]" disabled={pending || state.uncertain}>
+      <Button type="submit" variant="ghost" size="sm" className={pillPrimaryClass} disabled={pending || state.uncertain}>
         {pending ? 'Saving…' : state.uncertain ? 'Refresh to check' : 'Complete with feedback'}
       </Button>
       <UncertainNote state={state} />

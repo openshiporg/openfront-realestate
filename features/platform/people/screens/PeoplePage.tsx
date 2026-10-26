@@ -3,9 +3,10 @@ import { ArrowUpRight } from 'lucide-react'
 import { getAuthenticatedUser } from '@/features/dashboard/actions/auth'
 import { upgradeLegacyImagePath } from '@/features/lib/real-estate-images'
 import { humanize } from '../../leads/lib/labels'
-import { DataTable, EmptyState, ErrorBanner, PlatformPage, Stats, StatusCell, Td, tabClass } from '../../components/PlatformUI'
+import { DataTable, EmptyState, ErrorBanner, PlatformPage, Stats, StatusCell, Td, rowActionLineClass, rowActionsBlockClass } from '../../components/PlatformUI'
+import { FilterTabs } from '../../listings/components/FilterTabs'
 import { getPlatformPeople, type PlatformAgent } from '../actions/people'
-import { AddMemberDrawer, SuspendMemberButton } from '../components/MemberForms'
+import { AddMemberDrawer, MemberRowActions } from '../components/MemberForms'
 
 const membershipLabels: Record<string, string> = { owner: 'Owner', admin: 'Administrator', team_lead: 'Team lead', agent: 'Agent', coordinator: 'Coordinator', analyst: 'Analyst' }
 
@@ -52,12 +53,10 @@ export async function PeoplePage({ searchParams }: { searchParams?: Promise<{ [k
       </>}
       toolbar={<>
         <Stats items={[['Agents', agents.length], ['Licensed', licensedAgents], ['Teams', teams.length], ['Active teams', activeTeams]]} />
-        <nav aria-label="People views" className="relative -mx-4 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0">
-          <div className="flex min-w-max items-end gap-5 border-b">
-            <Link href="/dashboard/platform/people" aria-current={view === 'agents' ? 'page' : undefined} className={tabClass(view === 'agents')}>Agent workload</Link>
-            <Link href="/dashboard/platform/people?view=teams" aria-current={view === 'teams' ? 'page' : undefined} className={tabClass(view === 'teams')}>Teams</Link>
-          </div>
-        </nav>
+        <FilterTabs label="People views" items={[
+          { label: 'Agent workload', href: '/dashboard/platform/people', active: view === 'agents', count: agents.length },
+          { label: 'Teams', href: '/dashboard/platform/people?view=teams', active: view === 'teams', count: teams.length },
+        ]} />
       </>}
     >
       <div className="space-y-5 pb-16">
@@ -75,13 +74,14 @@ export async function PeoplePage({ searchParams }: { searchParams?: Promise<{ [k
                 { label: 'Leads', className: 'text-right' },
                 { label: 'Showings', className: 'hidden text-right sm:table-cell' },
                 { label: 'Deals', className: 'hidden text-right sm:table-cell' },
-                { label: <span className="sr-only">Actions</span>, className: 'text-right' },
+                { label: <span className="sr-only">Actions</span>, className: 'hidden text-right md:table-cell' },
               ]}
             >
               {sorted.map(agent => {
                 const membership = agent.memberships[0]
                 const canSuspend = Boolean(membership?.id) && membership?.membershipRole !== 'owner' && agent.id !== viewerId
                 const position = membershipLabels[membership?.membershipRole || ''] || humanize(membership?.membershipRole, 'Member')
+                const actions = (className?: string) => <MemberRowActions membershipId={membership?.id} memberName={agent.name} viewHref={`/dashboard/users/${encodeURIComponent(agent.id)}`} canSuspend={canSuspend} className={className} />
                 return (
                   <tr key={agent.id} className="transition-colors hover:bg-muted/30">
                     <Td className="py-2">
@@ -95,6 +95,7 @@ export async function PeoplePage({ searchParams }: { searchParams?: Promise<{ [k
                           <p className="text-xs text-muted-foreground sm:hidden">{agent.listingCount} listings · {agent.showingCount} showings · {agent.dealCount} deals</p>
                         </div>
                       </div>
+                      <div className={rowActionLineClass}>{actions(rowActionsBlockClass)}</div>
                     </Td>
                     <Td className="hidden whitespace-nowrap md:table-cell">{position}</Td>
                     <Td className="hidden whitespace-nowrap xl:table-cell">{agent.licenseNumber ? <span className="tabular-nums">{agent.licenseNumber}</span> : <span className="text-amber-700 dark:text-amber-400">None on file</span>}</Td>
@@ -102,7 +103,7 @@ export async function PeoplePage({ searchParams }: { searchParams?: Promise<{ [k
                     <Td className="text-right font-medium tabular-nums"><Count value={agent.leadCount} /></Td>
                     <Td className="hidden text-right tabular-nums sm:table-cell"><Count value={agent.showingCount} /></Td>
                     <Td className="hidden text-right tabular-nums sm:table-cell"><Count value={agent.dealCount} /></Td>
-                    <Td className="w-px whitespace-nowrap py-2 text-right">{canSuspend ? <SuspendMemberButton membershipId={membership.id} memberName={agent.name} /> : null}</Td>
+                    <Td className="hidden w-px whitespace-nowrap py-2 text-right md:table-cell">{actions()}</Td>
                   </tr>
                 )
               })}

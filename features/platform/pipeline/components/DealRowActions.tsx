@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
-import { pillPrimaryClass } from '../../components/styles'
+import { pillClass, pillDangerClass, pillPrimaryClass } from '../../components/styles'
 import { updateDealStage, type DealActionState } from '../actions/deals'
 import { moveLabel, stageNext } from '../lib/stages'
 import { DealFinancialTermsForm, DealNextStepForm } from './DealActionForms'
@@ -77,8 +77,8 @@ export function DealRowActions({ deal, editInMenu = true, className }: { deal: D
             <AlertDialogDescription>{deal.title} will move to Closed lost.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-[6px]">Cancel</AlertDialogCancel>
-            <Button type="button" variant="destructive" className="rounded-[6px] active:scale-[0.98]" onClick={() => { setConfirmLost(false); move('closed_lost') }}>Mark lost</Button>
+            <AlertDialogCancel className={pillClass}>Cancel</AlertDialogCancel>
+            <Button type="button" variant="ghost" className={pillDangerClass} onClick={() => { setConfirmLost(false); move('closed_lost') }}>Mark lost</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -23,7 +23,7 @@ const moves: Record<string, Array<[string, string]>> = {
   done: [['open', 'Reopen']],
 }
 
-export function TaskRowActions({ task, options }: { task: AgentTaskRow; options: TaskOptions }) {
+export function TaskRowActions({ task, options, className }: { task: AgentTaskRow; options: TaskOptions; className?: string }) {
   const [state, action, pending] = useActionState(transitionTask, initial)
   const [target, setTarget] = useState<string | null>(null)
   const router = useRouter()
@@ -49,7 +49,7 @@ export function TaskRowActions({ task, options }: { task: AgentTaskRow; options:
   }
 
   return (
-    <div className="flex items-center justify-end gap-1.5">
+    <div className={cn('flex items-center justify-end gap-1.5', className)}>
       {primary ? (
         <Button type="button" variant="ghost" size="sm" className={cn(task.status === 'done' ? pillClass : pillPrimaryClass, 'max-sm:h-9')} disabled={blocked} onClick={() => move(primary[0])}>
           {state.uncertain ? 'Refresh to check' : pending && target === primary[0] ? 'Updating…' : primary[1]}

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { pillClass, quietButtonClass } from '../../components/styles'
 
 export type RecordOption = { value: string; label: string }
 
@@ -134,12 +135,12 @@ export function RowsField({ name, label, columns, addLabel = 'Add row' }: { name
               )
             })}
           </div>
-          <Button type="button" variant="ghost" size="icon" className="rounded-[6px]" aria-label="Remove row" disabled={rows.length === 1} onClick={() => setRows((current) => current.filter((_, i) => i !== index))}>
+          <Button type="button" variant="ghost" size="icon" className={cn(quietButtonClass, 'size-9 px-0')} aria-label="Remove row" disabled={rows.length === 1} onClick={() => setRows((current) => current.filter((_, i) => i !== index))}>
             <X />
           </Button>
         </div>
       ))}
-      <Button type="button" variant="outline" size="sm" className="rounded-[6px] shadow-none active:scale-[0.98]" onClick={() => setRows((current) => [...current, blank()])}><Plus />{addLabel}</Button>
+      <Button type="button" variant="ghost" size="sm" className={pillClass} onClick={() => setRows((current) => [...current, blank()])}><Plus />{addLabel}</Button>
     </fieldset>
   )
 }

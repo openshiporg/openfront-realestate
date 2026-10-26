@@ -10,7 +10,7 @@ export function RangeSelect({ value, options }: { value: string; options: Array<
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   return (
-    <label className="relative inline-flex shrink-0 items-center">
+    <label className="relative flex w-full shrink-0 items-center sm:inline-flex sm:w-auto">
       <span className="sr-only">Date range</span>
       <select
         value={value}
@@ -20,7 +20,7 @@ export function RangeSelect({ value, options }: { value: string; options: Array<
           if (next) startTransition(() => router.push(next.href))
         }}
         className={cn(
-          'h-9 appearance-none rounded-[6px] border border-input bg-background pl-3 pr-8 text-sm font-medium text-foreground outline-none transition-[border-color,box-shadow] hover:border-foreground/25 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60',
+          'h-9 w-full appearance-none rounded-[6px] border border-input bg-background pl-3 pr-8 text-sm font-medium text-foreground outline-none transition-[border-color,box-shadow] hover:border-foreground/25 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60',
         )}
       >
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}

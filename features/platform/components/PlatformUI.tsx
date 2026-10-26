@@ -5,7 +5,7 @@ import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs
 import { cn } from '@/lib/utils'
 import { tableWrapClass, tdClass, thClass, trackClass, trackItemClass } from './styles'
 
-export { pillClass, pillPrimaryClass, trackClass, trackItemClass, tabClass, tableWrapClass, thClass, tdClass } from './styles'
+export { pillClass, pillPrimaryClass, pillDangerClass, quietButtonClass, rowActionLineClass, rowActionsBlockClass, rowSingleActionLineClass, mdCellClass, trackClass, trackItemClass, tabClass, tableWrapClass, thClass, tdClass } from './styles'
 
 export type Tone = 'emerald' | 'sky' | 'blue' | 'amber' | 'indigo' | 'violet' | 'fuchsia' | 'rose' | 'zinc'
 

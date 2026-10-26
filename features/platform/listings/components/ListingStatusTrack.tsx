@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { cn } from '@/lib/utils'
 import { Track } from '../../components/PlatformUI'
 import { listingTransitions } from '../lib/listingStatus'
 import { ListingStatusButton, ListingStatusMenu } from './ListingStatusButton'
@@ -8,12 +9,12 @@ import { ListingStatusButton, ListingStatusMenu } from './ListingStatusButton'
  * The forward step (Publish) is the one filled button; every other change lives in the Status menu.
  * `children` render before the status controls (e.g. Edit on the detail page).
  */
-export function ListingStatusTrack({ id, title, status, listingType, children, showPrimary = true }: { id: string; title: string; status: string; listingType: string | null; children?: ReactNode; showPrimary?: boolean }) {
+export function ListingStatusTrack({ id, title, status, listingType, children, showPrimary = true, className }: { id: string; title: string; status: string; listingType: string | null; children?: ReactNode; showPrimary?: boolean; className?: string }) {
   const moves = listingTransitions(status, listingType)
   const primary = showPrimary ? moves.find(move => move.kind === 'primary') : undefined
   const rest = moves.filter(move => move !== primary)
   return (
-    <Track label={`${title} actions`} className="flex-nowrap">
+    <Track label={`${title} actions`} className={cn('flex-nowrap', className)}>
       {children}
       {primary ? <ListingStatusButton propertyId={id} status={primary.status} label={primary.label} primary /> : null}
       <ListingStatusMenu propertyId={id} title={title} moves={rest} />

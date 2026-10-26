@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useId, useRef } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { pillPrimaryClass } from '../../components/styles'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -52,7 +53,7 @@ export function LeadActivityForm({ leadId, propertyId }: { leadId: string; prope
         <Label htmlFor={`${id}-body`}>Notes</Label>
         <Textarea className="rounded-[6px]" id={`${id}-body`} name="body" required rows={3} />
       </div>
-      <Button type="submit" size="sm" className="rounded-[6px] active:scale-[0.98]" disabled={pending}>{pending ? 'Saving…' : 'Log activity'}</Button>
+      <Button type="submit" variant="ghost" size="sm" className={pillPrimaryClass} disabled={pending}>{pending ? 'Saving…' : 'Log activity'}</Button>
     </form>
   )
 }

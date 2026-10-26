@@ -4,10 +4,10 @@ import { formatMoney as exactMoney, moneyToMinor } from '@/features/lib/money'
 import { LocalDateTime } from '../../showings/components/LocalDateTime'
 import { ErrorBanner, Meta, Panel, PlatformPage, TitleLine, trackItemClass } from '../../components/PlatformUI'
 import { getPlatformLeadDetail, getShowingRequestViewer } from '../actions/leads'
-import { LeadActivityForm } from '../components/LeadActivityForm'
+import { LogActivityButton, ScheduleShowingButton } from '../components/LeadDetailDrawers'
 import { LeadRowActions } from '../components/LeadRowActions'
 import { LocalizedText } from '../components/LocalizedText'
-import { OriginalShowingRecovery, ScheduleShowingForm } from '../components/PendingShowingForms'
+import { OriginalShowingRecovery } from '../components/PendingShowingForms'
 import { ResponseClock } from '../components/ResponseClock'
 import { activityTypeLabels, channelLabels, label, leadIntentLabels, leadSourceLabels, leadStatusColors, leadStatusLabels } from '../lib/labels'
 
@@ -81,11 +81,15 @@ export async function LeadDetailPage({ params, searchParams }: PageProps) {
                 </div>
               </Panel>
 
-              <Panel title="Inquiry">
-                {lead.message ? <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90"><LocalizedText text={lead.message} /></p> : <p className="text-sm text-muted-foreground">No message</p>}
-              </Panel>
-
-              <Panel title="Activity">
+              <Panel
+                title="Activity"
+                actions={
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewer && !['closed', 'lost'].includes(lead.status) ? <ScheduleShowingButton viewer={viewer} leadId={id} leadName={lead.name} propertyId={lead.property?.id} assignedAgentId={lead.assignedAgent?.id} /> : null}
+                    {detail.activityAccess !== 'restricted' ? <LogActivityButton leadId={id} leadName={lead.name} propertyId={lead.property?.id} /> : null}
+                  </div>
+                }
+              >
                 {detail.activityAccess === 'restricted' ? (
                   <p className="text-sm text-muted-foreground">No access to this lead’s activity</p>
                 ) : lead.activities?.length ? (
@@ -114,14 +118,9 @@ export async function LeadDetailPage({ params, searchParams }: PageProps) {
             </div>
 
             <aside className="min-w-0 space-y-5 lg:sticky lg:top-4">
-              <Panel title="Log activity">
-                <LeadActivityForm leadId={id} propertyId={lead.property?.id} />
+              <Panel title="Inquiry">
+                {lead.message ? <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90"><LocalizedText text={lead.message} /></p> : <p className="text-sm text-muted-foreground">No message</p>}
               </Panel>
-              {viewer && !['closed', 'lost'].includes(lead.status) ? (
-                <Panel title="Schedule showing">
-                  <ScheduleShowingForm viewer={viewer} leadId={id} propertyId={lead.property?.id} assignedAgentId={lead.assignedAgent?.id} />
-                </Panel>
-              ) : null}
             </aside>
           </div>
         )}

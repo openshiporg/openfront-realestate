@@ -4,7 +4,7 @@ import { Fragment, type ReactNode } from 'react'
 import { formatMoney } from '@/features/lib/money'
 import { cn } from '@/lib/utils'
 import { ErrorBanner, Meta, Panel, PlatformPage, StatusDot, TitleLine, type Tone } from '../../components/PlatformUI'
-import { CommissionAction, CounterOfferForm, ChecklistForm, DisclosureAction, DocumentAction, InspectionAction, MilestoneAction, OfferAction, OfferDraftForm } from '../../operations/components/TaskForms'
+import { ChecklistDrawer, CommissionAction, CounterOfferDrawer, DealOfferDrawer, DisclosureAction, DocumentAction, InspectionAction, MilestoneAction, OfferAction } from '../../operations/components/TaskForms'
 import { LocalDateTime } from '../../showings/components/LocalDateTime'
 import { DealFinancialTermsForm, DealNextStepForm } from '../components/DealActionForms'
 import { DealRowActions } from '../components/DealRowActions'
@@ -70,25 +70,23 @@ export async function DealDetailPage({ params }: { params: Promise<{ id: string 
   // Sections with records come first; empty ones follow so the next step is never below blank panels.
   const sections: Array<{ key: string; filled: boolean; node: ReactNode }> = [
     { key: 'offers', filled: filled(workspace.offers), node: (
-            <Panel title="Offers">
-              <Rows items={workspace.offers} empty="No offers" render={offer => <>
+            <Panel title="Offers" actions={open && workspace.offers ? <div className="flex flex-wrap gap-1.5"><DealOfferDrawer dealId={deal.id} /></div> : null}>
+              <Rows items={workspace.offers} empty="No offers" render={offer => (
                 <Row title={`${offer.offerNumber}${offer.version > 1 ? ` v${offer.version}` : ''} · ${amount(offer.amount)}`} status={offer.status}
                   meta={[human(offer.financingType), offer.earnestMoney ? `${amount(offer.earnestMoney)} earnest` : '', offer.contingencies, offer.parentOffer ? `Counter to ${offer.parentOffer.offerNumber}` : ''].filter(Boolean).join(' · ')}>
                   {(offerNext[offer.status] || []).map(([status, text]) => <OfferAction key={status} offerId={offer.id} status={status} label={text} />)}
+                  {['submitted', 'countered'].includes(offer.status) ? <CounterOfferDrawer offerId={offer.id} offerLabel={offer.offerNumber} /> : null}
                 </Row>
-                {['submitted', 'countered'].includes(offer.status) ? <div className="w-full"><CounterOfferForm offerId={offer.id} /></div> : null}
-              </>} />
-              {open && workspace.offers ? <OfferDraftForm dealId={deal.id} /> : null}
+              )} />
             </Panel>
     ) },
     { key: 'checklist', filled: filled(workspace.milestones), node: (
-            <Panel title="Closing checklist">
+            <Panel title="Closing checklist" actions={workspace.milestones ? <div className="flex flex-wrap gap-1.5"><ChecklistDrawer dealId={deal.id} /></div> : null}>
               <Rows items={workspace.milestones} empty="No checklist items" render={item => (
                 <Row title={item.name} status={item.status} meta={item.dueAt || item.assignedTo ? <>{item.dueAt ? <>Due <LocalDateTime value={item.dueAt} options={{ month: 'short', day: 'numeric' }} /></> : null}{item.dueAt && item.assignedTo ? ' · ' : ''}{item.assignedTo?.name}</> : undefined}>
                   {(milestoneNext[item.status] || []).map(([status, text]) => <MilestoneAction key={status} milestoneId={item.id} status={status} label={text} />)}
                 </Row>
               )} />
-              {workspace.milestones ? <ChecklistForm dealId={deal.id} /> : null}
             </Panel>
     ) },
     { key: 'documents', filled: filled(workspace.documents, workspace.disclosures), node: (
@@ -167,7 +165,7 @@ export async function DealDetailPage({ params }: { params: Promise<{ id: string 
       meta={<>{human(deal.transactionType)} · {deal.assignedAgent?.name || 'Unassigned'}{deal.expectedCloseDate ? <> · Close <LocalDateTime value={deal.expectedCloseDate} options={{ dateStyle: 'medium' }} /></> : null}</>}
       actions={open ? <DealRowActions editInMenu={false} deal={{ id: deal.id, title: deal.title, stage: deal.stage }} /> : null}
       toolbar={deal.stage !== 'closed_lost' ? (
-        <nav aria-label="Deal stages" className="relative -mx-4 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0">
+        <nav aria-label="Deal stages" className="relative -mx-4 overflow-x-auto px-4 [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin] md:mx-0 md:px-0">
           <ol className="flex min-w-max items-center gap-0 border-b border-border pb-2.5 text-[13px]">
             {trackStages.map(([value, label, tone], index) => {
               const current = index === stageIndex

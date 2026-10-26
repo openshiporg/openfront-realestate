@@ -1,8 +1,9 @@
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatMoney as money } from '@/features/lib/money'
-import { DataTable, EmptyState, ErrorBanner, Pager, PlatformPage, SearchField, StatusCell, Td, pillPrimaryClass } from '../../components/PlatformUI'
+import { DataTable, EmptyState, ErrorBanner, Pager, PlatformPage, SearchField, StatusCell, Td, pillPrimaryClass, rowActionLineClass, rowActionsBlockClass } from '../../components/PlatformUI'
 import { getPlatformListings, type PlatformListing } from '../actions/listings'
 import { ListingStatusTrack } from '../components/ListingStatusTrack'
 import { listingStatuses as statuses } from '../lib/listingStatus'
@@ -71,14 +72,17 @@ function ListingRow({ item, now }: { item: PlatformListing; now: number }) {
             aria-label={item.primaryImageUrl ? `${item.title} photo` : 'No photo'}
           />
           <div className="min-w-0">
-            <Link href={href} className="block max-w-[11rem] truncate font-medium sm:max-w-[22rem] text-foreground underline-offset-2 hover:underline">{item.title}</Link>
-            <p className="max-w-[11rem] truncate text-xs text-muted-foreground sm:max-w-[22rem]">{[place || 'No address', facts].filter(Boolean).join(' · ')}</p>
+            <Link href={href} className="block max-w-[19rem] truncate font-medium sm:max-w-[22rem] text-foreground underline-offset-2 hover:underline">{item.title}</Link>
+            <p className="max-w-[19rem] truncate text-xs text-muted-foreground sm:max-w-[22rem]">{[place || 'No address', facts].filter(Boolean).join(' · ')}</p>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs md:hidden">
               {statusCell}
               <span className="font-semibold tabular-nums text-foreground">{priceLabel(item)}</span>
               <span className={item.assignedAgent ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-400'}>{item.assignedAgent?.name || 'Unassigned'}</span>
             </div>
           </div>
+        </div>
+        <div className={rowActionLineClass}>
+          <ListingStatusTrack id={item.id} title={item.title} status={item.status} listingType={item.listingType} className={cn('flex w-full', rowActionsBlockClass)} />
         </div>
       </Td>
       <Td className="hidden whitespace-nowrap md:table-cell">{statusCell}</Td>
@@ -87,7 +91,7 @@ function ListingRow({ item, now }: { item: PlatformListing; now: number }) {
       <Td className="hidden text-right tabular-nums lg:table-cell">{countCell(item.showingsCount)}</Td>
       <Td className="hidden max-w-[10rem] truncate md:table-cell">{item.assignedAgent ? item.assignedAgent.name : <span className="text-amber-700 dark:text-amber-400">Unassigned</span>}</Td>
       <Td className="hidden whitespace-nowrap text-muted-foreground tabular-nums xl:table-cell">{updatedLabel(item.updatedAt, now)}</Td>
-      <Td className="w-px whitespace-nowrap py-2 text-right">
+      <Td className="hidden w-px whitespace-nowrap py-2 text-right md:table-cell">
         <div className="flex justify-end">
           <ListingStatusTrack id={item.id} title={item.title} status={item.status} listingType={item.listingType} />
         </div>
@@ -153,7 +157,7 @@ export async function ListingListPage({ searchParams }: PageProps) {
             { label: 'Showings', className: 'hidden text-right lg:table-cell' },
             { label: 'Agent', className: 'hidden md:table-cell' },
             { label: 'Updated', className: 'hidden xl:table-cell' },
-            { label: <span className="sr-only">Actions</span>, className: 'text-right' },
+            { label: <span className="sr-only">Actions</span>, className: 'hidden text-right md:table-cell' },
           ]}
         >
           {items.map((item) => <ListingRow key={item.id} item={item} now={now} />)}

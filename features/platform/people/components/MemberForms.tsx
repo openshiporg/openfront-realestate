@@ -1,8 +1,9 @@
 'use client'
 
-import { useActionState, useEffect, useId, useRef } from 'react'
+import { useActionState, useEffect, useId, useRef, useState } from 'react'
+import Link from 'next/link'
 import { toast } from 'sonner'
-import { UserPlus } from 'lucide-react'
+import { MoreHorizontal, UserPlus } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,14 +13,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { pillClass, pillPrimaryClass } from '../../components/styles'
+import { pillClass, pillDangerClass, pillPrimaryClass, quietButtonClass } from '../../components/styles'
 import { FormDrawer } from '../../components/RecordForm'
 import { inviteBrokerageMember, suspendBrokerageMember, type PeopleCommandState } from '../actions/people'
 
@@ -85,29 +86,48 @@ export function InviteMemberForm({ brokerageId, onDone }: { brokerageId: string;
   )
 }
 
-export function SuspendMemberButton({ membershipId, memberName }: { membershipId: string; memberName: string }) {
+/**
+ * Row actions for a member: a neutral "View" as the visible primary, and Suspend behind
+ * the More menu with a confirmation, so a destructive command is never the row's only action.
+ */
+export function MemberRowActions({ membershipId, memberName, viewHref, canSuspend, className }: { membershipId?: string | null; memberName: string; viewHref: string; canSuspend: boolean; className?: string }) {
   const [state, action, pending] = useActionState(suspendBrokerageMember, initial)
+  const [confirming, setConfirming] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
   useResultToast(state)
   return (
-    <form ref={formRef} action={action} className="shrink-0">
-      <input type="hidden" name="membershipId" value={membershipId} />
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button type="button" variant="ghost" size="sm" className={cn(pillClass, 'border-transparent text-muted-foreground hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive')} disabled={pending}>{pending ? 'Suspending…' : 'Suspend'}</Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent className="rounded-[6px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Suspend {memberName}?</AlertDialogTitle>
-            <AlertDialogDescription>They will no longer be able to sign in to this brokerage.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-[6px]">Cancel</AlertDialogCancel>
-            <AlertDialogAction className="rounded-[6px] bg-destructive text-white hover:bg-destructive/90" onClick={() => formRef.current?.requestSubmit()}>Suspend access</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </form>
+    <div className={cn('flex items-center justify-end gap-1.5', className)}>
+      <Button asChild variant="ghost" size="sm" className={cn(pillClass, 'max-sm:h-9')}><Link href={viewHref}>View</Link></Button>
+      {canSuspend && membershipId ? (
+        <>
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" aria-label={`More actions for ${memberName}`} disabled={pending} className={cn(quietButtonClass, 'size-8 px-0 data-[state=open]:bg-muted max-sm:size-9')}>
+                <MoreHorizontal aria-hidden className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44 rounded-[6px]">
+              <DropdownMenuItem variant="destructive" className="rounded-[4px]" disabled={pending} onSelect={() => setConfirming(true)}>{pending ? 'Suspending…' : 'Suspend access…'}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <form ref={formRef} action={action} className="hidden">
+            <input type="hidden" name="membershipId" value={membershipId} />
+          </form>
+          <AlertDialog open={confirming} onOpenChange={setConfirming}>
+            <AlertDialogContent className="rounded-[6px]">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Suspend {memberName}?</AlertDialogTitle>
+                <AlertDialogDescription>They will no longer be able to sign in to this brokerage.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className={pillClass}>Cancel</AlertDialogCancel>
+                <AlertDialogAction className={pillDangerClass} onClick={() => formRef.current?.requestSubmit()}>Suspend access</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      ) : null}
+    </div>
   )
 }
 

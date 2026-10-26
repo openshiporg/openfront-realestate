@@ -5,7 +5,7 @@ import { Fragment, useSyncExternalStore } from 'react'
 import { formatMoney as exactMoney, moneyToMinor } from '@/features/lib/money'
 import { cn } from '@/lib/utils'
 import { DataTable, StatusCell, Td } from '../../components/PlatformUI'
-import { trackItemClass } from '../../components/styles'
+import { rowSingleActionLineClass, trackItemClass } from '../../components/styles'
 import type { PlatformShowing } from '../actions/showings'
 import { label, leadIntentLabels } from '../../leads/lib/labels'
 import { showingStatusColors, showingStatusLabels, showingTypeLabels } from '../lib/labels'
@@ -26,10 +26,10 @@ function formatMoney(value?: string | null, listingType?: string | null) {
 const head = [
   { label: 'Time', className: 'hidden w-28 sm:table-cell' },
   { label: 'Listing' },
-  { label: 'Status' },
+  { label: 'Status', className: 'hidden md:table-cell' },
   { label: 'Client', className: 'hidden md:table-cell' },
   { label: 'Agent', className: 'hidden lg:table-cell' },
-  { label: <span className="sr-only">Action</span>, className: 'w-px' },
+  { label: <span className="sr-only">Action</span>, className: 'hidden w-px md:table-cell' },
 ]
 
 function RowAction({ showing, version, href, now }: { showing: PlatformShowing; version?: ShowingVersion; href: string; now: number }) {
@@ -76,6 +76,10 @@ export function ShowingBoard({ showings, versions }: { showings: PlatformShowing
             const zone = zoneFormat.formatToParts(start).find(part => part.type === 'timeZoneName')?.value
             const href = `/dashboard/platform/showings/${encodeURIComponent(showing.id)}`
             const past = showing.status === 'requested' && start.getTime() < now
+            const status = <StatusCell tone={showingStatusColors[showing.status] || 'zinc'}>{label(showingStatusLabels, showing.status)}</StatusCell>
+            const pastNote = past ? <span className="text-xs text-amber-700 dark:text-amber-400">Time passed</span> : null
+            const action = <RowAction showing={showing} version={versions[showing.id]} href={href} now={now} />
+            const hasAction = showing.status === 'requested' || (showing.status === 'scheduled' && start.getTime() <= now)
             return (
               <tr key={showing.id} className="transition-colors hover:bg-muted/30">
                 <Td className="hidden whitespace-nowrap py-2 sm:table-cell">
@@ -89,17 +93,19 @@ export function ShowingBoard({ showings, versions }: { showings: PlatformShowing
                     {property ? <>{[property.addressLine1, property.city].filter(Boolean).join(', ')} · <span className="tabular-nums">{formatMoney(property.price, property.listingType)}</span></> : null}
                   </span>
                   <span className="block truncate text-xs text-muted-foreground md:hidden">{lead?.name || 'No client'}</span>
+                  <span className="mt-1 flex flex-wrap items-center gap-x-3 md:hidden">{status}{pastNote}</span>
+                  {hasAction ? <div className={rowSingleActionLineClass}>{action}</div> : null}
                 </Td>
-                <Td className="py-2">
-                  <StatusCell tone={showingStatusColors[showing.status] || 'zinc'}>{label(showingStatusLabels, showing.status)}</StatusCell>
-                  {past ? <span className="block text-xs text-amber-700 dark:text-amber-400">Time passed</span> : null}
+                <Td className="hidden py-2 md:table-cell">
+                  {status}
+                  {pastNote ? <span className="block">{pastNote}</span> : null}
                 </Td>
                 <Td className="hidden py-2 md:table-cell">
                   <span className="block text-[13px] text-foreground">{lead?.name || 'No client'}</span>
                   {lead ? <span className="text-xs text-muted-foreground">{label(leadIntentLabels, lead.intent, 'Intent unknown')}</span> : null}
                 </Td>
                 <Td className="hidden whitespace-nowrap py-2 text-[13px] lg:table-cell">{agent ? agent.name || 'Assigned' : <span className="text-muted-foreground">Unassigned</span>}</Td>
-                <Td className="py-2 text-right"><RowAction showing={showing} version={versions[showing.id]} href={href} now={now} /></Td>
+                <Td className="hidden py-2 text-right md:table-cell">{action}</Td>
               </tr>
             )
           })}

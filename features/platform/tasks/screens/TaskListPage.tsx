@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import { Fragment } from 'react'
 import { cn } from '@/lib/utils'
-import { DataTable, EmptyState, ErrorBanner, PlatformPage, StatusCell, Td, tabClass, type Tone } from '../../components/PlatformUI'
+import { DataTable, EmptyState, ErrorBanner, PlatformPage, StatusCell, Td, rowActionLineClass, rowActionsBlockClass, type Tone } from '../../components/PlatformUI'
 import { FilterTabs } from '../../listings/components/FilterTabs'
 import { LocalDateTime } from '../../showings/components/LocalDateTime'
 import { TaskDrawer, priorityOptions } from '../components/TaskForms'
 import { TaskRowActions } from '../components/TaskRowActions'
-import { getTaskOptions, getTaskQueue, getViewerId, type AgentTaskRow } from '../lib/tasks'
+import { getTaskOptions, getTaskQueue, getViewerId, type AgentTaskRow, type TaskCounts } from '../lib/tasks'
 
 const statusMeta: Record<string, { label: string; tone: Tone }> = {
   open: { label: 'Open', tone: 'sky' },
@@ -37,10 +37,13 @@ const buckets: Array<{ label: string; test: (due: number | null, now: number) =>
 const priorityLabel = (value: string) => priorityOptions.find(([key]) => key === value)?.[1] || value
 const priorityClass: Record<string, string> = { urgent: 'font-semibold text-foreground', high: 'font-medium text-foreground', normal: 'text-muted-foreground', low: 'text-muted-foreground' }
 
+const activeCount = (counts: TaskCounts | null) => (counts ? counts.open + counts.inProgress : null)
+
+/** Scope is always explicit in links, so a page that opened on Everyone (nothing active is yours) can still go to Mine. */
 function tasksHref(view: string, scope: string) {
   const params = new URLSearchParams()
   if (view !== 'active') params.set('status', view)
-  if (scope !== 'mine') params.set('scope', scope)
+  params.set('scope', scope)
   const query = params.toString()
   return query ? `/dashboard/platform/tasks?${query}` : '/dashboard/platform/tasks'
 }
@@ -59,8 +62,21 @@ export async function TaskListPage({ searchParams }: { searchParams: Promise<{ s
   const params = await searchParams
   const view = params.status && params.status in views ? params.status : 'active'
   const viewerId = await getViewerId()
-  const scope = params.scope === 'everyone' || !viewerId ? 'everyone' : 'mine'
-  const [{ tasks, counts, error }, options] = await Promise.all([getTaskQueue(scope === 'mine' ? viewerId : null), getTaskOptions()])
+  // Both scopes are loaded so each scope tab carries its count, and so an operator with
+  // nothing active of their own (an admin, a coordinator) does not open on an empty page
+  // while the brokerage has overdue work: without an explicit scope the page then opens on Everyone.
+  const [mine, everyone, options] = await Promise.all([
+    viewerId ? getTaskQueue(viewerId) : Promise.resolve(null),
+    getTaskQueue(null),
+    getTaskOptions(),
+  ])
+  const requestedScope = params.scope === 'everyone' || params.scope === 'mine' ? params.scope : null
+  const scope = !viewerId || !mine ? 'everyone'
+    : requestedScope ? requestedScope
+    : mine.error || (activeCount(mine.counts) ?? 0) > 0 ? 'mine'
+    : (activeCount(everyone.counts) ?? 0) > 0 ? 'everyone' : 'mine'
+  const { tasks, counts, error } = scope === 'mine' && mine ? mine : everyone
+  const defaultedToEveryone = Boolean(viewerId && mine && !requestedScope && scope === 'everyone')
 
   const now = Date.now()
   const statuses = views[view]
@@ -79,19 +95,29 @@ export async function TaskListPage({ searchParams }: { searchParams: Promise<{ s
   const groups = grouped.filter(group => group.items.length)
   const overdue = visible.filter(task => task.status !== 'done' && task.dueAt && Date.parse(task.dueAt) < now).length
   const showAgent = scope === 'everyone'
+  const metaParts = error ? [] : [
+    defaultedToEveryone ? <span key="scope">Nothing active is assigned to you, so this shows everyone’s tasks</span> : null,
+    overdue && view !== 'done' ? <span key="overdue" className="font-medium text-destructive">{overdue} overdue</span> : null,
+  ].filter(Boolean).flatMap((node, index) => index ? [<span key={`sep-${index}`} aria-hidden> · </span>, node] : [node])
 
   const head = [
     { label: 'Task' },
-    { label: 'Status' },
-    { label: 'Due', className: 'hidden w-40 sm:table-cell' },
+    { label: 'Status', className: 'hidden md:table-cell' },
+    { label: 'Due', className: 'hidden w-40 md:table-cell' },
     { label: 'Priority', className: 'hidden w-24 lg:table-cell' },
     ...(showAgent ? [{ label: 'Agent', className: 'hidden xl:table-cell' }] : []),
-    { label: <span className="sr-only">Actions</span>, className: 'w-px' },
+    { label: <span className="sr-only">Actions</span>, className: 'hidden w-px md:table-cell' },
   ]
   const columns = head.length
 
+  // Whose tasks and which status share one underline row: scope first, then a divider, then status.
+  const scopeItems = viewerId && mine ? [
+    { label: 'Mine', href: tasksHref(view, 'mine'), active: scope === 'mine', current: 'true' as const, count: activeCount(mine.counts) },
+    { label: 'Everyone', href: tasksHref(view, 'everyone'), active: scope === 'everyone', current: 'true' as const, count: activeCount(everyone.counts) },
+  ] : []
   const tabItems = [
-    { label: 'Active', href: tasksHref('active', scope), active: view === 'active' || view === 'open' || view === 'in_progress', count: counts ? counts.open + counts.inProgress : null },
+    ...scopeItems,
+    { divider: scopeItems.length > 0, label: 'Active', href: tasksHref('active', scope), active: view === 'active' || view === 'open' || view === 'in_progress', count: counts ? counts.open + counts.inProgress : null },
     { label: 'Blocked', href: tasksHref('blocked', scope), active: view === 'blocked', count: counts ? counts.blocked : null },
     { label: 'Done', href: tasksHref('done', scope), active: view === 'done', count: counts ? counts.done : null },
     { label: 'All', href: tasksHref('all', scope), active: view === 'all', count: counts ? counts.open + counts.inProgress + counts.blocked + counts.done : null },
@@ -101,17 +127,9 @@ export async function TaskListPage({ searchParams }: { searchParams: Promise<{ s
     <PlatformPage
       crumbs={[{ label: 'Tasks' }]}
       title={scope === 'mine' ? 'My tasks' : 'Tasks'}
-      meta={!error && overdue && view !== 'done' ? <span className="font-medium text-destructive">{overdue} overdue</span> : null}
+      meta={metaParts.length ? metaParts : null}
       actions={<TaskDrawer options={options} />}
-      toolbar={<>
-        {viewerId ? (
-          <nav aria-label="Whose tasks" className="flex items-end gap-5">
-            <Link href={tasksHref(view, 'mine')} aria-current={scope === 'mine' ? 'page' : undefined} className={cn(tabClass(scope === 'mine'), 'mb-0')}>Mine</Link>
-            <Link href={tasksHref(view, 'everyone')} aria-current={scope === 'everyone' ? 'page' : undefined} className={cn(tabClass(scope === 'everyone'), 'mb-0')}>Everyone</Link>
-          </nav>
-        ) : null}
-        <FilterTabs label="Task status" items={tabItems} />
-      </>}
+      toolbar={<FilterTabs label="Whose tasks and task status" items={tabItems} />}
     >
       <div className="pb-16">
         {error ? <ErrorBanner>Tasks could not be loaded. {error}</ErrorBanner> : groups.length ? (
@@ -138,14 +156,15 @@ export async function TaskListPage({ searchParams }: { searchParams: Promise<{ s
                         <span className="block font-medium text-foreground">{task.title}</span>
                         {related.length ? <span className="block truncate text-xs text-muted-foreground">{related}</span> : null}
                         {task.notes ? <span className="block truncate text-xs text-foreground/80">{task.notes}</span> : null}
-                        <span className="block text-xs sm:hidden"><Due task={task} now={now} /></span>
+                        <span className="mt-1 flex flex-wrap items-center gap-x-3 text-xs md:hidden"><StatusCell tone={meta.tone}>{meta.label}</StatusCell><Due task={task} now={now} /></span>
                         {showAgent ? <span className="block text-xs text-muted-foreground xl:hidden">{task.assignedAgent?.name || 'Unassigned'}</span> : null}
+                        <div className={rowActionLineClass}><TaskRowActions task={task} options={options} className={rowActionsBlockClass} /></div>
                       </Td>
-                      <Td className="py-2"><StatusCell tone={meta.tone}>{meta.label}</StatusCell></Td>
-                      <Td className="hidden py-2 text-[13px] sm:table-cell"><Due task={task} now={now} /></Td>
+                      <Td className="hidden py-2 md:table-cell"><StatusCell tone={meta.tone}>{meta.label}</StatusCell></Td>
+                      <Td className="hidden py-2 text-[13px] md:table-cell"><Due task={task} now={now} /></Td>
                       <Td className={cn('hidden py-2 text-[13px] lg:table-cell', priorityClass[task.priority] || 'text-muted-foreground')}>{priorityLabel(task.priority)}</Td>
                       {showAgent ? <Td className="hidden whitespace-nowrap py-2 text-[13px] xl:table-cell">{task.assignedAgent?.name || <span className="text-muted-foreground">Unassigned</span>}</Td> : null}
-                      <Td className="py-2"><TaskRowActions task={task} options={options} /></Td>
+                      <Td className="hidden py-2 md:table-cell"><TaskRowActions task={task} options={options} /></Td>
                     </tr>
                   )
                 })}
