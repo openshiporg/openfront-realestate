@@ -1,0 +1,681 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-26T09:10:52+00:00",
+  "title": "Design System: Openfront Real Estate",
+  "extensions": {
+    "colorMeta": {
+      "galvalume": {
+        "role": "neutral",
+        "displayName": "Galvalume",
+        "canonical": "oklch(90.5% 0.006 240)",
+        "cssVar": "--sf-metal",
+        "tonalRamp": [
+          "oklch(15% 0.006 240)",
+          "oklch(26% 0.006 240)",
+          "oklch(37% 0.006 240)",
+          "oklch(48% 0.006 240)",
+          "oklch(60% 0.006 240)",
+          "oklch(72% 0.006 240)",
+          "oklch(84% 0.006 240)",
+          "oklch(95% 0.006 240)"
+        ]
+      },
+      "galvalume-hi": {
+        "role": "neutral",
+        "displayName": "Galvalume Hi",
+        "canonical": "oklch(95.8% 0.004 240)",
+        "cssVar": "--sf-metal-hi",
+        "tonalRamp": [
+          "oklch(15% 0.004 240)",
+          "oklch(26% 0.004 240)",
+          "oklch(37% 0.004 240)",
+          "oklch(48% 0.004 240)",
+          "oklch(60% 0.004 240)",
+          "oklch(72% 0.004 240)",
+          "oklch(84% 0.004 240)",
+          "oklch(95% 0.004 240)"
+        ]
+      },
+      "galvalume-lo": {
+        "role": "neutral",
+        "displayName": "Galvalume Lo",
+        "canonical": "oklch(86.5% 0.007 240)",
+        "cssVar": "--sf-metal-lo",
+        "tonalRamp": [
+          "oklch(15% 0.007 240)",
+          "oklch(26% 0.007 240)",
+          "oklch(37% 0.007 240)",
+          "oklch(48% 0.007 240)",
+          "oklch(60% 0.007 240)",
+          "oklch(72% 0.007 240)",
+          "oklch(84% 0.007 240)",
+          "oklch(95% 0.007 240)"
+        ]
+      },
+      "seam": {
+        "role": "neutral",
+        "displayName": "Seam",
+        "canonical": "oklch(77% 0.008 245)",
+        "cssVar": "--sf-seam",
+        "tonalRamp": [
+          "oklch(15% 0.008 245)",
+          "oklch(26% 0.008 245)",
+          "oklch(37% 0.008 245)",
+          "oklch(48% 0.008 245)",
+          "oklch(60% 0.008 245)",
+          "oklch(72% 0.008 245)",
+          "oklch(84% 0.008 245)",
+          "oklch(95% 0.008 245)"
+        ]
+      },
+      "seam-strong": {
+        "role": "neutral",
+        "displayName": "Seam Strong",
+        "canonical": "oklch(58% 0.01 245)",
+        "cssVar": "--sf-seam-strong",
+        "tonalRamp": [
+          "oklch(15% 0.01 245)",
+          "oklch(26% 0.01 245)",
+          "oklch(37% 0.01 245)",
+          "oklch(48% 0.01 245)",
+          "oklch(60% 0.01 245)",
+          "oklch(72% 0.01 245)",
+          "oklch(84% 0.01 245)",
+          "oklch(95% 0.01 245)"
+        ]
+      },
+      "seam-light": {
+        "role": "neutral",
+        "displayName": "Seam Light Edge",
+        "canonical": "oklch(100% 0 0 / 0.42)",
+        "cssVar": "--sf-seam-light",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(26% 0 0)",
+          "oklch(37% 0 0)",
+          "oklch(48% 0 0)",
+          "oklch(60% 0 0)",
+          "oklch(72% 0 0)",
+          "oklch(84% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "seam-dark": {
+        "role": "neutral",
+        "displayName": "Seam Shadow Edge",
+        "canonical": "oklch(30% 0.01 250 / 0.06)",
+        "cssVar": "--sf-seam-dark",
+        "tonalRamp": [
+          "oklch(15% 0.01 250)",
+          "oklch(26% 0.01 250)",
+          "oklch(37% 0.01 250)",
+          "oklch(48% 0.01 250)",
+          "oklch(60% 0.01 250)",
+          "oklch(72% 0.01 250)",
+          "oklch(84% 0.01 250)",
+          "oklch(95% 0.01 250)"
+        ]
+      },
+      "roof": {
+        "role": "neutral",
+        "displayName": "Charcoal Roof",
+        "canonical": "oklch(29.5% 0.01 250)",
+        "cssVar": "--sf-roof",
+        "tonalRamp": [
+          "oklch(15% 0.01 250)",
+          "oklch(26% 0.01 250)",
+          "oklch(37% 0.01 250)",
+          "oklch(48% 0.01 250)",
+          "oklch(60% 0.01 250)",
+          "oklch(72% 0.01 250)",
+          "oklch(84% 0.01 250)",
+          "oklch(95% 0.01 250)"
+        ]
+      },
+      "roof-2": {
+        "role": "neutral",
+        "displayName": "Roof 2",
+        "canonical": "oklch(36% 0.011 250)",
+        "cssVar": "--sf-roof-2",
+        "tonalRamp": [
+          "oklch(15% 0.011 250)",
+          "oklch(26% 0.011 250)",
+          "oklch(37% 0.011 250)",
+          "oklch(48% 0.011 250)",
+          "oklch(60% 0.011 250)",
+          "oklch(72% 0.011 250)",
+          "oklch(84% 0.011 250)",
+          "oklch(95% 0.011 250)"
+        ]
+      },
+      "roof-ink": {
+        "role": "neutral",
+        "displayName": "Roof Ink",
+        "canonical": "oklch(95% 0.004 240)",
+        "cssVar": "--sf-roof-ink",
+        "tonalRamp": [
+          "oklch(15% 0.004 240)",
+          "oklch(26% 0.004 240)",
+          "oklch(37% 0.004 240)",
+          "oklch(48% 0.004 240)",
+          "oklch(60% 0.004 240)",
+          "oklch(72% 0.004 240)",
+          "oklch(84% 0.004 240)",
+          "oklch(95% 0.004 240)"
+        ]
+      },
+      "roof-muted": {
+        "role": "neutral",
+        "displayName": "Roof Muted",
+        "canonical": "oklch(79% 0.008 245)",
+        "cssVar": "--sf-roof-muted",
+        "tonalRamp": [
+          "oklch(15% 0.008 245)",
+          "oklch(26% 0.008 245)",
+          "oklch(37% 0.008 245)",
+          "oklch(48% 0.008 245)",
+          "oklch(60% 0.008 245)",
+          "oklch(72% 0.008 245)",
+          "oklch(84% 0.008 245)",
+          "oklch(95% 0.008 245)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(23% 0.012 250)",
+        "cssVar": "--sf-ink",
+        "tonalRamp": [
+          "oklch(15% 0.012 250)",
+          "oklch(26% 0.012 250)",
+          "oklch(37% 0.012 250)",
+          "oklch(48% 0.012 250)",
+          "oklch(60% 0.012 250)",
+          "oklch(72% 0.012 250)",
+          "oklch(84% 0.012 250)",
+          "oklch(95% 0.012 250)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink 2",
+        "canonical": "oklch(37% 0.012 250)",
+        "cssVar": "--sf-ink-2",
+        "tonalRamp": [
+          "oklch(15% 0.012 250)",
+          "oklch(26% 0.012 250)",
+          "oklch(37% 0.012 250)",
+          "oklch(48% 0.012 250)",
+          "oklch(60% 0.012 250)",
+          "oklch(72% 0.012 250)",
+          "oklch(84% 0.012 250)",
+          "oklch(95% 0.012 250)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "canonical": "oklch(44% 0.012 250)",
+        "cssVar": "--sf-muted",
+        "tonalRamp": [
+          "oklch(15% 0.012 250)",
+          "oklch(26% 0.012 250)",
+          "oklch(37% 0.012 250)",
+          "oklch(48% 0.012 250)",
+          "oklch(60% 0.012 250)",
+          "oklch(72% 0.012 250)",
+          "oklch(84% 0.012 250)",
+          "oklch(95% 0.012 250)"
+        ]
+      },
+      "cedar": {
+        "role": "primary",
+        "displayName": "Cedar",
+        "canonical": "oklch(44% 0.11 38)",
+        "cssVar": "--sf-cedar",
+        "tonalRamp": [
+          "oklch(15% 0.11 38)",
+          "oklch(26% 0.11 38)",
+          "oklch(37% 0.11 38)",
+          "oklch(48% 0.11 38)",
+          "oklch(60% 0.11 38)",
+          "oklch(72% 0.11 38)",
+          "oklch(84% 0.11 38)",
+          "oklch(95% 0.11 38)"
+        ],
+        "note": "Hue is calc(38 + (var(--sf-brand-hue) - 151) * 0.1); 38 is the value at the default brand hue 151."
+      },
+      "cedar-deep": {
+        "role": "primary",
+        "displayName": "Cedar Deep",
+        "canonical": "oklch(37% 0.1 38)",
+        "cssVar": "--sf-cedar-deep",
+        "tonalRamp": [
+          "oklch(15% 0.1 38)",
+          "oklch(26% 0.1 38)",
+          "oklch(37% 0.1 38)",
+          "oklch(48% 0.1 38)",
+          "oklch(60% 0.1 38)",
+          "oklch(72% 0.1 38)",
+          "oklch(84% 0.1 38)",
+          "oklch(95% 0.1 38)"
+        ],
+        "note": "Hue is calc(38 + (var(--sf-brand-hue) - 151) * 0.1); 38 is the value at the default brand hue 151."
+      },
+      "cedar-ink": {
+        "role": "primary",
+        "displayName": "Cedar Ink",
+        "canonical": "oklch(98.5% 0.004 60)",
+        "cssVar": "--sf-cedar-ink",
+        "tonalRamp": [
+          "oklch(15% 0.004 60)",
+          "oklch(26% 0.004 60)",
+          "oklch(37% 0.004 60)",
+          "oklch(48% 0.004 60)",
+          "oklch(60% 0.004 60)",
+          "oklch(72% 0.004 60)",
+          "oklch(84% 0.004 60)",
+          "oklch(95% 0.004 60)"
+        ]
+      },
+      "live-oak": {
+        "role": "secondary",
+        "displayName": "Live Oak",
+        "canonical": "oklch(44% 0.085 145)",
+        "cssVar": "--sf-oak",
+        "tonalRamp": [
+          "oklch(15% 0.085 145)",
+          "oklch(26% 0.085 145)",
+          "oklch(37% 0.085 145)",
+          "oklch(48% 0.085 145)",
+          "oklch(60% 0.085 145)",
+          "oklch(72% 0.085 145)",
+          "oklch(84% 0.085 145)",
+          "oklch(95% 0.085 145)"
+        ]
+      },
+      "roof-rust": {
+        "role": "secondary",
+        "displayName": "Roof Rust",
+        "canonical": "oklch(49% 0.11 48)",
+        "cssVar": "--sf-rust",
+        "tonalRamp": [
+          "oklch(15% 0.11 48)",
+          "oklch(26% 0.11 48)",
+          "oklch(37% 0.11 48)",
+          "oklch(48% 0.11 48)",
+          "oklch(60% 0.11 48)",
+          "oklch(72% 0.11 48)",
+          "oklch(84% 0.11 48)",
+          "oklch(95% 0.11 48)"
+        ]
+      },
+      "steel": {
+        "role": "secondary",
+        "displayName": "Steel",
+        "canonical": "oklch(44% 0.055 245)",
+        "cssVar": "--sf-steel",
+        "tonalRamp": [
+          "oklch(15% 0.055 245)",
+          "oklch(26% 0.055 245)",
+          "oklch(37% 0.055 245)",
+          "oklch(48% 0.055 245)",
+          "oklch(60% 0.055 245)",
+          "oklch(72% 0.055 245)",
+          "oklch(84% 0.055 245)",
+          "oklch(95% 0.055 245)"
+        ]
+      },
+      "closed": {
+        "role": "secondary",
+        "displayName": "Closed",
+        "canonical": "oklch(44% 0.01 250)",
+        "cssVar": "--sf-closed",
+        "tonalRamp": [
+          "oklch(15% 0.01 250)",
+          "oklch(26% 0.01 250)",
+          "oklch(37% 0.01 250)",
+          "oklch(48% 0.01 250)",
+          "oklch(60% 0.01 250)",
+          "oklch(72% 0.01 250)",
+          "oklch(84% 0.01 250)",
+          "oklch(95% 0.01 250)"
+        ]
+      },
+      "cancelled": {
+        "role": "secondary",
+        "displayName": "Cancelled",
+        "canonical": "oklch(47% 0.13 25)",
+        "cssVar": "--sf-cancelled",
+        "tonalRamp": [
+          "oklch(15% 0.13 25)",
+          "oklch(26% 0.13 25)",
+          "oklch(37% 0.13 25)",
+          "oklch(48% 0.13 25)",
+          "oklch(60% 0.13 25)",
+          "oklch(72% 0.13 25)",
+          "oklch(84% 0.13 25)",
+          "oklch(95% 0.13 25)"
+        ]
+      },
+      "error": {
+        "role": "secondary",
+        "displayName": "Error",
+        "canonical": "oklch(47% 0.15 27)",
+        "cssVar": "--sf-error",
+        "tonalRamp": [
+          "oklch(15% 0.15 27)",
+          "oklch(26% 0.15 27)",
+          "oklch(37% 0.15 27)",
+          "oklch(48% 0.15 27)",
+          "oklch(60% 0.15 27)",
+          "oklch(72% 0.15 27)",
+          "oklch(84% 0.15 27)",
+          "oklch(95% 0.15 27)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Literal results heading on home and /listings."
+      },
+      "price": {
+        "displayName": "Price",
+        "purpose": "Listing detail price on the sign plate."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Storefront section titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Result module price and key-fact values."
+      },
+      "plate": {
+        "displayName": "Plate",
+        "purpose": "Status plates, segment items, rail count, gallery plaque."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text; descriptions at 1.0625rem/1.6, 68ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Rail field labels and key-fact terms."
+      },
+      "platform-title": {
+        "displayName": "Platform Title",
+        "purpose": "Platform page title (1.25rem, 1.375rem from md)."
+      },
+      "platform-body": {
+        "displayName": "Platform Body",
+        "purpose": "Platform tables and body copy."
+      },
+      "platform-label": {
+        "displayName": "Platform Label",
+        "purpose": "Platform column heads and tab counts."
+      }
+    },
+    "textures": [
+      {
+        "name": "standing-seams",
+        "value": "repeating-linear-gradient(90deg, transparent 0 calc(3.25rem - 2px), var(--sf-seam-light) calc(3.25rem - 2px) calc(3.25rem - 1px), var(--sf-seam-dark) calc(3.25rem - 1px) 3.25rem)",
+        "purpose": "Galvalume page ground (--sf-seams)."
+      },
+      {
+        "name": "roof-seams",
+        "value": "repeating-linear-gradient(90deg, transparent 0 calc(3.25rem - 2px), oklch(100% 0 0 / 0.07) calc(3.25rem - 2px) calc(3.25rem - 1px), oklch(0% 0 0 / 0.22) calc(3.25rem - 1px) 3.25rem)",
+        "purpose": "Roof band, footer, sticky showing bar, photo windows and the photo fallback (--sf-roof-seams)."
+      }
+    ],
+    "shadows": [
+      {
+        "name": "rail-underside",
+        "value": "0 6px 12px -10px oklch(23% 0.012 250 / 0.35)",
+        "purpose": "Sticky search rail only."
+      },
+      {
+        "name": "thumb-selected",
+        "value": "inset 0 0 0 2px var(--sf-cedar)",
+        "purpose": "Current photo in the gallery strip."
+      }
+    ],
+    "motion": [
+      {
+        "name": "sf-ease",
+        "value": "cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "Storefront press, saved flag, rail pending state, photo hover scale."
+      },
+      {
+        "name": "control-state",
+        "value": "160ms ease",
+        "purpose": "Colour and border transitions on storefront controls."
+      },
+      {
+        "name": "save-flag",
+        "value": "200ms cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "Saved flag lengthening and fill."
+      },
+      {
+        "name": "rail-pending",
+        "value": "180ms cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "Rail count dims to 0.6 and main fades to 0.55 while results reload."
+      },
+      {
+        "name": "photo-in",
+        "value": "240ms cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "Gallery photo fade from 0.4 opacity; none under reduced motion."
+      },
+      {
+        "name": "platform-control",
+        "value": "150ms ease-out",
+        "purpose": "Platform button colour and 0.98 press."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sf-sm",
+        "value": "30rem"
+      },
+      {
+        "name": "sf-md",
+        "value": "40rem"
+      },
+      {
+        "name": "sf-account",
+        "value": "56rem"
+      },
+      {
+        "name": "sf-lg",
+        "value": "64rem"
+      },
+      {
+        "name": "platform-md",
+        "value": "768px"
+      },
+      {
+        "name": "platform-xl",
+        "value": "1280px"
+      }
+    ],
+    "builtAdaptations": [
+      "No days-on-market: there is no listing-date field, so the platform listings table shows \"Updated\".",
+      "Pipeline shows days since the deal last changed, not days in stage.",
+      "Seam pitch (3.25rem, viewport-anchored) is not aligned to the module grid; left as an open ceiling note at the finish review."
+    ],
+    "scope": {
+      "storefront": ".storefront-root (features/storefront/styles/galvalume.css)",
+      "platform": "features/platform/** inside the untouched shared dashboard shell; components/ui/** adapted by classes only"
+    },
+    "provenance": {
+      "live": "https://openfront-real-estate-production.up.railway.app",
+      "commits": [
+        "a67c7fc",
+        "f89a076",
+        "a8488e5",
+        "4a79167",
+        "f611780"
+      ],
+      "finishReview": "ship"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Cedar action: Request a showing, submit. Square, 2.75rem.",
+      "html": "<button class=\"ds-btn-primary\">Request a showing</button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; justify-content:center; min-height:2.75rem; padding:0 1.125rem; border:1px solid oklch(44% 0.11 38); border-radius:0; background:oklch(44% 0.11 38); color:oklch(98.5% 0.004 60); font-family:Barlow, system-ui, sans-serif; font-weight:600; font-size:0.9375rem; cursor:pointer; transition:background-color 160ms ease, border-color 160ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1); } .ds-btn-primary:hover { background:oklch(37% 0.1 38); border-color:oklch(37% 0.1 38); } .ds-btn-primary:focus-visible { outline:2px solid oklch(44% 0.11 38); outline-offset:2px; } .ds-btn-primary:active { transform:scale(0.97); }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Secondary storefront action on metal.",
+      "html": "<button class=\"ds-btn-quiet\">Ask a question</button>",
+      "css": ".ds-btn-quiet { display:inline-flex; align-items:center; min-height:2.75rem; padding:0 1.125rem; border:1px solid oklch(58% 0.01 245); border-radius:0; background:transparent; color:oklch(23% 0.012 250); font-family:Barlow, system-ui, sans-serif; font-weight:600; font-size:0.9375rem; cursor:pointer; transition:background-color 160ms ease, border-color 160ms ease; } .ds-btn-quiet:hover { background:oklch(95.8% 0.004 240); border-color:oklch(37% 0.012 250); } .ds-btn-quiet:focus-visible { outline:2px solid oklch(44% 0.11 38); outline-offset:2px; } .ds-btn-quiet:active { transform:scale(0.97); }"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Square galvalume field; datetime segments painted in ink.",
+      "html": "<label class=\"ds-label\"><span>Preferred time</span><input class=\"ds-field\" type=\"datetime-local\" value=\"2026-10-27T10:00\"></label>",
+      "css": ".ds-label { display:grid; gap:0.375rem; font-family:Barlow, system-ui, sans-serif; } .ds-label > span { font-size:0.875rem; font-weight:600; color:oklch(37% 0.012 250); } .ds-field { min-height:2.75rem; padding:0 0.75rem; border:1px solid oklch(58% 0.01 245); border-radius:0; background:oklch(95.8% 0.004 240); color:oklch(23% 0.012 250); font:inherit; font-size:1rem; font-variant-numeric:tabular-nums; transition:border-color 160ms ease; } .ds-field:hover { border-color:oklch(37% 0.012 250); } .ds-field:focus-visible { outline:2px solid oklch(44% 0.11 38); outline-offset:-1px; background:oklch(98.5% 0.003 240); } .ds-field::-webkit-datetime-edit-text { color:oklch(37% 0.012 250); }"
+    },
+    {
+      "name": "Roof Band",
+      "kind": "nav",
+      "refersTo": "roof-band",
+      "description": "Sticky charcoal header with lockup and the Buy/Rent segment.",
+      "html": "<header class=\"ds-roof\"><strong class=\"ds-roof__name\">Juniper Realty<small>Austin, TX</small></strong><nav class=\"ds-seg\"><a aria-current=\"page\">Buy</a><a>Rent</a></nav></header>",
+      "css": ".ds-roof { display:flex; align-items:center; gap:1.5rem; height:3.5rem; padding:0 1rem; background-color:oklch(29.5% 0.01 250); background-image:repeating-linear-gradient(90deg, transparent 0 calc(3.25rem - 2px), oklch(100% 0 0 / 0.07) calc(3.25rem - 2px) calc(3.25rem - 1px), oklch(0% 0 0 / 0.22) calc(3.25rem - 1px) 3.25rem); color:oklch(95% 0.004 240); } .ds-roof__name { display:grid; font-family:\"Barlow Condensed\", \"Arial Narrow\", sans-serif; font-weight:700; font-size:1.25rem; line-height:1.1; } .ds-roof__name small { font-family:Barlow, system-ui, sans-serif; font-weight:400; font-size:0.75rem; color:oklch(79% 0.008 245); } .ds-seg { display:inline-flex; border:1px solid oklch(100% 0 0 / 0.28); } .ds-seg a { display:inline-flex; align-items:center; min-height:2.75rem; padding:0 0.625rem; font-family:\"Barlow Condensed\", \"Arial Narrow\", sans-serif; font-weight:600; font-size:1.0625rem; cursor:pointer; } .ds-seg a + a { border-left:1px solid oklch(100% 0 0 / 0.28); } .ds-seg a:hover { background:oklch(36% 0.011 250); } .ds-seg a[aria-current=\"page\"] { background:oklch(95.8% 0.004 240); color:oklch(23% 0.012 250); }"
+    },
+    {
+      "name": "Status Plates",
+      "kind": "chip",
+      "refersTo": "plate-active",
+      "description": "State-bound square plates: live oak, roof rust, steel, closed.",
+      "html": "<span class=\"ds-plate\" data-tone=\"active\">Active</span> <span class=\"ds-plate\" data-tone=\"pending\">Under contract</span> <span class=\"ds-plate\" data-tone=\"soon\">Coming soon</span> <span class=\"ds-plate\">Sold</span>",
+      "css": ".ds-plate { display:inline-flex; align-items:center; min-height:1.625rem; padding:0.125rem 0.5rem; background:oklch(44% 0.01 250); color:oklch(95% 0.004 240); font-family:\"Barlow Condensed\", \"Arial Narrow\", sans-serif; font-weight:600; font-size:0.9375rem; letter-spacing:0.02em; line-height:1.2; } .ds-plate[data-tone=\"active\"] { background:oklch(44% 0.085 145); } .ds-plate[data-tone=\"pending\"] { background:oklch(49% 0.11 48); } .ds-plate[data-tone=\"soon\"] { background:oklch(44% 0.055 245); }"
+    },
+    {
+      "name": "Result Module",
+      "kind": "card",
+      "refersTo": "result-module",
+      "description": "Photo window with plate and saved flag, condensed price and facts, place line.",
+      "html": "<article class=\"ds-card\"><div class=\"ds-card__media\"><span class=\"ds-plate\" data-tone=\"active\">Active</span><button class=\"ds-save\" aria-pressed=\"true\" aria-label=\"Saved\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"1.25\"><path d=\"M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z\"/></svg></button></div><div class=\"ds-card__body\"><p class=\"ds-card__price\"><span>$1,250,000</span><small>$412/sq ft</small></p><ul class=\"ds-card__facts\"><li><b>4</b> bd</li><li><b>3</b> ba</li><li><b>3,034</b> sq ft</li></ul><h3 class=\"ds-card__title\">Limestone house on Mesa Drive</h3><p class=\"ds-card__where\">Northwest Hills | Austin</p></div></article>",
+      "css": ".ds-card { position:relative; display:grid; width:20rem; background:oklch(95.8% 0.004 240); outline:1px solid oklch(77% 0.008 245); color:oklch(23% 0.012 250); font-family:Barlow, system-ui, sans-serif; } .ds-card__media { position:relative; aspect-ratio:3/2; background:oklch(29.5% 0.01 250); } .ds-card__media .ds-plate { position:absolute; left:0; bottom:0; display:inline-flex; min-height:1.625rem; padding:0.125rem 0.5rem; background:oklch(44% 0.085 145); color:oklch(95% 0.004 240); font-family:\"Barlow Condensed\", \"Arial Narrow\", sans-serif; font-weight:600; font-size:0.9375rem; } .ds-save { position:absolute; top:0; right:0.75rem; display:grid; place-items:center; width:2.75rem; height:2.75rem; border:1px solid oklch(58% 0.01 245); border-top:0; background:oklch(95.8% 0.004 240); color:oklch(23% 0.012 250); cursor:pointer; transition:background-color 200ms cubic-bezier(0.23,1,0.32,1), height 200ms cubic-bezier(0.23,1,0.32,1), clip-path 200ms cubic-bezier(0.23,1,0.32,1); clip-path:polygon(0 0,100% 0,100% 100%,50% 100%,0 100%); } .ds-save:hover { color:oklch(44% 0.11 38); } .ds-save[aria-pressed=\"true\"] { height:3.25rem; padding-bottom:0.5rem; background:oklch(44% 0.11 38); border-color:oklch(44% 0.11 38); color:oklch(98.5% 0.004 60); clip-path:polygon(0 0,100% 0,100% 100%,50% 82%,0 100%); } .ds-save:focus-visible { outline:2px solid oklch(44% 0.11 38); outline-offset:2px; } .ds-card__body { display:grid; gap:0.375rem; padding:0.75rem 0.875rem 0.875rem; } .ds-card__price { display:flex; align-items:baseline; justify-content:space-between; margin:0; font-family:\"Barlow Condensed\", \"Arial Narrow\", sans-serif; font-weight:700; font-size:1.625rem; line-height:1; font-variant-numeric:tabular-nums lining-nums; } .ds-card__price small { font-weight:500; font-size:1rem; color:oklch(44% 0.012 250); } .ds-card__facts { display:flex; flex-wrap:wrap; margin:0; padding:0; list-style:none; font-size:0.875rem; color:oklch(37% 0.012 250); } .ds-card__facts li { padding-inline:0.5rem; } .ds-card__facts li:first-child { padding-left:0; } .ds-card__facts li + li { border-left:1px solid oklch(77% 0.008 245); } .ds-card__facts b { font-family:\"Barlow Condensed\", \"Arial Narrow\", sans-serif; font-size:1.0625rem; color:oklch(23% 0.012 250); font-variant-numeric:tabular-nums; } .ds-card__title { margin:0; font-weight:600; font-size:1rem; line-height:1.3; } .ds-card__where { margin:0; font-size:0.8125rem; color:oklch(44% 0.012 250); }"
+    },
+    {
+      "name": "Search Rail",
+      "kind": "custom",
+      "refersTo": "search-rail",
+      "description": "Sticky galvalume-lo rail under the roof with the live result count.",
+      "html": "<div class=\"ds-rail\"><label class=\"ds-rail__field\"><span>Area</span><input value=\"Austin\"></label><label class=\"ds-rail__field\"><span>Beds</span><select><option>3+</option></select></label><output class=\"ds-rail__count\">24 homes</output><button class=\"ds-rail__go\">Search</button></div>",
+      "css": ".ds-rail { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; align-items:end; gap:0.5rem; padding:0.625rem 1rem; background:oklch(86.5% 0.007 240); border-bottom:1px solid oklch(58% 0.01 245); box-shadow:0 6px 12px -10px oklch(23% 0.012 250 / 0.35); font-family:Barlow, system-ui, sans-serif; color:oklch(23% 0.012 250); } .ds-rail__field { display:grid; gap:0.25rem; } .ds-rail__field > span { font-size:0.75rem; font-weight:600; color:oklch(37% 0.012 250); } .ds-rail__field input, .ds-rail__field select { min-height:2.75rem; padding:0 0.75rem; border:1px solid oklch(58% 0.01 245); border-radius:0; background:oklch(95.8% 0.004 240); font:inherit; } .ds-rail__field :focus-visible { outline:2px solid oklch(44% 0.11 38); outline-offset:-1px; } .ds-rail__count { align-self:center; font-family:\"Barlow Condensed\", \"Arial Narrow\", sans-serif; font-weight:600; font-size:1.0625rem; font-variant-numeric:tabular-nums; } .ds-rail__go { min-height:2.75rem; padding:0 0.875rem; border:0; border-radius:0; background:oklch(44% 0.11 38); color:oklch(98.5% 0.004 60); font:inherit; font-weight:600; cursor:pointer; } .ds-rail__go:hover { background:oklch(37% 0.1 38); }"
+    },
+    {
+      "name": "Platform Underline Tabs",
+      "kind": "nav",
+      "refersTo": "platform-button",
+      "description": "Flat underline tabs with tabular counts; wrap on md+, scroll with a fade on phones.",
+      "html": "<nav class=\"ds-ptabs\"><a aria-current=\"page\">Needs response <span>7</span></a><a>Qualified <span>12</span></a><a>Lost <span>3</span></a></nav>",
+      "css": ".ds-ptabs { display:flex; flex-wrap:wrap; column-gap:1.25rem; border-bottom:1px solid #e4e4e7; font-family:system-ui, sans-serif; } .ds-ptabs a { display:inline-flex; align-items:center; gap:0.375rem; height:2.25rem; margin-bottom:-1px; border-bottom:2px solid transparent; font-size:0.875rem; font-weight:500; color:#71717a; cursor:pointer; transition:color 150ms, border-color 150ms; } .ds-ptabs a:hover { color:#09090b; border-bottom-color:#e4e4e7; } .ds-ptabs a[aria-current=\"page\"] { color:#09090b; border-bottom-color:#09090b; } .ds-ptabs a span { font-size:0.75rem; font-variant-numeric:tabular-nums; } .ds-ptabs a:focus-visible { outline:2px solid rgb(161 161 170 / 0.5); }"
+    },
+    {
+      "name": "Platform Row with Response Clock",
+      "kind": "custom",
+      "refersTo": "platform-button",
+      "description": "Dense table row: dot plus word status, heavier clock while waiting, one flat ink primary.",
+      "html": "<table class=\"ds-ptable\"><thead><tr><th>Lead</th><th>Status</th><th>Waiting</th><th></th></tr></thead><tbody><tr><td>Maria Chen</td><td><span class=\"ds-dot\"></span>New</td><td class=\"ds-clock\">26h</td><td><button class=\"ds-pbtn\">Call</button></td></tr></tbody></table>",
+      "css": ".ds-ptable { border-collapse:collapse; font-family:system-ui, sans-serif; font-size:0.875rem; border:1px solid #e4e4e7; border-radius:6px; } .ds-ptable th { height:2.25rem; padding:0 0.75rem; text-align:left; font-size:0.75rem; font-weight:500; color:#71717a; background:rgb(244 244 245 / 0.4); border-bottom:1px solid #e4e4e7; } .ds-ptable td { padding:0.625rem 0.75rem; vertical-align:top; } .ds-dot { display:inline-block; width:8px; height:8px; margin-right:0.5rem; border-radius:9999px; background:#0ea5e9; box-shadow:0 0 0 2px #fff; } .ds-clock { font-size:13px; font-weight:700; color:#b45309; font-variant-numeric:tabular-nums; } .ds-pbtn { height:2rem; padding:0 0.75rem; border:0; border-radius:6px; background:#09090b; color:#fff; font:inherit; font-weight:500; cursor:pointer; box-shadow:none; transition:background-color 150ms, transform 150ms; } .ds-pbtn:hover { background:rgb(9 9 11 / 0.85); } .ds-pbtn:active { transform:scale(0.98); } .ds-pbtn:focus-visible { outline:2px solid rgb(161 161 170 / 0.5); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Built of the place",
+    "overview": "**Creative North Star: \"Built of the place\"**\n\nTwo worlds share one product. The storefront is built from the materials of the houses it sells: standing-seam galvalume for the ground, a charcoal metal roof band for the header and footer, cedar for the one warm action, live oak and roof rust for the state of a home. Limestone appears only in photography. Type is set like stamped metal signage: Barlow for reading, Barlow Condensed for prices, facts and plates, every numeral tabular. Corners are square and every rule, module edge and icon stroke is one 1px seam. The site refuses the dark luxury-editorial brokerage (night ground, serif display, gold hairlines) and the hero-search-over-photo template; a buyer sees real homes with real facts in the first viewport.\n\nThe platform is \"the call list\". It lives inside the shared dashboard shell, which is untouched and byte-identical to Openfront E-commerce, and takes the shell's neutral palette as its own. Each screen opens on who to contact, what to confirm and what is blocking a closing: a title with one truthful status, underline tabs with counts, then a dense work table. Colour appears only where it carries meaning, as a dot beside a word. Controls are flat 6px pieces with a filled ink primary.\n\nThe two worlds never borrow from each other. Galvalume, cedar and Barlow stay inside `.storefront-root`; the platform never reaches for them.",
+    "keyCharacteristics": [
+      "Cool silver galvalume ground with a faint vertical standing-seam rhythm (storefront).",
+      "Charcoal roof band at the top and bottom of every storefront page.",
+      "Cedar is the only warm accent and the only primary action colour; it follows the brokerage's hue within a narrow red-brown band.",
+      "Status is a coloured plate bound to the listing's state, never to position.",
+      "Square corners and one 1px seam weight across the storefront.",
+      "Barlow / Barlow Condensed with tabular lining numerals for every price, count and fact.",
+      "Platform: shell neutrals, explicit 6px and 4px radii, underline tabs, dense tables, dot plus word."
+    ],
+    "rules": [
+      {
+        "name": "The One Warm Material Rule",
+        "body": "Cedar is the only warm colour that acts. Rust and oak describe a state; they are never buttons, links or highlights.",
+        "section": "colors"
+      },
+      {
+        "name": "The State-Bound Plate Rule",
+        "body": "A plate's colour comes from the listing's status (active, pending, soon, closed, cancelled) and nothing else; a featured or first result gets the same plate as any other.",
+        "section": "colors"
+      },
+      {
+        "name": "The Shell Palette Rule",
+        "body": "Platform screens use the dashboard shell's neutrals; colour appears only where it carries meaning, as a status dot or a response clock past its threshold.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Every price, $/sq ft, bed/bath/sq ft count, result count, date and age is set with tabular lining numerals (`.sf-num` on the storefront, `tabular-nums` on the platform) so columns of figures align.",
+        "section": "typography"
+      },
+      {
+        "name": "The Stamped Figures Rule",
+        "body": "On the storefront, numbers are condensed and bold, their units are not: \"**3** bd\", \"$1,250,000 $412/sq ft\" with the per-foot figure in 500 Muted.",
+        "section": "typography"
+      },
+      {
+        "name": "The Shared Seam Rule",
+        "body": "Panels of modules share their 1px seams (1px gap over a Seam background, or a Seam outline per module); two adjacent borders never double up into a 2px line.",
+        "section": "layout"
+      },
+      {
+        "name": "The Featured Panel Rule",
+        "body": "The featured panel never repeats a row beside it. It shows a photographed home from outside the visible rows; with a short inventory it takes the first photographed home out of the rows instead, so no home appears twice in one viewport.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Sheet Rule",
+        "body": "Storefront modules, panels and buttons carry no drop shadow; stacking is shown by tone and by the sticky rail's single underside.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Explicit Radius Rule",
+        "body": "Platform code always writes `rounded-[6px]` or `rounded-[4px]`; it never relies on `rounded-md`/`rounded-lg`, which inherit the shell's 10px.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do keep every storefront corner square (0px) and every rule, joint and border 1px.",
+      "Do derive cedar's hue from the brokerage hue and keep its lightness and chroma fixed, so any brokerage's site keeps a red-brown action.",
+      "Do bind plate colour to listing state: Live Oak active, Roof Rust pending, Steel coming soon, Closed for the rest.",
+      "Do set every price, count, date and age in tabular lining numerals.",
+      "Do use literal labels from real data (\"Homes for sale in Austin\", \"Under contract\", \"Photos coming\").",
+      "Do show the photo fallback plate or the place plate where a photo is missing, never an empty window.",
+      "Do keep the featured panel off the rows it stands beside.",
+      "Do prefill time fields with a real value so they read in Ink, not placeholder grey.",
+      "Do keep the Equal Housing Opportunity notice in the footer of every storefront page.",
+      "Do write explicit `rounded-[6px]` (controls, tables, cards) and `rounded-[4px]` (menu items, checkboxes) in platform code, with `flatReset` on every shared Button.",
+      "Do show platform status as a dot plus a word, and put record forms in sheets behind the button that needs them.",
+      "Do put destructive actions last in a row menu, behind a separator and a confirmation."
+    ],
+    "donts": [
+      "Don't use cream, beige or a dark night ground on the storefront; the ground is cool galvalume.",
+      "Don't use serif display type or gold hairlines anywhere in the storefront.",
+      "Don't use cedar for anything that is not an action, a saved mark, focus or the current-tab underline; don't use rust or oak as buttons.",
+      "Don't give storefront modules or buttons drop shadows; the rail's underside is the only ambient shadow.",
+      "Don't use pill-shaped or heavily rounded tabs, chips, buttons or cards on either surface, or rely on the shell's 10px `--radius` in platform code.",
+      "Don't invent claims (sales volume, awards, ratings, market statistics) or a days-on-market figure the data cannot support.",
+      "Don't edit the shared dashboard shell or `components/ui/`; adapt by passing classes.",
+      "Don't colour a platform status as a filled chip; colour lives in the dot."
+    ]
+  }
+}

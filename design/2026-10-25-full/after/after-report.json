@@ -1,0 +1,306 @@
+[
+  {
+    "vp": "desktop",
+    "name": "home",
+    "route": "/",
+    "status": 200,
+    "finalPath": "/",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "listings",
+    "route": "/listings",
+    "status": 200,
+    "finalPath": "/listings",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "listing-detail",
+    "route": "/listings/hill-country-estate",
+    "status": 200,
+    "finalPath": "/listings/hill-country-estate",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "account",
+    "route": "/account",
+    "status": 200,
+    "finalPath": "/account",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-operations",
+    "route": "/dashboard/platform/operations",
+    "status": 200,
+    "finalPath": "/dashboard/platform/operations",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-leads",
+    "route": "/dashboard/platform/leads",
+    "status": 200,
+    "finalPath": "/dashboard/platform/leads",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-lead-detail",
+    "route": "/dashboard/platform/leads/cmvobh6xx0015oc01wupx6q19",
+    "status": 200,
+    "finalPath": "/dashboard/platform/leads/cmvobh6xx0015oc01wupx6q19",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-listings",
+    "route": "/dashboard/platform/listings",
+    "status": 200,
+    "finalPath": "/dashboard/platform/listings",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-listing-detail",
+    "route": "/dashboard/platform/listings/cmvobh66d000koc01snppa22p",
+    "status": 200,
+    "finalPath": "/dashboard/platform/listings/cmvobh66d000koc01snppa22p",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-listings-new",
+    "route": "/dashboard/platform/listings/new",
+    "status": 200,
+    "finalPath": "/dashboard/platform/listings/new",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-showings",
+    "route": "/dashboard/platform/showings",
+    "status": 200,
+    "finalPath": "/dashboard/platform/showings",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-showing-detail",
+    "route": "/dashboard/platform/showings/cmvobh7qb001noc011tr0xyeb",
+    "status": 200,
+    "finalPath": "/dashboard/platform/showings/cmvobh7qb001noc011tr0xyeb",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-pipeline",
+    "route": "/dashboard/platform/pipeline",
+    "status": 200,
+    "finalPath": "/dashboard/platform/pipeline",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-deal-detail",
+    "route": "/dashboard/platform/pipeline/cmvobh88d001zoc01l720bhhx",
+    "status": 200,
+    "finalPath": "/dashboard/platform/pipeline/cmvobh88d001zoc01l720bhhx",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-people",
+    "route": "/dashboard/platform/people",
+    "status": 200,
+    "finalPath": "/dashboard/platform/people",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-tasks",
+    "route": "/dashboard/platform/tasks",
+    "status": 200,
+    "finalPath": "/dashboard/platform/tasks",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-routing",
+    "route": "/dashboard/platform/routing",
+    "status": 200,
+    "finalPath": "/dashboard/platform/routing",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-reports",
+    "route": "/dashboard/platform/reports",
+    "status": 200,
+    "finalPath": "/dashboard/platform/reports",
+    "overflowX": 0
+  },
+  {
+    "vp": "desktop",
+    "name": "platform-store-settings",
+    "route": "/dashboard/platform/store-settings",
+    "status": 200,
+    "finalPath": "/dashboard/platform/store-settings",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "home",
+    "route": "/",
+    "status": 200,
+    "finalPath": "/",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "listings",
+    "route": "/listings",
+    "status": 200,
+    "finalPath": "/listings",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "listing-detail",
+    "route": "/listings/hill-country-estate",
+    "status": 200,
+    "finalPath": "/listings/hill-country-estate",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "account",
+    "route": "/account",
+    "status": 200,
+    "finalPath": "/account",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-operations",
+    "route": "/dashboard/platform/operations",
+    "status": 200,
+    "finalPath": "/dashboard/platform/operations",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-leads",
+    "route": "/dashboard/platform/leads",
+    "status": 200,
+    "finalPath": "/dashboard/platform/leads",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-lead-detail",
+    "route": "/dashboard/platform/leads/cmvobh6xx0015oc01wupx6q19",
+    "status": 200,
+    "finalPath": "/dashboard/platform/leads/cmvobh6xx0015oc01wupx6q19",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-listings",
+    "route": "/dashboard/platform/listings",
+    "status": 200,
+    "finalPath": "/dashboard/platform/listings",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-listing-detail",
+    "route": "/dashboard/platform/listings/cmvobh66d000koc01snppa22p",
+    "status": 200,
+    "finalPath": "/dashboard/platform/listings/cmvobh66d000koc01snppa22p",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-listings-new",
+    "route": "/dashboard/platform/listings/new",
+    "status": 200,
+    "finalPath": "/dashboard/platform/listings/new",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-showings",
+    "route": "/dashboard/platform/showings",
+    "status": 200,
+    "finalPath": "/dashboard/platform/showings",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-showing-detail",
+    "route": "/dashboard/platform/showings/cmvobh7qb001noc011tr0xyeb",
+    "status": 200,
+    "finalPath": "/dashboard/platform/showings/cmvobh7qb001noc011tr0xyeb",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-pipeline",
+    "route": "/dashboard/platform/pipeline",
+    "status": 200,
+    "finalPath": "/dashboard/platform/pipeline",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-deal-detail",
+    "route": "/dashboard/platform/pipeline/cmvobh88d001zoc01l720bhhx",
+    "status": 200,
+    "finalPath": "/dashboard/platform/pipeline/cmvobh88d001zoc01l720bhhx",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-people",
+    "route": "/dashboard/platform/people",
+    "status": 200,
+    "finalPath": "/dashboard/platform/people",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-tasks",
+    "route": "/dashboard/platform/tasks",
+    "status": 200,
+    "finalPath": "/dashboard/platform/tasks",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-routing",
+    "route": "/dashboard/platform/routing",
+    "status": 200,
+    "finalPath": "/dashboard/platform/routing",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-reports",
+    "route": "/dashboard/platform/reports",
+    "status": 200,
+    "finalPath": "/dashboard/platform/reports",
+    "overflowX": 0
+  },
+  {
+    "vp": "phone",
+    "name": "platform-store-settings",
+    "route": "/dashboard/platform/store-settings",
+    "status": 200,
+    "finalPath": "/dashboard/platform/store-settings",
+    "overflowX": 0
+  }
+]
