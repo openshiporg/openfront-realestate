@@ -1,10 +1,10 @@
 'use client'
 
 import { Choice, Field, FormDrawer, RecordForm, TextArea, toLocalInput } from '../../components/RecordForm'
+import { priorityOptions } from '../lib/options'
 import { saveTask } from '../actions/tasks'
 import type { AgentTaskRow, TaskOptions } from '../lib/tasks'
 
-export const priorityOptions: Array<[string, string]> = [['low', 'Low'], ['normal', 'Normal'], ['high', 'High'], ['urgent', 'Urgent']]
 
 export function TaskDrawer({ task, options }: { task?: AgentTaskRow; options: TaskOptions }) {
   return (
