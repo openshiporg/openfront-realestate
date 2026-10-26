@@ -112,11 +112,9 @@
   .sf-field[type="datetime-local"], .sf-field[type="date"], .sf-field[type="time"] { font-variant-numeric: tabular-nums; color: var(--sf-ink); }
   .sf-field::-webkit-datetime-edit { color: var(--sf-ink); padding: 0; }
   .sf-field::-webkit-datetime-edit-fields-wrapper { color: var(--sf-ink); }
-  .sf-field::-webkit-datetime-edit-text { color: var(--sf-muted); padding-inline: 0.125em; }
+  .sf-field::-webkit-datetime-edit-text { color: var(--sf-ink-2); padding-inline: 0.125em; }
   .sf-field::-webkit-datetime-edit-month-field, .sf-field::-webkit-datetime-edit-day-field, .sf-field::-webkit-datetime-edit-year-field,
   .sf-field::-webkit-datetime-edit-hour-field, .sf-field::-webkit-datetime-edit-minute-field, .sf-field::-webkit-datetime-edit-ampm-field { color: var(--sf-ink); }
-  .sf-field:invalid::-webkit-datetime-edit-month-field, .sf-field:invalid::-webkit-datetime-edit-day-field, .sf-field:invalid::-webkit-datetime-edit-year-field,
-  .sf-field:invalid::-webkit-datetime-edit-hour-field, .sf-field:invalid::-webkit-datetime-edit-minute-field, .sf-field:invalid::-webkit-datetime-edit-ampm-field { color: var(--sf-muted); }
   .sf-field::-webkit-datetime-edit-month-field:focus, .sf-field::-webkit-datetime-edit-day-field:focus, .sf-field::-webkit-datetime-edit-year-field:focus,
   .sf-field::-webkit-datetime-edit-hour-field:focus, .sf-field::-webkit-datetime-edit-minute-field:focus, .sf-field::-webkit-datetime-edit-ampm-field:focus { background: var(--sf-cedar); color: var(--sf-cedar-ink); outline: none; }
   .sf-field::-webkit-calendar-picker-indicator { width: 1.125rem; height: 1.125rem; margin-left: 0.5rem; padding: 0.25rem; cursor: pointer; background-color: transparent; filter: brightness(0) saturate(100%); opacity: 0.78; }
@@ -382,6 +380,8 @@
 
   /* ---------- /listings ---------- */
   .sf-results { padding-bottom: 1rem; }
+  /* Without a featured panel the rows keep a readable measure instead of stretching across the container. */
+  .sf-lead:not([data-featured]) .sf-lead__results { max-width: 60rem; }
   .sf-results-head--bar p { color: var(--sf-ink-2); font-family: var(--sf-display); font-weight: 600; font-size: 1.125rem; }
   .sf-filters { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem 1.5rem; margin-bottom: 1rem; }
   .sf-filters ul { display: flex; flex-wrap: wrap; gap: 0.5rem; }

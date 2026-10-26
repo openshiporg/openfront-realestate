@@ -88,17 +88,17 @@ function DealRow({ deal }: { deal: PlatformDeal }) {
   const actionTarget = { id: deal.id, title: deal.title, stage: deal.stage, offerAmount: deal.offerAmount, commissionAmount: deal.commissionAmount, nextStep: deal.nextStep, notes: deal.notes }
   return (
     <tr className="transition-colors hover:bg-muted/30">
-      <Td className="min-w-0 max-w-[26rem] py-2">
+      <Td className="min-w-0 max-w-[calc(100vw-4rem)] py-2 md:max-w-[26rem]">
         <Link href={`/dashboard/platform/pipeline/${deal.id}`} className="block truncate font-medium text-foreground underline-offset-2 hover:underline">{deal.title}</Link>
         <span className="block truncate text-xs text-muted-foreground">{transactionTypeLabels[deal.transactionType || ''] || 'Buyer'} · {people}</span>
-        {deal.nextStep ? <span className="block truncate text-xs text-foreground/80">Next: {deal.nextStep}</span> : null}
+        {deal.nextStep ? <span className="block break-words text-xs text-foreground/80 md:truncate">Next: {deal.nextStep}</span> : null}
         {/* Phone: expected close (with overdue) and last change fold into the first cell. */}
         <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs md:hidden">
           <span className="flex items-baseline gap-1.5"><span className="text-muted-foreground">Close</span><Closing deal={deal} inline /></span>
           <span className="flex items-baseline gap-1.5"><span className="text-muted-foreground">Changed</span><Idle deal={deal} className="text-xs" /></span>
         </div>
         <div className={rowActionLineClass}>
-          <DealRowActions deal={actionTarget} className={rowActionsBlockClass} />
+          <DealRowActions deal={actionTarget} className={`${rowActionsBlockClass} [&_[data-slot=button]]:min-w-0 [&_[data-slot=button]]:whitespace-normal`} />
         </div>
       </Td>
       <Td className="hidden py-2 md:table-cell"><Idle deal={deal} /></Td>

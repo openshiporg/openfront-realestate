@@ -65,9 +65,9 @@ export type LeadStats = {
   hot: number
   tourScheduled: number
   offer: number
-  attemptedContact: number
-  closed: number
-  lost: number
+  attemptedContact: number | null
+  closed: number | null
+  lost: number | null
   stale: number
 }
 
@@ -128,9 +128,9 @@ const CONTACT_WORKSPACE_QUERY = `
 /** The workspace projection counts five statuses; the other tabs read the same access-scoped Lead list. */
 const LEAD_STATUS_COUNTS_QUERY = `
   query PlatformLeadStatusCounts {
-    attemptedContact: leadsCount(where: { status: { equals: "attempted_contact" } })
-    closed: leadsCount(where: { status: { equals: "closed" } })
-    lost: leadsCount(where: { status: { equals: "lost" } })
+    attemptedContact: leadsCount(where: { status: { equals: attempted_contact } })
+    closed: leadsCount(where: { status: { equals: closed } })
+    lost: leadsCount(where: { status: { equals: lost } })
   }
 `
 
@@ -156,7 +156,7 @@ export async function getPlatformLeads(status?: string, q?: string, after?: stri
   return {
     leads: projection.items, ...page,
     // Every tab carries a count or none does: without the extra counts the tabs show no numbers.
-    stats: extraCounts ? { total: projection.stats.total, new: projection.stats.new, hot: projection.stats.qualified, tourScheduled: projection.stats.tourScheduled, offer: projection.stats.offer, ...extraCounts, stale: 0 } : null,
+    stats: { total: projection.stats.total, new: projection.stats.new, hot: projection.stats.qualified, tourScheduled: projection.stats.tourScheduled, offer: projection.stats.offer, attemptedContact: extraCounts?.attemptedContact ?? null, closed: extraCounts?.closed ?? null, lost: extraCounts?.lost ?? null, stale: 0 },
     error: null,
   }
 }

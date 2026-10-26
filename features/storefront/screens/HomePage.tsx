@@ -80,12 +80,15 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
   const save = { signedIn: Boolean(customer), savedIds: customer ? await getSavedPropertyIds() : {} }
   const { listings, error, hasMore, skip, overflow } = listingsResult
   const inventory = (allListingsResult || listingsResult).listings
-  const shown = listings.slice(0, HOME_ROWS)
-  // The featured panel shows a home that is not already in the rows beside it; with nothing else
-  // photographed to show (a short inventory), the panel is dropped and the rows take the width.
-  const shownIds = new Set(shown.map(listing => listing.id))
-  const candidates = inventory.filter(listing => listing.imagePath && !shownIds.has(listing.id))
-  const featured = candidates.find(listing => listing.isFeatured) || candidates[0]
+  const firstRows = listings.slice(0, HOME_ROWS)
+  // The featured panel never repeats a row beside it. It shows a photographed home outside the rows;
+  // with a short inventory (every home already in the rows) it takes the first photographed home out
+  // of the rows instead, so the first viewport keeps its anchor without showing one home twice.
+  const firstIds = new Set(firstRows.map(listing => listing.id))
+  const outside = inventory.filter(listing => listing.imagePath && !firstIds.has(listing.id))
+  const inside = firstRows.length > 1 ? firstRows.filter(listing => listing.imagePath) : []
+  const featured = outside.find(listing => listing.isFeatured) || outside[0] || inside.find(listing => listing.isFeatured) || inside[0]
+  const shown = featured && firstIds.has(featured.id) ? firstRows.filter(listing => listing.id !== featured.id) : firstRows
   const countLabel = resultCountLabel(listingsResult)
   const moreHref = getStorefrontListingPageHref(params, 0)
   const contactEmail = emailHref(settings.publicEmail)
