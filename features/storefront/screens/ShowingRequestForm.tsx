@@ -38,7 +38,17 @@ export function ShowingRequestForm({ propertyId, customer, accountHref, timeZone
   const [minTime, setMinTime] = useState<string>()
   const locked = pending || state.uncertain || state.ok
 
-  useEffect(() => { setMinTime(zonedInputValue(Date.now(), timeZone || BROWSER_ZONE)) }, [timeZone])
+  // The field opens on the earliest bookable half hour, so it carries a real value in ink instead of the
+  // browser's placeholder grey (which cannot be themed). The visitor can change it as before.
+  const [firstSlot, setFirstSlot] = useState<string>()
+  useEffect(() => {
+    const zone = timeZone || BROWSER_ZONE
+    setMinTime(zonedInputValue(Date.now(), zone))
+    const step = 30 * 60_000
+    let slot = Math.ceil((Date.now() + 60 * 60_000) / step) * step
+    for (let tries = 0; tries < 14 * 48 && !withinShowingHours(slot, zone); tries++) slot += step
+    if (withinShowingHours(slot, zone)) setFirstSlot(zonedInputValue(slot, zone))
+  }, [timeZone])
 
   // Submitting through a transition (not the form action prop) keeps what the shopper typed when the server refuses it.
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -66,7 +76,7 @@ export function ShowingRequestForm({ propertyId, customer, accountHref, timeZone
           <label><input type="radio" name="showingType" value="virtual" checked={virtual} onChange={() => setShowingType('virtual')} /><span className="sf-track__item">Virtual</span></label>
         </div>
         {virtual ? <p className="sf-hint" style={{ marginTop: 0 }}>Video call. Your advisor emails the link once the time is confirmed.</p> : null}
-        <label><span>Preferred time{timeZoneName ? ` (${timeZoneName})` : ''}</span><input className="sf-field" name="requestedStart" type="datetime-local" required min={minTime} aria-describedby="showing-time-hint" /></label>
+        <label><span>Preferred time{timeZoneName ? ` (${timeZoneName})` : ''}</span><input key={firstSlot || "empty"} className="sf-field" name="requestedStart" type="datetime-local" required min={minTime} defaultValue={firstSlot} aria-describedby="showing-time-hint" /></label>
         <p id="showing-time-hint" className="sf-hint">{HOURS_LABEL}{timeZoneName ? `, ${timeZoneName}` : ''}</p>
         <label><span>Name</span><input className="sf-field" name="name" required autoComplete="name" defaultValue={customer?.name || ''} /></label>
         <div className="sf-form-row">
