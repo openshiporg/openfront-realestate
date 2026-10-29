@@ -1318,7 +1318,7 @@ model Payment {
   status                  PaymentStatusType  @default(pending)
   amountMinor             Int
   currency                String             @default("USD")
-  providerPaymentId       String             @unique @default("")
+  providerPaymentId       String?            @unique
   providerPaymentIntentId String             @default("")
   idempotencyKey          String             @unique @default("")
   accessToken             String             @unique @default("")

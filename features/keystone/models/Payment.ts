@@ -54,7 +54,8 @@ export const Payment = list({
     }),
     amountMinor: integer({ validation: { isRequired: true, min: 1 } }),
     currency: text({ validation: { isRequired: true, length: { min: 3, max: 3 } }, defaultValue: 'USD' }),
-    providerPaymentId: text({ isIndexed: 'unique' }),
+    // Nullable so that payments that have not reached the provider yet do not collide on the unique index.
+    providerPaymentId: text({ isIndexed: 'unique', db: { isNullable: true }, defaultValue: undefined }),
     providerPaymentIntentId: text(),
     idempotencyKey: text({ isIndexed: 'unique', validation: { isRequired: true } }),
     // Opaque capability the payer carries in the return URL; never listed to other users.

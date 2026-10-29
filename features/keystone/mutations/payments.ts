@@ -252,7 +252,7 @@ export async function requestPaymentCommand(_root: unknown, { data }: { data: { 
       })
       const url = `${publicBaseUrl(scoped)}/pay/${token}`
       const outcome = { ok: true, message: 'Payment requested. Share the link with the payer.', itemId: payment.id, url }
-      return { result: outcome, event: { eventType: 'payment.requested', brokerageId: lead.brokerage.id, aggregateType: 'payment', aggregateId: payment.id, actorId: (scoped.session as any).itemId, action: 'request_payment', before: null, after: { paymentId: payment.id, purpose, amountMinor, currency: 'USD', leadId, dealId: dealId || null } } }
+      return { result: outcome, event: { eventType: 'payment.requested', brokerageId: lead.brokerage.id, aggregateType: 'payment', aggregateId: payment.id, actorId: (scoped.session as any).itemId, action: 'request_payment', before: null, after: { ...outcome, paymentId: payment.id, purpose, amountMinor, currency: 'USD', leadId, dealId: dealId || null } } }
     },
   })
   if (result.ok && !result.replayed && data.sendEmail && result.url) {

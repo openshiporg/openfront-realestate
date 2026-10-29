@@ -6705,7 +6705,7 @@ input PaymentWhereInput {
   status: PaymentStatusTypeNullableFilter
   amountMinor: IntFilter
   currency: StringFilter
-  providerPaymentId: StringFilter
+  providerPaymentId: StringNullableFilter
   providerPaymentIntentId: StringFilter
   idempotencyKey: StringFilter
   accessToken: StringFilter
@@ -6735,6 +6735,21 @@ input PaymentStatusTypeNullableFilter {
   in: [PaymentStatusType!]
   notIn: [PaymentStatusType!]
   not: PaymentStatusTypeNullableFilter
+}
+
+input StringNullableFilter {
+  equals: String
+  in: [String!]
+  notIn: [String!]
+  lt: String
+  lte: String
+  gt: String
+  gte: String
+  contains: String
+  startsWith: String
+  endsWith: String
+  mode: QueryMode
+  not: StringNullableFilter
 }
 
 input PaymentOrderByInput {
@@ -7164,6 +7179,11 @@ type Mutation {
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
   sendUserPasswordResetLink(email: String!): Boolean!
   redeemUserPasswordResetToken(email: String!, token: String!, password: String!): RedeemUserPasswordResetTokenResult
+  startApplicationFeeCheckout(data: StartApplicationFeeCheckoutInput!): PaymentCheckoutResult!
+  beginPaymentCheckout(token: String!): PaymentCheckoutResult!
+  reconcilePaymentByToken(token: String!): PublicPayment
+  requestPaymentCommand(data: RequestPaymentCommandInput!): PaymentCommandResult!
+  reconcilePaymentCommand(paymentId: ID!): PaymentCommandResult!
   submitListingInquiry(data: SubmitListingInquiryInput!): SubmitListingInquiryResult!
   requestPropertyShowing(data: RequestPropertyShowingInput!): RequestPropertyShowingResult!
   transitionLeadStatus(data: OperatorTransitionInput!): OperatorTransitionResult!
@@ -7411,6 +7431,7 @@ type Query {
   platformReports: PlatformReportsWorkspace!
   platformOperations: PlatformOperationsWorkspace!
   platformStorefrontSettings: PlatformStorefrontSettingsState!
+  paymentByToken(token: String!): PublicPayment
 }
 
 union AuthenticatedItem = User
@@ -8399,11 +8420,61 @@ type PublicRealEstateListing {
   virtualTourUrl: String!
   leaseTerm: String!
   securityDeposit: Int
+  applicationFeeMinor: Int
   petPolicy: String!
   imagePath: String!
   assignedAgent: PublicRealEstateAgent
   media: [PublicRealEstateMedia!]!
   openHouses: [PublicOpenHouse!]!
+}
+
+input StartApplicationFeeCheckoutInput {
+  brokerageSlug: String!
+  propertyId: ID!
+  name: String!
+  email: String
+  phone: String
+  message: String
+}
+
+type PaymentCheckoutResult {
+  ok: Boolean!
+  message: String!
+  url: String
+  token: String
+}
+
+type PublicPayment {
+  token: String!
+  purpose: String!
+  status: String!
+  statusMessage: String!
+  amountMinor: Int!
+  currency: String!
+  description: String!
+  brokerageName: String!
+  propertyTitle: String!
+  payerName: String!
+  paidAt: String
+  canPay: Boolean!
+}
+
+input RequestPaymentCommandInput {
+  leadId: ID!
+  dealId: ID
+  purpose: String!
+  amountMinor: Int!
+  description: String
+  idempotencyKey: String!
+  sendEmail: Boolean
+}
+
+type PaymentCommandResult {
+  ok: Boolean!
+  message: String!
+  itemId: ID
+  url: String
+  replayed: Boolean!
 }
 
 input SubmitListingInquiryInput {
