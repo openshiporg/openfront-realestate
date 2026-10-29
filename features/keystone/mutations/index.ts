@@ -47,6 +47,7 @@ import { createChecklistItemCommand, createCounterOfferCommand, createOfferComma
 import { recordListingEngagementAuthorityCommand, recordListingPublicationAuthorityCommand, recordPractitionerLicenseAuthorityCommand, recordRepresentationAuthorityCommand } from './authorityCommands'
 import { appendDocumentEvidenceEventCommand } from './documentEvidenceCommands'
 import { approveCommissionAllocationCommand, proposeCommissionAllocationCommand, recordCommissionReceiptCommand, reconcileCommissionLedgerCommand, reverseCommissionLedgerEntryCommand } from './commissionLedgerCommands'
+import { beginPaymentCheckout, paymentByToken, reconcilePaymentByToken, reconcilePaymentCommand, requestPaymentCommand, startApplicationFeeCheckout } from './payments'
 import { assignTransactionFileRetentionCommand, createTransactionExportManifestCommand, recordRetentionPolicyCommand, recordTransactionLegalHoldCommand } from './retentionCommands'
 
 const graphql = String.raw
@@ -201,11 +202,61 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         virtualTourUrl: String!
         leaseTerm: String!
         securityDeposit: Int
+        applicationFeeMinor: Int
         petPolicy: String!
         imagePath: String!
         assignedAgent: PublicRealEstateAgent
         media: [PublicRealEstateMedia!]!
         openHouses: [PublicOpenHouse!]!
+      }
+
+      input StartApplicationFeeCheckoutInput {
+        brokerageSlug: String!
+        propertyId: ID!
+        name: String!
+        email: String
+        phone: String
+        message: String
+      }
+
+      type PaymentCheckoutResult {
+        ok: Boolean!
+        message: String!
+        url: String
+        token: String
+      }
+
+      type PublicPayment {
+        token: String!
+        purpose: String!
+        status: String!
+        statusMessage: String!
+        amountMinor: Int!
+        currency: String!
+        description: String!
+        brokerageName: String!
+        propertyTitle: String!
+        payerName: String!
+        paidAt: String
+        canPay: Boolean!
+      }
+
+      input RequestPaymentCommandInput {
+        leadId: ID!
+        dealId: ID
+        purpose: String!
+        amountMinor: Int!
+        description: String
+        idempotencyKey: String!
+        sendEmail: Boolean
+      }
+
+      type PaymentCommandResult {
+        ok: Boolean!
+        message: String!
+        itemId: ID
+        url: String
+        replayed: Boolean!
       }
 
       input SubmitListingInquiryInput {
@@ -511,9 +562,15 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         platformReports: PlatformReportsWorkspace!
         platformOperations: PlatformOperationsWorkspace!
         platformStorefrontSettings: PlatformStorefrontSettingsState!
+        paymentByToken(token: String!): PublicPayment
       }
 
       type Mutation {
+        startApplicationFeeCheckout(data: StartApplicationFeeCheckoutInput!): PaymentCheckoutResult!
+        beginPaymentCheckout(token: String!): PaymentCheckoutResult!
+        reconcilePaymentByToken(token: String!): PublicPayment
+        requestPaymentCommand(data: RequestPaymentCommandInput!): PaymentCommandResult!
+        reconcilePaymentCommand(paymentId: ID!): PaymentCommandResult!
         submitListingInquiry(data: SubmitListingInquiryInput!): SubmitListingInquiryResult!
         requestPropertyShowing(data: RequestPropertyShowingInput!): RequestPropertyShowingResult!
         transitionLeadStatus(data: OperatorTransitionInput!): OperatorTransitionResult!
@@ -593,8 +650,14 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         platformReports,
         platformOperations,
         platformStorefrontSettings,
+        paymentByToken,
       },
       Mutation: {
+        startApplicationFeeCheckout,
+        beginPaymentCheckout,
+        reconcilePaymentByToken,
+        requestPaymentCommand,
+        reconcilePaymentCommand,
         submitListingInquiry,
         requestPropertyShowing,
         transitionLeadStatus,

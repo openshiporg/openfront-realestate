@@ -79,3 +79,21 @@ export async function sendPasswordResetEmail(resetToken: string, to: string, bas
     console.log(`📧 Message Sent!  Preview it at ${getTestMessageUrl(info as any)}`);
   }
 }
+
+
+/** Sends a hosted payment link requested by brokerage staff. Returns false when mail is not configured. */
+export async function sendPaymentRequestEmail(to: string, details: { url: string; amountLabel: string; description: string; brokerageName: string }): Promise<boolean> {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_FROM) return false;
+  const escape = (value: string) => value.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch] as string);
+  try {
+    await transport.sendMail({
+      to,
+      from: process.env.SMTP_FROM,
+      subject: `${details.brokerageName}: payment request for ${details.amountLabel}`,
+      html: `<body style="font-family: Helvetica, Arial, sans-serif; color: #444;"><p>${escape(details.brokerageName)} has requested a payment of <strong>${escape(details.amountLabel)}</strong> for ${escape(details.description)}.</p><p><a href="${escape(details.url)}" style="background:#346df1;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;display:inline-block;">Pay securely</a></p><p>If you were not expecting this, ignore this email or contact the brokerage.</p></body>`,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}

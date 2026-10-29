@@ -109,6 +109,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
     ...(listing.leaseTerm ? [['Lease term', listing.leaseTerm] as [string, string]] : []),
     ...(listing.securityDeposit ? [['Security deposit', formatMoney(String(listing.securityDeposit))] as [string, string]] : []),
     ...(listing.petPolicy ? [['Pets', listing.petPolicy] as [string, string]] : []),
+    ...(listing.applicationFeeMinor ? [['Application fee', formatMoney((listing.applicationFeeMinor / 100).toFixed(2))] as [string, string]] : []),
   ] : []
   const extraPhotos = [...new Map(listing.media
     .filter(item => item.mediaType === 'photo' && item.imagePath && item.imagePath !== listing.imagePath)
@@ -167,6 +168,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
             ) : null}
             <div className="sf-signplate__actions">
               <a href="#showing" className="sf-btn sf-btn--primary">Request a showing</a>
+              {rental && listing.applicationFeeMinor ? <a href="#apply" className="sf-btn sf-btn--quiet">Apply</a> : null}
               <a href="#ask" className="sf-btn sf-btn--quiet">{listing.listingType === 'rent' ? 'Ask about applying' : 'Ask a question'}</a>
             </div>
             {listing.virtualTourUrl ? <a href={listing.virtualTourUrl} className="sf-link" target="_blank" rel="noopener noreferrer">Virtual tour <ArrowUpRight aria-hidden /></a> : null}
@@ -232,7 +234,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
                 {emailLink ? <a href={emailLink} className="sf-icon-btn" aria-label={`Email ${advisorEmail}`}><Mail aria-hidden /></a> : null}
               </span>
             </div>
-            <ListingActionPanel propertyId={listing.id} intent={listing.listingType === 'rent' ? 'rent' : 'buy'} customer={prefill} accountHref={accountHref} timeZone={listingTimeZone} timeZoneName={listingTimeZone ? timeZoneLabel(listingTimeZone) : ''} />
+            <ListingActionPanel applicationFee={rental && listing.applicationFeeMinor ? { label: formatMoney((listing.applicationFeeMinor / 100).toFixed(2)) } : null} propertyId={listing.id} intent={listing.listingType === 'rent' ? 'rent' : 'buy'} customer={prefill} accountHref={accountHref} timeZone={listingTimeZone} timeZoneName={listingTimeZone ? timeZoneLabel(listingTimeZone) : ''} />
           </aside>
         </div>
       </main>
