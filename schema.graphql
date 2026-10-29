@@ -363,6 +363,10 @@ type Brokerage {
   retentionPoliciesCount(where: RetentionPolicyWhereInput! = {}): Int
   transactionFileEvents(where: TransactionFileEventWhereInput! = {}, orderBy: [TransactionFileEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TransactionFileEventWhereUniqueInput): [TransactionFileEvent!]
   transactionFileEventsCount(where: TransactionFileEventWhereInput! = {}): Int
+  paymentProviders(where: PaymentProviderWhereInput! = {}, orderBy: [PaymentProviderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentProviderWhereUniqueInput): [PaymentProvider!]
+  paymentProvidersCount(where: PaymentProviderWhereInput! = {}): Int
+  payments(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
+  paymentsCount(where: PaymentWhereInput! = {}): Int
   auditEvents(where: DomainAuditEventWhereInput! = {}, orderBy: [DomainAuditEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: DomainAuditEventWhereUniqueInput): [DomainAuditEvent!]
   auditEventsCount(where: DomainAuditEventWhereInput! = {}): Int
   outboxEvents(where: DomainOutboxEventWhereInput! = {}, orderBy: [DomainOutboxEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: DomainOutboxEventWhereUniqueInput): [DomainOutboxEvent!]
@@ -412,6 +416,8 @@ input BrokerageWhereInput {
   commissionLedgerEntries: CommissionLedgerEntryManyRelationFilter
   retentionPolicies: RetentionPolicyManyRelationFilter
   transactionFileEvents: TransactionFileEventManyRelationFilter
+  paymentProviders: PaymentProviderManyRelationFilter
+  payments: PaymentManyRelationFilter
   auditEvents: DomainAuditEventManyRelationFilter
   outboxEvents: DomainOutboxEventManyRelationFilter
   createdAt: DateTimeFilter
@@ -556,6 +562,18 @@ input TransactionFileEventManyRelationFilter {
   none: TransactionFileEventWhereInput
 }
 
+input PaymentProviderManyRelationFilter {
+  every: PaymentProviderWhereInput
+  some: PaymentProviderWhereInput
+  none: PaymentProviderWhereInput
+}
+
+input PaymentManyRelationFilter {
+  every: PaymentWhereInput
+  some: PaymentWhereInput
+  none: PaymentWhereInput
+}
+
 input DomainAuditEventManyRelationFilter {
   every: DomainAuditEventWhereInput
   some: DomainAuditEventWhereInput
@@ -604,6 +622,8 @@ input BrokerageUpdateInput {
   commissionLedgerEntries: CommissionLedgerEntryRelateToManyForUpdateInput
   retentionPolicies: RetentionPolicyRelateToManyForUpdateInput
   transactionFileEvents: TransactionFileEventRelateToManyForUpdateInput
+  paymentProviders: PaymentProviderRelateToManyForUpdateInput
+  payments: PaymentRelateToManyForUpdateInput
   auditEvents: DomainAuditEventRelateToManyForUpdateInput
   outboxEvents: DomainOutboxEventRelateToManyForUpdateInput
   createdAt: DateTime
@@ -757,6 +777,20 @@ input TransactionFileEventRelateToManyForUpdateInput {
   connect: [TransactionFileEventWhereUniqueInput!]
 }
 
+input PaymentProviderRelateToManyForUpdateInput {
+  disconnect: [PaymentProviderWhereUniqueInput!]
+  set: [PaymentProviderWhereUniqueInput!]
+  create: [PaymentProviderCreateInput!]
+  connect: [PaymentProviderWhereUniqueInput!]
+}
+
+input PaymentRelateToManyForUpdateInput {
+  disconnect: [PaymentWhereUniqueInput!]
+  set: [PaymentWhereUniqueInput!]
+  create: [PaymentCreateInput!]
+  connect: [PaymentWhereUniqueInput!]
+}
+
 input DomainAuditEventRelateToManyForUpdateInput {
   disconnect: [DomainAuditEventWhereUniqueInput!]
   set: [DomainAuditEventWhereUniqueInput!]
@@ -802,6 +836,8 @@ input BrokerageCreateInput {
   commissionLedgerEntries: CommissionLedgerEntryRelateToManyForCreateInput
   retentionPolicies: RetentionPolicyRelateToManyForCreateInput
   transactionFileEvents: TransactionFileEventRelateToManyForCreateInput
+  paymentProviders: PaymentProviderRelateToManyForCreateInput
+  payments: PaymentRelateToManyForCreateInput
   auditEvents: DomainAuditEventRelateToManyForCreateInput
   outboxEvents: DomainOutboxEventRelateToManyForCreateInput
   createdAt: DateTime
@@ -911,6 +947,16 @@ input RetentionPolicyRelateToManyForCreateInput {
 input TransactionFileEventRelateToManyForCreateInput {
   create: [TransactionFileEventCreateInput!]
   connect: [TransactionFileEventWhereUniqueInput!]
+}
+
+input PaymentProviderRelateToManyForCreateInput {
+  create: [PaymentProviderCreateInput!]
+  connect: [PaymentProviderWhereUniqueInput!]
+}
+
+input PaymentRelateToManyForCreateInput {
+  create: [PaymentCreateInput!]
+  connect: [PaymentWhereUniqueInput!]
 }
 
 input DomainAuditEventRelateToManyForCreateInput {
@@ -1557,12 +1603,15 @@ type Property {
   leaseTerm: String
   securityDeposit: Int
   petPolicy: String
+  applicationFeeMinor: Int
   primaryImageUrl: String
   assignedAgent: User
   leads(where: LeadWhereInput! = {}, orderBy: [LeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: LeadWhereUniqueInput): [Lead!]
   leadsCount(where: LeadWhereInput! = {}): Int
   showings(where: ShowingWhereInput! = {}, orderBy: [ShowingOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ShowingWhereUniqueInput): [Showing!]
   showingsCount(where: ShowingWhereInput! = {}): Int
+  payments(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
+  paymentsCount(where: PaymentWhereInput! = {}): Int
   savedBy(where: SavedPropertyWhereInput! = {}, orderBy: [SavedPropertyOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SavedPropertyWhereUniqueInput): [SavedProperty!]
   savedByCount(where: SavedPropertyWhereInput! = {}): Int
   listingEngagementAuthorities(where: ListingEngagementAuthorityWhereInput! = {}, orderBy: [ListingEngagementAuthorityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ListingEngagementAuthorityWhereUniqueInput): [ListingEngagementAuthority!]
@@ -1648,10 +1697,12 @@ input PropertyWhereInput {
   leaseTerm: StringFilter
   securityDeposit: IntNullableFilter
   petPolicy: StringFilter
+  applicationFeeMinor: IntNullableFilter
   primaryImageUrl: StringFilter
   assignedAgent: UserWhereInput
   leads: LeadManyRelationFilter
   showings: ShowingManyRelationFilter
+  payments: PaymentManyRelationFilter
   savedBy: SavedPropertyManyRelationFilter
   listingEngagementAuthorities: ListingEngagementAuthorityManyRelationFilter
   listingPublicationAuthorities: ListingPublicationAuthorityManyRelationFilter
@@ -1733,6 +1784,7 @@ input PropertyOrderByInput {
   leaseTerm: OrderDirection
   securityDeposit: OrderDirection
   petPolicy: OrderDirection
+  applicationFeeMinor: OrderDirection
   primaryImageUrl: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
@@ -1768,10 +1820,12 @@ input PropertyUpdateInput {
   leaseTerm: String
   securityDeposit: Int
   petPolicy: String
+  applicationFeeMinor: Int
   primaryImageUrl: String
   assignedAgent: UserRelateToOneForUpdateInput
   leads: LeadRelateToManyForUpdateInput
   showings: ShowingRelateToManyForUpdateInput
+  payments: PaymentRelateToManyForUpdateInput
   savedBy: SavedPropertyRelateToManyForUpdateInput
   listingEngagementAuthorities: ListingEngagementAuthorityRelateToManyForUpdateInput
   listingPublicationAuthorities: ListingPublicationAuthorityRelateToManyForUpdateInput
@@ -1815,10 +1869,12 @@ input PropertyCreateInput {
   leaseTerm: String
   securityDeposit: Int
   petPolicy: String
+  applicationFeeMinor: Int
   primaryImageUrl: String
   assignedAgent: UserRelateToOneForCreateInput
   leads: LeadRelateToManyForCreateInput
   showings: ShowingRelateToManyForCreateInput
+  payments: PaymentRelateToManyForCreateInput
   savedBy: SavedPropertyRelateToManyForCreateInput
   listingEngagementAuthorities: ListingEngagementAuthorityRelateToManyForCreateInput
   listingPublicationAuthorities: ListingPublicationAuthorityRelateToManyForCreateInput
@@ -1850,6 +1906,8 @@ type Lead {
   showingsCount(where: ShowingWhereInput! = {}): Int
   activities(where: LeadActivityWhereInput! = {}, orderBy: [LeadActivityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: LeadActivityWhereUniqueInput): [LeadActivity!]
   activitiesCount(where: LeadActivityWhereInput! = {}): Int
+  payments(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
+  paymentsCount(where: PaymentWhereInput! = {}): Int
   representationAuthorities(where: RepresentationAuthorityWhereInput! = {}, orderBy: [RepresentationAuthorityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RepresentationAuthorityWhereUniqueInput): [RepresentationAuthority!]
   representationAuthoritiesCount(where: RepresentationAuthorityWhereInput! = {}): Int
   displayLabel: String
@@ -1912,6 +1970,7 @@ input LeadWhereInput {
   assignedTeam: AgentTeamWhereInput
   showings: ShowingManyRelationFilter
   activities: LeadActivityManyRelationFilter
+  payments: PaymentManyRelationFilter
   representationAuthorities: RepresentationAuthorityManyRelationFilter
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
@@ -1977,6 +2036,7 @@ input LeadUpdateInput {
   assignedTeam: AgentTeamRelateToOneForUpdateInput
   showings: ShowingRelateToManyForUpdateInput
   activities: LeadActivityRelateToManyForUpdateInput
+  payments: PaymentRelateToManyForUpdateInput
   representationAuthorities: RepresentationAuthorityRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
@@ -2019,6 +2079,7 @@ input LeadCreateInput {
   assignedTeam: AgentTeamRelateToOneForCreateInput
   showings: ShowingRelateToManyForCreateInput
   activities: LeadActivityRelateToManyForCreateInput
+  payments: PaymentRelateToManyForCreateInput
   representationAuthorities: RepresentationAuthorityRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
@@ -2184,6 +2245,8 @@ type Deal {
   lead: Lead
   assignedAgent: User
   assignedTeam: AgentTeam
+  payments(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
+  paymentsCount(where: PaymentWhereInput! = {}): Int
   representationAuthorities(where: RepresentationAuthorityWhereInput! = {}, orderBy: [RepresentationAuthorityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RepresentationAuthorityWhereUniqueInput): [RepresentationAuthority!]
   representationAuthoritiesCount(where: RepresentationAuthorityWhereInput! = {}): Int
   documentEvidenceEvents(where: DocumentEvidenceEventWhereInput! = {}, orderBy: [DocumentEvidenceEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: DocumentEvidenceEventWhereUniqueInput): [DocumentEvidenceEvent!]
@@ -2238,6 +2301,7 @@ input DealWhereInput {
   lead: LeadWhereInput
   assignedAgent: UserWhereInput
   assignedTeam: AgentTeamWhereInput
+  payments: PaymentManyRelationFilter
   representationAuthorities: RepresentationAuthorityManyRelationFilter
   documentEvidenceEvents: DocumentEvidenceEventManyRelationFilter
   commissionLedgerEntries: CommissionLedgerEntryManyRelationFilter
@@ -2291,6 +2355,7 @@ input DealUpdateInput {
   lead: LeadRelateToOneForUpdateInput
   assignedAgent: UserRelateToOneForUpdateInput
   assignedTeam: AgentTeamRelateToOneForUpdateInput
+  payments: PaymentRelateToManyForUpdateInput
   representationAuthorities: RepresentationAuthorityRelateToManyForUpdateInput
   documentEvidenceEvents: DocumentEvidenceEventRelateToManyForUpdateInput
   commissionLedgerEntries: CommissionLedgerEntryRelateToManyForUpdateInput
@@ -2320,6 +2385,7 @@ input DealCreateInput {
   lead: LeadRelateToOneForCreateInput
   assignedAgent: UserRelateToOneForCreateInput
   assignedTeam: AgentTeamRelateToOneForCreateInput
+  payments: PaymentRelateToManyForCreateInput
   representationAuthorities: RepresentationAuthorityRelateToManyForCreateInput
   documentEvidenceEvents: DocumentEvidenceEventRelateToManyForCreateInput
   commissionLedgerEntries: CommissionLedgerEntryRelateToManyForCreateInput
@@ -6480,6 +6546,337 @@ input TransactionFileEventRelateToOneForCreateInput {
   connect: TransactionFileEventWhereUniqueInput
 }
 
+type PaymentProvider {
+  id: ID!
+  brokerage: Brokerage
+  name: String
+  code: String
+  isInstalled: Boolean
+  credentials: JSON
+  metadata: JSON
+  createPaymentFunction: String
+  capturePaymentFunction: String
+  refundPaymentFunction: String
+  getPaymentStatusFunction: String
+  generatePaymentLinkFunction: String
+  handleWebhookFunction: String
+  payments(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
+  paymentsCount(where: PaymentWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentProviderWhereUniqueInput {
+  id: ID
+  code: String
+}
+
+input PaymentProviderWhereInput {
+  AND: [PaymentProviderWhereInput!]
+  OR: [PaymentProviderWhereInput!]
+  NOT: [PaymentProviderWhereInput!]
+  id: IDFilter
+  brokerage: BrokerageWhereInput
+  name: StringFilter
+  code: StringFilter
+  isInstalled: BooleanFilter
+  createPaymentFunction: StringFilter
+  capturePaymentFunction: StringFilter
+  refundPaymentFunction: StringFilter
+  getPaymentStatusFunction: StringFilter
+  generatePaymentLinkFunction: StringFilter
+  handleWebhookFunction: StringFilter
+  payments: PaymentManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PaymentProviderOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  code: OrderDirection
+  isInstalled: OrderDirection
+  createPaymentFunction: OrderDirection
+  capturePaymentFunction: OrderDirection
+  refundPaymentFunction: OrderDirection
+  getPaymentStatusFunction: OrderDirection
+  generatePaymentLinkFunction: OrderDirection
+  handleWebhookFunction: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PaymentProviderUpdateInput {
+  brokerage: BrokerageRelateToOneForUpdateInput
+  name: String
+  code: String
+  isInstalled: Boolean
+  credentials: JSON
+  metadata: JSON
+  createPaymentFunction: String
+  capturePaymentFunction: String
+  refundPaymentFunction: String
+  getPaymentStatusFunction: String
+  generatePaymentLinkFunction: String
+  handleWebhookFunction: String
+  payments: PaymentRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentProviderUpdateArgs {
+  where: PaymentProviderWhereUniqueInput!
+  data: PaymentProviderUpdateInput!
+}
+
+input PaymentProviderCreateInput {
+  brokerage: BrokerageRelateToOneForCreateInput
+  name: String
+  code: String
+  isInstalled: Boolean
+  credentials: JSON
+  metadata: JSON
+  createPaymentFunction: String
+  capturePaymentFunction: String
+  refundPaymentFunction: String
+  getPaymentStatusFunction: String
+  generatePaymentLinkFunction: String
+  handleWebhookFunction: String
+  payments: PaymentRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Payment {
+  id: ID!
+  brokerage: Brokerage
+  purpose: PaymentPurposeType
+  status: PaymentStatusType
+  amountMinor: Int
+  currency: String
+  providerPaymentId: String
+  providerPaymentIntentId: String
+  idempotencyKey: String
+  accessToken: String
+  payerName: String
+  payerEmail: String
+  checkoutUrl: String
+  paidAt: DateTime
+  refundedMinor: Int
+  lastCheckedAt: DateTime
+  paymentProvider: PaymentProvider
+  property: Property
+  lead: Lead
+  deal: Deal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+enum PaymentPurposeType {
+  application_fee
+  holding_deposit
+  rent
+  agent_fee
+}
+
+enum PaymentStatusType {
+  pending
+  authorized
+  captured
+  refunded
+  failed
+  unknown
+}
+
+input PaymentWhereUniqueInput {
+  id: ID
+  providerPaymentId: String
+  idempotencyKey: String
+  accessToken: String
+}
+
+input PaymentWhereInput {
+  AND: [PaymentWhereInput!]
+  OR: [PaymentWhereInput!]
+  NOT: [PaymentWhereInput!]
+  id: IDFilter
+  brokerage: BrokerageWhereInput
+  purpose: PaymentPurposeTypeNullableFilter
+  status: PaymentStatusTypeNullableFilter
+  amountMinor: IntFilter
+  currency: StringFilter
+  providerPaymentId: StringFilter
+  providerPaymentIntentId: StringFilter
+  idempotencyKey: StringFilter
+  accessToken: StringFilter
+  payerName: StringFilter
+  payerEmail: StringFilter
+  checkoutUrl: StringFilter
+  paidAt: DateTimeNullableFilter
+  refundedMinor: IntNullableFilter
+  lastCheckedAt: DateTimeNullableFilter
+  paymentProvider: PaymentProviderWhereInput
+  property: PropertyWhereInput
+  lead: LeadWhereInput
+  deal: DealWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PaymentPurposeTypeNullableFilter {
+  equals: PaymentPurposeType
+  in: [PaymentPurposeType!]
+  notIn: [PaymentPurposeType!]
+  not: PaymentPurposeTypeNullableFilter
+}
+
+input PaymentStatusTypeNullableFilter {
+  equals: PaymentStatusType
+  in: [PaymentStatusType!]
+  notIn: [PaymentStatusType!]
+  not: PaymentStatusTypeNullableFilter
+}
+
+input PaymentOrderByInput {
+  id: OrderDirection
+  purpose: OrderDirection
+  status: OrderDirection
+  amountMinor: OrderDirection
+  currency: OrderDirection
+  providerPaymentId: OrderDirection
+  providerPaymentIntentId: OrderDirection
+  idempotencyKey: OrderDirection
+  accessToken: OrderDirection
+  payerName: OrderDirection
+  payerEmail: OrderDirection
+  checkoutUrl: OrderDirection
+  paidAt: OrderDirection
+  refundedMinor: OrderDirection
+  lastCheckedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PaymentUpdateInput {
+  brokerage: BrokerageRelateToOneForUpdateInput
+  purpose: PaymentPurposeType
+  status: PaymentStatusType
+  amountMinor: Int
+  currency: String
+  providerPaymentId: String
+  providerPaymentIntentId: String
+  idempotencyKey: String
+  accessToken: String
+  payerName: String
+  payerEmail: String
+  checkoutUrl: String
+  paidAt: DateTime
+  refundedMinor: Int
+  lastCheckedAt: DateTime
+  paymentProvider: PaymentProviderRelateToOneForUpdateInput
+  property: PropertyRelateToOneForUpdateInput
+  lead: LeadRelateToOneForUpdateInput
+  deal: DealRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentProviderRelateToOneForUpdateInput {
+  create: PaymentProviderCreateInput
+  connect: PaymentProviderWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PaymentUpdateArgs {
+  where: PaymentWhereUniqueInput!
+  data: PaymentUpdateInput!
+}
+
+input PaymentCreateInput {
+  brokerage: BrokerageRelateToOneForCreateInput
+  purpose: PaymentPurposeType
+  status: PaymentStatusType
+  amountMinor: Int
+  currency: String
+  providerPaymentId: String
+  providerPaymentIntentId: String
+  idempotencyKey: String
+  accessToken: String
+  payerName: String
+  payerEmail: String
+  checkoutUrl: String
+  paidAt: DateTime
+  refundedMinor: Int
+  lastCheckedAt: DateTime
+  paymentProvider: PaymentProviderRelateToOneForCreateInput
+  property: PropertyRelateToOneForCreateInput
+  lead: LeadRelateToOneForCreateInput
+  deal: DealRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentProviderRelateToOneForCreateInput {
+  create: PaymentProviderCreateInput
+  connect: PaymentProviderWhereUniqueInput
+}
+
+type PaymentWebhookReceipt {
+  id: ID!
+  eventKey: String
+  eventType: String
+  outcome: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentWebhookReceiptWhereUniqueInput {
+  id: ID
+  eventKey: String
+}
+
+input PaymentWebhookReceiptWhereInput {
+  AND: [PaymentWebhookReceiptWhereInput!]
+  OR: [PaymentWebhookReceiptWhereInput!]
+  NOT: [PaymentWebhookReceiptWhereInput!]
+  id: IDFilter
+  eventKey: StringFilter
+  eventType: StringFilter
+  outcome: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PaymentWebhookReceiptOrderByInput {
+  id: OrderDirection
+  eventKey: OrderDirection
+  eventType: OrderDirection
+  outcome: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PaymentWebhookReceiptUpdateInput {
+  eventKey: String
+  eventType: String
+  outcome: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentWebhookReceiptUpdateArgs {
+  where: PaymentWebhookReceiptWhereUniqueInput!
+  data: PaymentWebhookReceiptUpdateInput!
+}
+
+input PaymentWebhookReceiptCreateInput {
+  eventKey: String
+  eventType: String
+  outcome: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
 """
@@ -6744,6 +7141,24 @@ type Mutation {
   updateTransactionFileEvents(data: [TransactionFileEventUpdateArgs!]!): [TransactionFileEvent]
   deleteTransactionFileEvent(where: TransactionFileEventWhereUniqueInput!): TransactionFileEvent
   deleteTransactionFileEvents(where: [TransactionFileEventWhereUniqueInput!]!): [TransactionFileEvent]
+  createPaymentProvider(data: PaymentProviderCreateInput!): PaymentProvider
+  createPaymentProviders(data: [PaymentProviderCreateInput!]!): [PaymentProvider]
+  updatePaymentProvider(where: PaymentProviderWhereUniqueInput!, data: PaymentProviderUpdateInput!): PaymentProvider
+  updatePaymentProviders(data: [PaymentProviderUpdateArgs!]!): [PaymentProvider]
+  deletePaymentProvider(where: PaymentProviderWhereUniqueInput!): PaymentProvider
+  deletePaymentProviders(where: [PaymentProviderWhereUniqueInput!]!): [PaymentProvider]
+  createPayment(data: PaymentCreateInput!): Payment
+  createPayments(data: [PaymentCreateInput!]!): [Payment]
+  updatePayment(where: PaymentWhereUniqueInput!, data: PaymentUpdateInput!): Payment
+  updatePayments(data: [PaymentUpdateArgs!]!): [Payment]
+  deletePayment(where: PaymentWhereUniqueInput!): Payment
+  deletePayments(where: [PaymentWhereUniqueInput!]!): [Payment]
+  createPaymentWebhookReceipt(data: PaymentWebhookReceiptCreateInput!): PaymentWebhookReceipt
+  createPaymentWebhookReceipts(data: [PaymentWebhookReceiptCreateInput!]!): [PaymentWebhookReceipt]
+  updatePaymentWebhookReceipt(where: PaymentWebhookReceiptWhereUniqueInput!, data: PaymentWebhookReceiptUpdateInput!): PaymentWebhookReceipt
+  updatePaymentWebhookReceipts(data: [PaymentWebhookReceiptUpdateArgs!]!): [PaymentWebhookReceipt]
+  deletePaymentWebhookReceipt(where: PaymentWebhookReceiptWhereUniqueInput!): PaymentWebhookReceipt
+  deletePaymentWebhookReceipts(where: [PaymentWebhookReceiptWhereUniqueInput!]!): [PaymentWebhookReceipt]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -6963,6 +7378,15 @@ type Query {
   transactionFileEvent(where: TransactionFileEventWhereUniqueInput!): TransactionFileEvent
   transactionFileEvents(where: TransactionFileEventWhereInput! = {}, orderBy: [TransactionFileEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TransactionFileEventWhereUniqueInput): [TransactionFileEvent!]
   transactionFileEventsCount(where: TransactionFileEventWhereInput! = {}): Int
+  paymentProvider(where: PaymentProviderWhereUniqueInput!): PaymentProvider
+  paymentProviders(where: PaymentProviderWhereInput! = {}, orderBy: [PaymentProviderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentProviderWhereUniqueInput): [PaymentProvider!]
+  paymentProvidersCount(where: PaymentProviderWhereInput! = {}): Int
+  payment(where: PaymentWhereUniqueInput!): Payment
+  payments(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
+  paymentsCount(where: PaymentWhereInput! = {}): Int
+  paymentWebhookReceipt(where: PaymentWebhookReceiptWhereUniqueInput!): PaymentWebhookReceipt
+  paymentWebhookReceipts(where: PaymentWebhookReceiptWhereInput! = {}, orderBy: [PaymentWebhookReceiptOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWebhookReceiptWhereUniqueInput): [PaymentWebhookReceipt!]
+  paymentWebhookReceiptsCount(where: PaymentWebhookReceiptWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   validateUserPasswordResetToken(email: String!, token: String!): ValidateUserPasswordResetTokenResult

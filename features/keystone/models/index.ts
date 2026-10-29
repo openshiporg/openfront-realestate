@@ -43,6 +43,8 @@ import { DocumentEvidenceEvent } from './DocumentEvidenceEvent';
 import { CommissionLedgerEntry } from './CommissionLedgerEntry';
 import { RetentionPolicy } from './RetentionPolicy';
 import { TransactionFileEvent } from './TransactionFileEvent';
+import { PaymentProvider } from './PaymentProvider';
+import { Payment, PaymentWebhookReceipt } from './Payment';
 
 export const models = {
   DomainAuditEvent,
@@ -88,6 +90,9 @@ export const models = {
   CommissionLedgerEntry,
   RetentionPolicy,
   TransactionFileEvent,
+  PaymentProvider,
+  Payment,
+  PaymentWebhookReceipt,
 };
 
 for (const model of Object.values(models)) {

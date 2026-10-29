@@ -92,6 +92,8 @@ model Brokerage {
   commissionLedgerEntries             CommissionLedgerEntry[]        @relation("CommissionLedgerEntry_brokerage")
   retentionPolicies                   RetentionPolicy[]              @relation("RetentionPolicy_brokerage")
   transactionFileEvents               TransactionFileEvent[]         @relation("TransactionFileEvent_brokerage")
+  paymentProviders                    PaymentProvider[]              @relation("PaymentProvider_brokerage")
+  payments                            Payment[]                      @relation("Payment_brokerage")
   auditEvents                         DomainAuditEvent[]             @relation("DomainAuditEvent_brokerage")
   outboxEvents                        DomainOutboxEvent[]            @relation("DomainOutboxEvent_brokerage")
   createdAt                           DateTime                       @default(now())
@@ -258,11 +260,13 @@ model Property {
   leaseTerm                        String                        @default("")
   securityDeposit                  Int?
   petPolicy                        String                        @default("")
+  applicationFeeMinor              Int?
   primaryImageUrl                  String                        @default("")
   assignedAgent                    User?                         @relation("Property_assignedAgent", fields: [assignedAgentId], references: [id])
   assignedAgentId                  String?                       @map("assignedAgent")
   leads                            Lead[]                        @relation("Lead_property")
   showings                         Showing[]                     @relation("Showing_property")
+  payments                         Payment[]                     @relation("Payment_property")
   savedBy                          SavedProperty[]               @relation("SavedProperty_property")
   listingEngagementAuthorities     ListingEngagementAuthority[]  @relation("ListingEngagementAuthority_property")
   listingPublicationAuthorities    ListingPublicationAuthority[] @relation("ListingPublicationAuthority_property")
@@ -317,6 +321,7 @@ model Lead {
   assignedTeamId                String?                   @map("assignedTeam")
   showings                      Showing[]                 @relation("Showing_lead")
   activities                    LeadActivity[]            @relation("LeadActivity_lead")
+  payments                      Payment[]                 @relation("Payment_lead")
   representationAuthorities     RepresentationAuthority[] @relation("RepresentationAuthority_lead")
   createdAt                     DateTime                  @default(now())
   updatedAt                     DateTime                  @default(now()) @updatedAt
@@ -388,6 +393,7 @@ model Deal {
   assignedAgentId                String?                   @map("assignedAgent")
   assignedTeam                   AgentTeam?                @relation("Deal_assignedTeam", fields: [assignedTeamId], references: [id])
   assignedTeamId                 String?                   @map("assignedTeam")
+  payments                       Payment[]                 @relation("Payment_deal")
   representationAuthorities      RepresentationAuthority[] @relation("RepresentationAuthority_deal")
   documentEvidenceEvents         DocumentEvidenceEvent[]   @relation("DocumentEvidenceEvent_deal")
   commissionLedgerEntries        CommissionLedgerEntry[]   @relation("CommissionLedgerEntry_deal")
@@ -1282,6 +1288,73 @@ model TransactionFileEvent {
   @@index([approvedById])
 }
 
+model PaymentProvider {
+  id                          String     @id @default(cuid())
+  brokerage                   Brokerage? @relation("PaymentProvider_brokerage", fields: [brokerageId], references: [id])
+  brokerageId                 String?    @map("brokerage")
+  name                        String     @default("")
+  code                        String     @unique @default("")
+  isInstalled                 Boolean    @default(true)
+  credentials                 Json?      @default("{}")
+  metadata                    Json?      @default("{}")
+  createPaymentFunction       String     @default("")
+  capturePaymentFunction      String     @default("")
+  refundPaymentFunction       String     @default("")
+  getPaymentStatusFunction    String     @default("")
+  generatePaymentLinkFunction String     @default("")
+  handleWebhookFunction       String     @default("")
+  payments                    Payment[]  @relation("Payment_paymentProvider")
+  createdAt                   DateTime   @default(now())
+  updatedAt                   DateTime   @default(now()) @updatedAt
+
+  @@index([brokerageId])
+}
+
+model Payment {
+  id                      String             @id @default(cuid())
+  brokerage               Brokerage?         @relation("Payment_brokerage", fields: [brokerageId], references: [id])
+  brokerageId             String?            @map("brokerage")
+  purpose                 PaymentPurposeType
+  status                  PaymentStatusType  @default(pending)
+  amountMinor             Int
+  currency                String             @default("USD")
+  providerPaymentId       String             @unique @default("")
+  providerPaymentIntentId String             @default("")
+  idempotencyKey          String             @unique @default("")
+  accessToken             String             @unique @default("")
+  payerName               String             @default("")
+  payerEmail              String             @default("")
+  checkoutUrl             String             @default("")
+  paidAt                  DateTime?
+  refundedMinor           Int?               @default(0)
+  lastCheckedAt           DateTime?
+  paymentProvider         PaymentProvider?   @relation("Payment_paymentProvider", fields: [paymentProviderId], references: [id])
+  paymentProviderId       String?            @map("paymentProvider")
+  property                Property?          @relation("Payment_property", fields: [propertyId], references: [id])
+  propertyId              String?            @map("property")
+  lead                    Lead?              @relation("Payment_lead", fields: [leadId], references: [id])
+  leadId                  String?            @map("lead")
+  deal                    Deal?              @relation("Payment_deal", fields: [dealId], references: [id])
+  dealId                  String?            @map("deal")
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @default(now()) @updatedAt
+
+  @@index([brokerageId])
+  @@index([paymentProviderId])
+  @@index([propertyId])
+  @@index([leadId])
+  @@index([dealId])
+}
+
+model PaymentWebhookReceipt {
+  id        String   @id @default(cuid())
+  eventKey  String   @unique @default("")
+  eventType String   @default("")
+  outcome   String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
 enum DomainOutboxEventStatusType {
   pending
   processing
@@ -1777,4 +1850,20 @@ enum TransactionFileEventEventTypeType {
   export_manifested
   disposition_requested
   tombstoned
+}
+
+enum PaymentPurposeType {
+  application_fee
+  holding_deposit
+  rent
+  agent_fee
+}
+
+enum PaymentStatusType {
+  pending
+  authorized
+  captured
+  refunded
+  failed
+  unknown
 }

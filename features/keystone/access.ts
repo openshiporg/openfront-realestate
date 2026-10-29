@@ -165,6 +165,8 @@ export const permissions = {
     hasRoleFlag(session, 'canManagePeople') && hasRoleFlag(session, 'canAccessDashboard') && activeBrokerageIds(session).length > 0,
   canReadLeads: ({ session }: AccessArgs) =>
     hasRoleFlag(session, 'canManageLeads'),
+  canReadPayments: ({ session }: AccessArgs) =>
+    (hasRoleFlag(session, 'canManageLeads') || hasRoleFlag(session, 'canManageDeals') || hasRoleFlag(session, 'canManagePeople')) && activeBrokerageIds(session).length > 0,
   canReadShowings: ({ session }: AccessArgs) =>
     hasRoleFlag(session, 'canManageShowings'),
   canReadDeals: ({ session }: AccessArgs) =>

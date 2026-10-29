@@ -96,6 +96,7 @@ export const Lead = list({
     assignedTeam: relationship({ ref: 'AgentTeam.leads', access: { create: permissions.canManagePeople, update: permissions.canManagePeople } }),
     showings: relationship({ ref: "Showing.lead", many: true, access: { create: () => false, update: () => false } }),
     activities: relationship({ ref: "LeadActivity.lead", many: true, access: { create: () => false, update: () => false } }),
+    payments: relationship({ ref: 'Payment.lead', many: true, access: { create: () => false, update: () => false } }),
     representationAuthorities: relationship({ ref: 'RepresentationAuthority.lead', many: true, access: { create: () => false, update: () => false } }),
     displayLabel: virtual({
       field: graphql.field({

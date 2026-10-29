@@ -77,6 +77,7 @@ export const Deal = list({
     lead: relationship({ ref: "Lead", access: { update: () => false } }),
     assignedAgent: relationship({ ref: "User.assignedDeals", access: { create: permissions.canManagePeople, update: permissions.canManagePeople } }),
     assignedTeam: relationship({ ref: 'AgentTeam.deals', access: { create: permissions.canManagePeople, update: permissions.canManagePeople } }),
+    payments: relationship({ ref: 'Payment.deal', many: true, access: { create: () => false, update: () => false } }),
     representationAuthorities: relationship({ ref: 'RepresentationAuthority.deal', many: true, access: { create: () => false, update: () => false } }),
     documentEvidenceEvents: relationship({ ref: 'DocumentEvidenceEvent.deal', many: true, access: { create: () => false, update: () => false } }),
     commissionLedgerEntries: relationship({ ref: 'CommissionLedgerEntry.deal', many: true, access: { create: () => false, update: () => false } }),

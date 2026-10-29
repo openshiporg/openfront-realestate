@@ -52,6 +52,8 @@ export const Brokerage = list({
     commissionLedgerEntries: relationship({ ref: 'CommissionLedgerEntry.brokerage', many: true }),
     retentionPolicies: relationship({ ref: 'RetentionPolicy.brokerage', many: true }),
     transactionFileEvents: relationship({ ref: 'TransactionFileEvent.brokerage', many: true }),
+    paymentProviders: relationship({ ref: 'PaymentProvider.brokerage', many: true }),
+    payments: relationship({ ref: 'Payment.brokerage', many: true }),
     auditEvents: relationship({ ref: 'DomainAuditEvent.brokerage', many: true }),
     outboxEvents: relationship({ ref: 'DomainOutboxEvent.brokerage', many: true }),
     ...trackingFields,

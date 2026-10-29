@@ -93,10 +93,13 @@ export const Property = list({
     leaseTerm: text({ ui: { description: "For rentals, e.g. 12 months" } }),
     securityDeposit: integer({ validation: { min: 0 }, ui: { description: "For rentals, in whole dollars" } }),
     petPolicy: text({ ui: { description: "For rentals, e.g. Cats and small dogs allowed" } }),
+    // Set by the brokerage per rental listing (minor units, e.g. 5500 = $55.00). Empty means no fee is collected.
+    applicationFeeMinor: integer({ validation: { min: 1, max: 100000 }, ui: { description: "For rentals: application fee in cents. Leave empty for no fee. Check your state's screening-fee cap." } }),
     primaryImageUrl: text(),
     assignedAgent: relationship({ ref: "User.assignedProperties", access: { create: permissions.canManagePeople, update: permissions.canManagePeople } }),
     leads: relationship({ ref: "Lead.property", many: true, access: { create: () => false, update: () => false } }),
     showings: relationship({ ref: "Showing.property", many: true, access: { create: () => false, update: () => false } }),
+    payments: relationship({ ref: 'Payment.property', many: true, access: { create: () => false, update: () => false } }),
     savedBy: relationship({ ref: "SavedProperty.property", many: true, access: { create: () => false, update: () => false } }),
     listingEngagementAuthorities: relationship({ ref: 'ListingEngagementAuthority.property', many: true, access: { create: () => false, update: () => false } }),
     listingPublicationAuthorities: relationship({ ref: 'ListingPublicationAuthority.property', many: true, access: { create: () => false, update: () => false } }),
