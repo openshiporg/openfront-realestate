@@ -4,7 +4,7 @@ export type ListingDetail = {
   id: string; title: string; slug: string; status: string; listingType: string; propertyType: string
   shortDescription: string; description: string; addressLine1: string; addressLine2: string; city: string; state: string; postalCode: string; neighborhood: string
   price: string; bedrooms: number | null; bathrooms: string | null; squareFeet: number | null; lotSizeSquareFeet: number | null; yearBuilt: number | null
-  hoaFee: string | null; availableAt: string | null; isFeatured: boolean; virtualTourUrl: string; leaseTerm: string; securityDeposit: number | null; petPolicy: string
+  hoaFee: string | null; availableAt: string | null; isFeatured: boolean; virtualTourUrl: string; leaseTerm: string; securityDeposit: number | null; applicationFeeMinor: number | null; petPolicy: string
   primaryImageUrl: string; updatedAt: string
   assignedAgent: { id: string; name: string } | null
 }
@@ -16,7 +16,7 @@ export type ListingSyndicationRow = { id: string; channel: string; status: strin
 export type AgentOption = { id: string; name: string }
 
 const PROPERTY_FIELDS = `id title slug status listingType propertyType shortDescription description addressLine1 addressLine2 city state postalCode neighborhood
-  price bedrooms bathrooms squareFeet lotSizeSquareFeet yearBuilt hoaFee availableAt isFeatured virtualTourUrl leaseTerm securityDeposit petPolicy primaryImageUrl updatedAt
+  price bedrooms bathrooms squareFeet lotSizeSquareFeet yearBuilt hoaFee availableAt isFeatured virtualTourUrl leaseTerm securityDeposit applicationFeeMinor petPolicy primaryImageUrl updatedAt
   assignedAgent { id name }`
 
 async function section<T>(query: string, variables: Record<string, unknown>, pick: (data: any) => T, fallback: T): Promise<T> {

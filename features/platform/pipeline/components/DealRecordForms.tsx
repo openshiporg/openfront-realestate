@@ -58,7 +58,7 @@ export function EscrowDrawer(props: Parents) {
           <Field name="officerName" label="Officer" />
           <Field name="officerEmail" label="Officer email" type="email" />
           <Field name="scheduledCloseAt" label="Scheduled close" type="datetime-local" />
-          <Field name="depositAmount" label="Earnest deposit" inputMode="decimal" />
+          <Field name="depositAmount" label="Earnest money (recorded only; paid to the escrow company)" inputMode="decimal" wide />
         </RecordForm>
       )}
     </FormDrawer>

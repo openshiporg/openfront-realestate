@@ -57,6 +57,7 @@ export function ListingForm({ listing, agents, canAssign, onDone }: { listing?: 
       <Group title="Rental terms">
         <Field name="leaseTerm" label="Lease term" placeholder="12 months" defaultValue={listing?.leaseTerm} />
         <Field name="securityDeposit" label="Security deposit ($)" type="number" min={0} defaultValue={listing?.securityDeposit} />
+        <Field name="applicationFee" label="Application fee ($, optional)" inputMode="decimal" placeholder="Check your state cap" defaultValue={listing?.applicationFeeMinor ? (listing.applicationFeeMinor / 100).toFixed(2) : ""} />
         <Field name="petPolicy" label="Pets" wide defaultValue={listing?.petPolicy} />
       </Group>
       <Group title="Storefront">

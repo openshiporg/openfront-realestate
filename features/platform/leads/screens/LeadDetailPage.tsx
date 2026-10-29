@@ -6,6 +6,7 @@ import { ErrorBanner, Meta, Panel, PlatformPage, TitleLine, trackItemClass } fro
 import { getPlatformLeadDetail, getShowingRequestViewer } from '../actions/leads'
 import { LogActivityButton, ScheduleShowingButton } from '../components/LeadDetailDrawers'
 import { LeadRowActions } from '../components/LeadRowActions'
+import { RequestPaymentDrawer } from '../../payments/components/PaymentForms'
 import { LocalizedText } from '../components/LocalizedText'
 import { OriginalShowingRecovery } from '../components/PendingShowingForms'
 import { ResponseClock } from '../components/ResponseClock'
@@ -47,11 +48,14 @@ export async function LeadDetailPage({ params, searchParams }: PageProps) {
         </span>
       ) : null}
       actions={lead && !failed ? (
+        <div className="flex flex-wrap items-center gap-2">
+        <RequestPaymentDrawer leadId={id} disabled={['closed', 'lost'].includes(lead.status)} />
         <LeadRowActions
           showContact
           viewer={viewer}
           lead={{ id, name: lead.name, status: lead.status, phone: lead.phone, email: lead.email, propertyId: lead.property?.id, assignedAgentId: lead.assignedAgent?.id }}
         />
+        </div>
       ) : null}
     >
       <div className="space-y-5 pb-16">

@@ -8,6 +8,7 @@ import { ChecklistDrawer, CommissionAction, CounterOfferDrawer, DealOfferDrawer,
 import { LocalDateTime } from '../../showings/components/LocalDateTime'
 import { DealFinancialTermsForm, DealNextStepForm } from '../components/DealActionForms'
 import { DealRowActions } from '../components/DealRowActions'
+import { RequestPaymentDrawer } from '../../payments/components/PaymentForms'
 import { ClosingStatusTrack, CommissionDrawer, DocumentDrawer, EscrowDrawer, InspectionDrawer, MortgageDrawer, TitleDrawer } from '../components/DealRecordForms'
 import { getDealOptions, getDealWorkspace } from '../lib/dealWorkspace'
 import { dealStages } from '../lib/stages'
@@ -137,7 +138,7 @@ export async function DealDetailPage({ params }: { params: Promise<{ id: string 
                   </Row>
                 )} />
                 <Rows items={workspace.escrows} empty="No escrow" render={item => (
-                  <Row title={`${item.escrowCompany} · ${item.escrowNumber}`} status={item.status} meta={[item.officerName, item.depositAmount ? `${amount(item.depositAmount)} deposit` : ''].filter(Boolean).join(' · ') || undefined}>
+                  <Row title={`${item.escrowCompany} · ${item.escrowNumber}`} status={item.status} meta={[item.officerName, item.depositAmount ? `Earnest money ${amount(item.depositAmount)}, paid to ${item.escrowCompany || 'escrow'}` : ''].filter(Boolean).join(' · ') || undefined}>
                     <ClosingStatusTrack kind="escrow" recordId={item.id} dealId={deal.id} current={item.status} options={[['pending', 'Pending'], ['closed', 'Closed'], ['cancelled', 'Cancelled']]} />
                   </Row>
                 )} />
@@ -163,7 +164,7 @@ export async function DealDetailPage({ params }: { params: Promise<{ id: string 
       crumbs={[{ label: 'Pipeline', href: '/platform/pipeline' }, { label: deal.title }]}
       title={<TitleLine as="h1" tone={stage?.[2] || 'zinc'} status={stage?.[1] || human(deal.stage)} headingClassName="text-2xl tracking-tight">{deal.title}</TitleLine>}
       meta={<>{human(deal.transactionType)} · {deal.assignedAgent?.name || 'Unassigned'}{deal.expectedCloseDate ? <> · Close <LocalDateTime value={deal.expectedCloseDate} options={{ dateStyle: 'medium' }} /></> : null}</>}
-      actions={open ? <DealRowActions editInMenu={false} deal={{ id: deal.id, title: deal.title, stage: deal.stage }} /> : null}
+      actions={open ? <div className="flex flex-wrap items-center gap-2">{deal.lead ? <RequestPaymentDrawer leadId={deal.lead.id} dealId={deal.id} /> : null}<DealRowActions editInMenu={false} deal={{ id: deal.id, title: deal.title, stage: deal.stage }} /></div> : null}
       toolbar={deal.stage !== 'closed_lost' ? (
         <nav aria-label="Deal stages" className="relative -mx-4 overflow-x-auto px-4 [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin] md:mx-0 md:px-0">
           <ol className="flex min-w-max items-center gap-0 border-b border-border pb-2.5 text-[13px]">

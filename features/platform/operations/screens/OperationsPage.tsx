@@ -270,7 +270,7 @@ function ClosingsSection({ workspace, now }: { workspace: OperationsWorkspace; n
   const closingRecords = [
     ...workspace.mortgages.map((item) => ({ id: `mortgage:${item.id}`, kind: 'Mortgage', number: item.applicationNumber, company: item.lenderName || 'No lender', status: item.status, deal: item.deal?.title, amount: money(item.loanAmount) })),
     ...workspace.titleOrders.map((item) => ({ id: `title:${item.id}`, kind: 'Title', number: item.orderNumber, company: item.titleCompany || 'No title company', status: item.status, deal: item.deal?.title, amount: '' })),
-    ...workspace.escrows.map((item) => ({ id: `escrow:${item.id}`, kind: 'Escrow', number: item.escrowNumber, company: item.escrowCompany || 'No escrow company', status: item.status, deal: item.deal?.title, amount: item.depositAmount ? `Deposit ${money(item.depositAmount)}` : '' })),
+    ...workspace.escrows.map((item) => ({ id: `escrow:${item.id}`, kind: 'Escrow', number: item.escrowNumber, company: item.escrowCompany || 'No escrow company', status: item.status, deal: item.deal?.title, amount: item.depositAmount ? `Earnest money ${money(item.depositAmount)} · Paid to ${item.escrowCompany || 'escrow'}` : '' })),
   ]
   return (
     <div className="space-y-6">

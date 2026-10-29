@@ -1,4 +1,4 @@
-import { BarChart3, Building2, CalendarDays, ContactRound, KanbanSquare, ListChecks, LucideIcon, Route, Settings, Store, Users, Workflow } from 'lucide-react'
+import { BarChart3, CreditCard, Building2, CalendarDays, ContactRound, KanbanSquare, ListChecks, LucideIcon, Route, Settings, Store, Users, Workflow } from 'lucide-react'
 
 export interface PlatformNavItem {
   title: string
@@ -26,6 +26,8 @@ export const platformNavItems: PlatformNavItem[] = [
   { title: 'Lead Routing', href: '/platform/routing', color: 'emerald', description: 'Assign new leads by location, source and intent.', icon: Route, group: 'brokerage' },
   { title: 'Reports', href: '/platform/reports', color: 'indigo', description: 'Leads, showings, listings and commission.', icon: BarChart3, group: 'brokerage' },
   { title: 'Operations', href: '/platform/operations', color: 'rose', description: 'Offers, closings, commissions and records.', icon: Workflow, group: 'brokerage' },
+  { title: 'Payments', href: '/platform/payments', color: 'emerald', description: 'Application fees, deposits and rent.', icon: CreditCard, group: 'brokerage' },
+  { title: 'Payment providers', href: '/platform/payment-providers', color: 'slate', description: 'Connect Stripe to take payments.', icon: CreditCard, group: 'settings' },
   { title: 'Store Settings', href: '/platform/store-settings', color: 'emerald', description: 'Manage your brokerage details and storefront.', icon: Store, group: 'settings' },
   { title: 'Roles', href: '/roles', color: 'zinc', description: 'Manage staff roles and permissions.', icon: Settings, group: 'settings' },
 ]

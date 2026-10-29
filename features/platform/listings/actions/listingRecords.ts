@@ -35,12 +35,22 @@ function listingData(form: FormData) {
     virtualTourUrl: text(form, 'virtualTourUrl'),
     leaseTerm: text(form, 'leaseTerm'),
     securityDeposit: optionalInt(form, 'securityDeposit'),
+    applicationFeeMinor: applicationFeeMinor(form),
     petPolicy: text(form, 'petPolicy'),
     primaryImageUrl: text(form, 'primaryImageUrl'),
   }
 }
 
+/** Dollars typed by the brokerage, stored as integer cents. Empty means no application fee. */
+function applicationFeeMinor(form: FormData) {
+  const value = text(form, 'applicationFee').replace(/[$,\s]/g, '')
+  if (!value) return null
+  if (!/^\d{1,4}(?:\.\d{1,2})?$/.test(value)) return Number.NaN
+  return Math.round(Number(value) * 100)
+}
+
 function validate(data: ReturnType<typeof listingData>, form: FormData) {
+  if (Number.isNaN(data.applicationFeeMinor) || (data.applicationFeeMinor !== null && (data.applicationFeeMinor < 1 || data.applicationFeeMinor > 100000))) return 'Enter the application fee in dollars, up to $1,000, or leave it empty.'
   if (!data.title) return 'Enter a title.'
   if (!data.addressLine1 || !data.city || !/^[A-Z]{2}$/.test(data.state)) return 'Enter the street address, city and two-letter state.'
   if (!money(form, 'price')) return 'Enter a price.'

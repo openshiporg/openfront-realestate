@@ -63,6 +63,7 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
               {rental ? <>
                 <Meta label="Lease term">{listing.leaseTerm || '—'}</Meta>
                 <Meta label="Deposit">{listing.securityDeposit ? formatMoney(String(listing.securityDeposit)) : '—'}</Meta>
+                <Meta label="Application fee">{listing.applicationFeeMinor ? formatMoney((listing.applicationFeeMinor / 100).toFixed(2)) : 'None'}</Meta>
                 <Meta label="Pets">{listing.petPolicy || '—'}</Meta>
               </> : null}
             </dl>
