@@ -1,6 +1,10 @@
+<!-- logo -->
+
 # Openfront Real Estate
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fopenshiporg%2Fopenfront-real-estate&env=DATABASE_URL%2CSESSION_SECRET)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fopenshiporg%2Fopenfront-realestate&env=DATABASE_URL%2CSESSION_SECRET)
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/openfront-real-estate)
 
 Openfront Real Estate is a self-hostable property-listing and brokerage-operations application. Visitors can explore properties and request information or showings. Brokerage teams manage listings, leads, showings, offers, deals, documents, tasks, and commission records.
 
@@ -10,12 +14,10 @@ Openfront Real Estate is a self-hostable property-listing and brokerage-operatio
 
 ![Skyline image used by the Real Estate storefront](public/images/real-estate/photos/hero-austin-skyline.jpg)
 
-Explore the application locally using the setup instructions below.
-
 | | |
 |---|---|
-| **Public application** | `/` on your development URL |
-| **Dashboard** | `/dashboard` on your development URL |
+| **Storefront** | [real-estate.openship.org](https://real-estate.openship.org) |
+| **Dashboard** | [real-estate.openship.org/dashboard](https://real-estate.openship.org/dashboard) |
 
 [Learn more →](https://openship.org/products/openfront-real-estate)
 
