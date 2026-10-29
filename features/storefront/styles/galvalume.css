@@ -317,6 +317,10 @@
   .sf-feature__plaque strong { font-family: var(--sf-display); font-weight: 700; font-size: 1.375rem; line-height: 1.1; }
   .sf-feature__figures { display: flex; align-items: baseline; gap: 0.75rem; font-family: var(--sf-display); font-weight: 700; font-size: 1.5rem; }
   .sf-feature__figures small { font-weight: 500; font-size: 1rem; color: var(--sf-muted); }
+  .sf-feature__facts { margin-block: 0.125rem; }
+  .sf-feature__facts > span { padding-inline: 0.5rem; white-space: nowrap; }
+  .sf-feature__facts > span:first-child { padding-left: 0; }
+  .sf-feature__facts > span + span { border-left: 1px solid var(--sf-seam); }
   .sf-feature__place { font-size: 0.875rem; color: var(--sf-muted); }
   /* Desktop: the feature stands beside the rows and is exactly as tall as them (photo fills the bay),
      so the section ends with the last row instead of leaving a dead bay under it. */
@@ -411,7 +415,7 @@
   .sf-gallery__controls .sf-icon-btn { border: 0; }
   .sf-gallery__plaque { display: flex; justify-content: space-between; gap: 1rem; padding: 0.5rem 0.875rem; background-color: var(--sf-roof); color: var(--sf-roof-ink); font-family: var(--sf-display); font-weight: 600; font-size: 1.0625rem; letter-spacing: 0.01em; }
   .sf-gallery__plaque span:last-child:not(:first-child) { color: var(--sf-roof-muted); white-space: nowrap; }
-  .sf-gallery__strip { position: relative; display: flex; gap: 1px; overflow-x: auto; background: var(--sf-seam); scroll-snap-type: x mandatory; scrollbar-width: thin; }
+  .sf-gallery__strip { position: relative; display: flex; gap: 1px; overflow-x: auto; background-color: var(--sf-roof); background-image: var(--sf-roof-seams); scroll-snap-type: x mandatory; scrollbar-width: thin; }
   .sf-gallery__strip button { flex: none; width: 6.5rem; aspect-ratio: 3 / 2; padding: 0; border: 0; background: var(--sf-roof); cursor: pointer; scroll-snap-align: start; position: relative; }
   .sf-gallery__strip img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; transition: opacity 160ms ease; }
   .sf-gallery__strip button:hover img, .sf-gallery__strip button[aria-pressed="true"] img { opacity: 1; }
@@ -515,14 +519,15 @@
 
   /* ---------- Footer: the roof again ---------- */
   .sf-footer { margin-top: clamp(3rem, 6vw, 4.5rem); padding-block: 2.5rem 1.25rem; background-color: var(--sf-roof); background-image: var(--sf-roof-seams); color: var(--sf-roof-ink); }
-  .sf-footer__grid { display: grid; gap: 2rem; }
-  @media (min-width: 40rem) { .sf-footer__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  /* Phone: Browse and Your account sit side by side; brand and contact take the full width. */
+  .sf-footer__grid { display: grid; gap: 2rem 1.5rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 39.99rem) { .sf-footer__brand, .sf-footer__grid > div:last-child { grid-column: 1 / -1; } }
   @media (min-width: 64rem) { .sf-footer__grid { grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); } }
   .sf-footer__brand { display: grid; gap: 1rem; align-content: start; }
   .sf-footer__brand p { max-width: 40ch; color: var(--sf-roof-muted); font-size: 0.9375rem; }
   .sf-footer h2 { font-family: var(--sf-display); font-weight: 600; font-size: 1.125rem; color: var(--sf-roof-muted); margin-bottom: 0.5rem; }
   .sf-footer ul, .sf-footer address { display: grid; font-style: normal; }
-  .sf-footer ul a, .sf-footer address > * { display: inline-flex; align-items: center; min-height: 2.25rem; font-size: 0.9375rem; overflow-wrap: anywhere; }
+  .sf-footer ul a, .sf-footer address > * { display: inline-flex; align-items: center; min-height: 2.5rem; font-size: 0.9375rem; overflow-wrap: anywhere; }
   .sf-footer ul a:hover, .sf-footer address a:hover { text-decoration: underline; text-underline-offset: 0.2em; }
   .sf-footer address span { color: var(--sf-roof-muted); }
   .sf-footer__legal { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.75rem 2rem; margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--sf-roof-2); font-size: 0.8125rem; color: var(--sf-roof-muted); }

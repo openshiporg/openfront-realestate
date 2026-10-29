@@ -4,6 +4,17 @@ import { formatPrice, formatPricePerSqFt, listingPlace, listingStatusPlate, list
 import { SaveHomeButton } from '@/features/storefront/components/SaveHomeButton'
 import { HomePhotoFallback } from '@/features/storefront/components/HomePhotoFallback'
 
+/** Beds, baths and size as [value, unit] pairs; land shows its lot instead. */
+export function listingFacts(listing: StorefrontProperty): Array<[string, string]> {
+  const land = listing.propertyType === 'land'
+  return [
+    ...(!land && listing.bedrooms ? [[String(listing.bedrooms), 'bd'] as [string, string]] : []),
+    ...(!land && Number(listing.bathrooms) > 0 ? [[String(Number(listing.bathrooms)), 'ba'] as [string, string]] : []),
+    ...(listing.squareFeet ? [[listing.squareFeet.toLocaleString('en-US'), 'sq ft'] as [string, string]] : []),
+    ...(land && listing.lotSizeSquareFeet ? [[listing.lotSizeSquareFeet.toLocaleString('en-US'), 'sq ft lot'] as [string, string]] : []),
+  ]
+}
+
 export type SaveState = { signedIn: boolean; savedIds: Record<string, string> }
 
 /**
@@ -12,16 +23,10 @@ export type SaveState = { signedIn: boolean; savedIds: Record<string, string> }
  */
 export function ListingCard({ listing, priority = false, save, layout = 'module' }: { listing: StorefrontProperty; priority?: boolean; save?: SaveState; layout?: 'module' | 'row' }) {
   const href = `/listings/${listing.slug}`
-  const land = listing.propertyType === 'land'
   const perFoot = formatPricePerSqFt(listing)
   const place = listingPlace(listing)
   const saved = Boolean(save?.savedIds[listing.id])
-  const facts: Array<[string, string]> = [
-    ...(!land && listing.bedrooms ? [[String(listing.bedrooms), 'bd'] as [string, string]] : []),
-    ...(!land && Number(listing.bathrooms) > 0 ? [[String(Number(listing.bathrooms)), 'ba'] as [string, string]] : []),
-    ...(listing.squareFeet ? [[listing.squareFeet.toLocaleString('en-US'), 'sq ft'] as [string, string]] : []),
-    ...(land && listing.lotSizeSquareFeet ? [[listing.lotSizeSquareFeet.toLocaleString('en-US'), 'sq ft lot'] as [string, string]] : []),
-  ]
+  const facts = listingFacts(listing)
 
   return (
     <article className={`sf-card sf-card--${layout}`} data-saved={saved || undefined}>

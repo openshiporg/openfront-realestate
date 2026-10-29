@@ -10,7 +10,7 @@ import { getStorefrontListingPageHref, getStorefrontListings, hasListingFilters,
 import { getSavedPropertyIds } from '@/features/storefront/lib/data/saved'
 import { getBrokerageSettings } from '@/features/storefront/lib/data/settings'
 import { emailHref, formatPrice, formatPricePerSqFt, initials, listingPlace, listingStatusPlate, listingTone, phoneHref, resultCountLabel, resultsHeading } from '@/features/storefront/lib/format'
-import { ListingCard } from './ListingCard'
+import { ListingCard, listingFacts } from './ListingCard'
 
 const RASTER = /\.(?:jpe?g|png|webp)$/i
 const HOME_ROWS = 4
@@ -143,6 +143,11 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
                     <span className="sf-num">{formatPrice(featured)}</span>
                     {formatPricePerSqFt(featured) ? <small className="sf-num">{formatPricePerSqFt(featured)}/sq ft</small> : null}
                   </span>
+                  {listingFacts(featured).length ? (
+                    <span className="sf-card__facts sf-feature__facts">
+                      {listingFacts(featured).map(([value, unit]) => <span key={unit}><b className="sf-num">{value}</b> {unit}</span>)}
+                    </span>
+                  ) : null}
                   {listingPlace(featured) ? <span className="sf-feature__place">{listingPlace(featured)}</span> : null}
                 </span>
               </Link>
