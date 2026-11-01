@@ -16,10 +16,7 @@ export function StorefrontFooter({ settings, sections = { neighborhoods: true, a
           <div className="sf-footer__brand">
             <span className="sf-lockup">
               <BrokerageMark className="sf-lockup__mark" logoIcon={settings.logoIcon} logoColor={settings.logoColor} />
-              <span className="sf-lockup__name">
-                <strong>{settings.businessName}</strong>
-                {settings.marketLabel ? <small>{settings.marketLabel}</small> : null}
-              </span>
+              <span className="sf-lockup__name">{settings.businessName}</span>
             </span>
             {settings.description ? <p>{settings.description}</p> : null}
           </div>
@@ -30,7 +27,7 @@ export function StorefrontFooter({ settings, sections = { neighborhoods: true, a
               <li><Link href="/listings?type=sale">Homes for sale</Link></li>
               <li><Link href="/listings?type=rent">Homes for rent</Link></li>
               {sections.neighborhoods ? <li><Link href="/#neighborhoods">Neighborhoods</Link></li> : null}
-              {sections.advisors ? <li><Link href="/#advisors">Advisors</Link></li> : null}
+              {sections.advisors ? <li><Link href="/#agents">Agents</Link></li> : null}
             </ul>
           </nav>
 

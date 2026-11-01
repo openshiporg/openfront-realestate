@@ -135,3 +135,40 @@ export function resultCountLabel(result: { count: number; skip: number; hasMore:
   if (result.count === 0) return 'No homes'
   return result.hasMore ? `${total}+ homes` : `${total} ${total === 1 ? 'home' : 'homes'}`
 }
+
+/** Map-pin price: "$689K", "$1.45M"; rentals read per month, e.g. "$3.8K/mo". */
+export function formatPriceShort(listing: Pick<StorefrontProperty, 'price' | 'listingType'>) {
+  const price = Number(listing.price)
+  if (!Number.isFinite(price) || price <= 0) return ''
+  const label = price >= 1_000_000
+    ? `$${(price / 1_000_000).toFixed(price >= 10_000_000 ? 1 : 2).replace(/\.?0+$/, '')}M`
+    : price >= 10_000 ? `$${Math.round(price / 1000)}K`
+    : price >= 1000 ? `$${(price / 1000).toFixed(1).replace(/\.0$/, '')}K`
+    : `$${Math.round(price)}`
+  return listing.listingType === 'rent' ? `${label}/mo` : label
+}
+
+/** Card and page heading: the street address the way a buyer says it, else the listing title. */
+export function listingAddress(listing: Pick<StorefrontProperty, 'addressLine1' | 'addressLine2' | 'title'>) {
+  const line = [listing.addressLine1, listing.addressLine2].map(part => part?.trim()).filter(Boolean).join(' ')
+  return line || listing.title
+}
+
+/** "Sun 1–3 PM" in the listing's own time zone. */
+export function openHouseWindow(startsAt: string, endsAt: string, timeZone: string | null) {
+  const start = new Date(startsAt), end = new Date(endsAt)
+  if (!Number.isFinite(start.getTime())) return ''
+  const zone = timeZone ? { timeZone } : {}
+  const day = new Intl.DateTimeFormat('en-US', { weekday: 'short', ...zone }).format(start)
+  const parts = (date: Date) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', ...zone }).formatToParts(date)
+  const clock = (date: Date) => {
+    const p = parts(date)
+    const hour = p.find(x => x.type === 'hour')?.value || ''
+    const minute = p.find(x => x.type === 'minute')?.value || '00'
+    return { text: minute === '00' ? hour : `${hour}:${minute}`, period: p.find(x => x.type === 'dayPeriod')?.value || '' }
+  }
+  const a = clock(start)
+  if (!Number.isFinite(end.getTime())) return `${day} ${a.text} ${a.period}`
+  const b = clock(end)
+  return a.period === b.period ? `${day} ${a.text}–${b.text} ${b.period}` : `${day} ${a.text} ${a.period}–${b.text} ${b.period}`
+}

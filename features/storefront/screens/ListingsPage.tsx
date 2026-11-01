@@ -1,8 +1,9 @@
-import type { CSSProperties } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { X } from 'lucide-react'
 import { ListingSearchForm } from '@/features/storefront/components/ListingSearchForm'
+import { listingPins } from '@/features/storefront/lib/map-pins'
+import { SearchSplit } from '@/features/storefront/components/SearchSplit'
 import { SaveSearchButton } from '@/features/storefront/components/SaveSearchButton'
 import { SortSelect } from '@/features/storefront/components/SortSelect'
 import { StorefrontFooter } from '@/features/storefront/components/StorefrontFooter'
@@ -12,7 +13,7 @@ import { getStorefrontListingPageHref, getStorefrontListings, hasListingFilters,
 import { getSavedPropertyIds } from '@/features/storefront/lib/data/saved'
 import { STOREFRONT_LISTING_PAGE_SIZE } from '@/features/storefront/lib/data/listingPagination'
 import { getBrokerageSettings } from '@/features/storefront/lib/data/settings'
-import { resultCountLabel, resultsHeading } from '@/features/storefront/lib/format'
+import { formatPriceShort, resultCountLabel, resultsHeading } from '@/features/storefront/lib/format'
 import { ListingCard } from './ListingCard'
 
 const typeLabels: Record<string, string> = { house: 'Houses', condo: 'Condos', townhome: 'Townhomes', multi_family: 'Multi-family', land: 'Land', commercial: 'Commercial' }
@@ -60,9 +61,9 @@ export default async function ListingsPage({ searchParams }: Props) {
 
   return (
     <>
-      <StorefrontNav settings={settings} />
-      <ListingSearchForm key={JSON.stringify(params)} params={params} marketCity={settings.city} action="/listings" countLabel={countLabel} />
-      <main className="sf-container sf-results">
+      <StorefrontNav settings={settings} search={<ListingSearchForm key={JSON.stringify(params)} params={params} marketCity={settings.city} action="/listings" countLabel={countLabel} />} />
+      <main className="sf-results">
+        <SearchSplit pins={listingPins(listings, listing => formatPriceShort(listing))}>
         <header className="sf-results-head sf-results-head--bar">
           <div>
             <h1>{resultsHeading(params.type, settings.city)}</h1>
@@ -91,8 +92,8 @@ export default async function ListingsPage({ searchParams }: Props) {
             <p>{overflow ? 'Add a filter or go back a page.' : 'Try again later.'}</p>
           </div>
         ) : listings.length ? (
-          <div className="sf-modules" style={{ '--sf-count': listings.length } as CSSProperties}>
-            {listings.map((listing, index) => <ListingCard key={listing.id} listing={listing} priority={index < 4} save={save} />)}
+          <div className="sf-rows">
+            {listings.map((listing, index) => <ListingCard key={listing.id} listing={listing} priority={index < 3} save={save} layout="row" />)}
           </div>
         ) : (
           <div className="sf-state">
@@ -108,6 +109,7 @@ export default async function ListingsPage({ searchParams }: Props) {
             {hasMore ? <Link href={getStorefrontListingPageHref(params, skip + STOREFRONT_LISTING_PAGE_SIZE)} className="sf-btn sf-btn--primary">Next page</Link> : <span />}
           </nav>
         ) : null}
+        </SearchSplit>
       </main>
       <StorefrontFooter settings={settings} />
     </>

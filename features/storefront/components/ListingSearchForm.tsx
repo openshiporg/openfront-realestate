@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useRef, useState, useTransition, type FormEvent } from 'react'
-import { Search, SlidersHorizontal } from 'lucide-react'
+import { ChevronDown, MapPin, Search, SlidersHorizontal } from 'lucide-react'
 import type { ListingSearchParams } from '@/features/storefront/lib/data/properties'
 
 const propertyTypes = [
@@ -14,6 +14,11 @@ const propertyTypes = [
   ['land', 'Land'],
   ['commercial', 'Commercial'],
 ]
+
+const SALE_CAPS = [300_000, 500_000, 750_000, 1_000_000, 1_500_000, 2_000_000, 3_000_000]
+const RENT_CAPS = [1500, 2000, 2500, 3000, 4000, 5000, 7500]
+
+const short = (value: number) => value >= 1_000_000 ? `$${(value / 1_000_000).toString()}M` : value >= 10_000 ? `$${value / 1000}K` : `$${value.toLocaleString('en-US')}`
 
 function searchHref(action: string, form: HTMLFormElement) {
   const query = new URLSearchParams()
@@ -27,15 +32,18 @@ function searchHref(action: string, form: HTMLFormElement) {
 }
 
 /**
- * The metal search rail. A plain GET form (it works without script); with script, changing a
- * select reloads the results straight away and the rail's count reads "Updating" until they land.
+ * The search pill: area, price cap and beds, with the rest of the filters one tap away.
+ * A plain GET form (it works without script); with script, changing a select reloads the results straight away.
  */
 export function ListingSearchForm({ params, marketCity = '', action = '/listings', countLabel = '' }: { params: ListingSearchParams; marketCity?: string; action?: string; countLabel?: string }) {
   const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
   const [pending, startTransition] = useTransition()
   const [open, setOpen] = useState(false)
-  const extra = [params.minPrice, params.maxPrice, params.beds, params.baths, params.propertyType].filter(Boolean).length
+  const extra = [params.minPrice, params.baths, params.propertyType, params.type].filter(Boolean).length
+  const caps = params.type === 'rent' ? RENT_CAPS : SALE_CAPS
+  const cap = params.maxPrice ? Number(params.maxPrice) : 0
+  const capOptions = cap && !caps.includes(cap) ? [...caps, cap].sort((a, b) => a - b) : caps
 
   function go() {
     const form = formRef.current
@@ -46,50 +54,87 @@ export function ListingSearchForm({ params, marketCity = '', action = '/listings
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setOpen(false)
     go()
   }
 
   return (
-    <div className="sf-rail" data-pending={pending || undefined}>
-      <form ref={formRef} action={action} onSubmit={submit} className="sf-container sf-rail__form" role="search" aria-label="Search homes" data-open={open || undefined}>
-        {params.type ? <input type="hidden" name="type" value={params.type} /> : null}
-        {params.sort ? <input type="hidden" name="sort" value={params.sort} /> : null}
-        <label className="sf-rail__field sf-rail__area">
-          <span>Area</span>
-          <input name="q" defaultValue={params.q || ''} className="sf-field" placeholder={marketCity ? `Neighborhood, street or ZIP in ${marketCity}` : 'Neighborhood, street or ZIP'} autoComplete="off" maxLength={120} />
+    <form ref={formRef} action={action} onSubmit={submit} className="sf-search" role="search" aria-label="Search homes" data-open={open || undefined} data-pending={pending || undefined}>
+      {params.sort ? <input type="hidden" name="sort" value={params.sort} /> : null}
+      <div className="sf-search__pill">
+        <label className="sf-search__area">
+          <MapPin aria-hidden className="sf-search__pin" />
+          <Search aria-hidden className="sf-search__lens" />
+          <span className="sr-only">City, neighborhood, or ZIP</span>
+          <input name="q" defaultValue={params.q || ''} type="search" enterKeyHint="search" placeholder="City, neighborhood, or ZIP" data-phone-placeholder="Search location, price, beds" autoComplete="off" maxLength={120} />
         </label>
-        <button type="button" className="sf-rail__more" aria-expanded={open} aria-controls="sf-rail-filters" onClick={() => setOpen(value => !value)}>
-          <SlidersHorizontal aria-hidden /><span>Filters</span>{extra ? <b className="sf-num">{extra}</b> : null}
+        <label className="sf-search__select">
+          <span>Price</span>
+          <select name="maxPrice" defaultValue={params.maxPrice || ''} onChange={go}>
+            <option value="">Any Price</option>
+            {capOptions.map(value => <option key={value} value={String(value)}>Up to {short(value)}{params.type === 'rent' ? '/mo' : ''}</option>)}
+          </select>
+          <ChevronDown aria-hidden />
+        </label>
+        <label className="sf-search__select">
+          <span>Beds</span>
+          <select name="beds" defaultValue={params.beds || ''} onChange={go}>
+            <option value="">Any Beds</option>
+            {[1, 2, 3, 4, 5].map(value => <option key={value} value={String(value)}>{value}+ beds</option>)}
+          </select>
+          <ChevronDown aria-hidden />
+        </label>
+        <button type="button" className="sf-search__more" aria-expanded={open} aria-controls="sf-search-filters" onClick={() => setOpen(value => !value)} aria-label={extra ? `More filters, ${extra} on` : 'More filters'}>
+          <SlidersHorizontal aria-hidden />{extra ? <b className="sf-num">{extra}</b> : null}
         </button>
-        <div id="sf-rail-filters" className="sf-rail__filters">
-          <label className="sf-rail__field sf-rail__price">
-            <span>Min price</span>
-            <input name="minPrice" type="text" inputMode="numeric" autoComplete="off" maxLength={16} defaultValue={params.minPrice || ''} className="sf-field sf-num" placeholder="No min" />
-          </label>
-          <label className="sf-rail__field sf-rail__price">
-            <span>Max price</span>
-            <input name="maxPrice" type="text" inputMode="numeric" autoComplete="off" maxLength={16} defaultValue={params.maxPrice || ''} className="sf-field sf-num" placeholder="No max" />
-          </label>
-          <label className="sf-rail__field">
-            <span>Beds</span>
-            <select name="beds" defaultValue={params.beds || ''} className="sf-field" onChange={go}><option value="">Any</option><option value="1">1+</option><option value="2">2+</option><option value="3">3+</option><option value="4">4+</option></select>
-          </label>
-          <label className="sf-rail__field">
-            <span>Baths</span>
-            <select name="baths" defaultValue={params.baths || ''} className="sf-field" onChange={go}><option value="">Any</option><option value="1">1+</option><option value="2">2+</option><option value="3">3+</option></select>
-          </label>
-          <label className="sf-rail__field">
-            <span>Home type</span>
-            <select name="propertyType" defaultValue={params.propertyType || 'any'} className="sf-field" onChange={go}>{propertyTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-          </label>
+        <button type="submit" className="sf-search__go" aria-label="Search"><Search aria-hidden /></button>
+      </div>
+      <button type="button" className="sf-search__filters-btn" aria-expanded={open} aria-controls="sf-search-filters" onClick={() => setOpen(value => !value)}>
+        <SlidersHorizontal aria-hidden /><span>Filters</span>{extra ? <b className="sf-num">{extra}</b> : null}
+      </button>
+
+      <div id="sf-search-filters" className="sf-search__panel" hidden={!open}>
+        <label className="sf-search__field sf-search__phone-only">
+          <span>Max price</span>
+          <select defaultValue={params.maxPrice || ''} className="sf-field" onChange={event => {
+            const main = formRef.current?.elements.namedItem('maxPrice') as HTMLSelectElement | null
+            if (main) main.value = event.target.value
+          }}>
+            <option value="">Any price</option>
+            {capOptions.map(value => <option key={value} value={String(value)}>Up to {short(value)}{params.type === 'rent' ? '/mo' : ''}</option>)}
+          </select>
+        </label>
+        <label className="sf-search__field sf-search__phone-only">
+          <span>Beds</span>
+          <select defaultValue={params.beds || ''} className="sf-field" onChange={event => {
+            const main = formRef.current?.elements.namedItem('beds') as HTMLSelectElement | null
+            if (main) main.value = event.target.value
+          }}>
+            <option value="">Any</option>
+            {[1, 2, 3, 4, 5].map(value => <option key={value} value={String(value)}>{value}+</option>)}
+          </select>
+        </label>
+        <label className="sf-search__field">
+          <span>For</span>
+          <select name="type" defaultValue={params.type || ''} className="sf-field"><option value="">Sale or rent</option><option value="sale">For sale</option><option value="rent">For rent</option></select>
+        </label>
+        <label className="sf-search__field">
+          <span>Min price</span>
+          <input name="minPrice" type="text" inputMode="numeric" autoComplete="off" maxLength={16} defaultValue={params.minPrice || ''} className="sf-field sf-num" placeholder="No min" />
+        </label>
+        <label className="sf-search__field">
+          <span>Baths</span>
+          <select name="baths" defaultValue={params.baths || ''} className="sf-field"><option value="">Any</option><option value="1">1+</option><option value="2">2+</option><option value="3">3+</option></select>
+        </label>
+        <label className="sf-search__field">
+          <span>Home type</span>
+          <select name="propertyType" defaultValue={params.propertyType || 'any'} className="sf-field">{propertyTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+        </label>
+        <div className="sf-search__apply">
+          {countLabel ? <output className="sf-search__count sf-num" aria-live="polite">{pending ? 'Updating' : countLabel}</output> : null}
+          <button type="submit" className="sf-btn sf-btn--primary">Show homes</button>
         </div>
-        <div className="sf-rail__go">
-          {countLabel ? <output className="sf-rail__count sf-num" aria-live="polite">{pending ? 'Updating' : countLabel}</output> : null}
-          <button type="submit" className="sf-btn sf-btn--primary sf-rail__submit" aria-label="Search">
-            <Search aria-hidden /><span>Search</span>
-          </button>
-        </div>
-      </form>
-    </div>
+      </div>
+    </form>
   )
 }

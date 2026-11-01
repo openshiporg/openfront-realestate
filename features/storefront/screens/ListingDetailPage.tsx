@@ -1,19 +1,25 @@
+import type { ReactNode } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, ArrowUpRight, CalendarDays, Mail, Phone } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Bath, BadgeCheck, BedDouble, CalendarDays, Mail, Phone, Ruler } from 'lucide-react'
 import { LocalDateTime } from '@/features/platform/showings/components/LocalDateTime'
 import { BrokerageMark } from '@/features/storefront/components/BrokerageMark'
 import { SaveHomeButton } from '@/features/storefront/components/SaveHomeButton'
 import { StickyShowingBar } from '@/features/storefront/components/StickyShowingBar'
 import { StorefrontFooter } from '@/features/storefront/components/StorefrontFooter'
 import { StorefrontNav } from '@/features/storefront/components/StorefrontNav'
+import { CompactSearch } from '@/features/storefront/components/CompactSearch'
+import { listingPins } from '@/features/storefront/lib/map-pins'
+import { MortgageEstimate } from '@/features/storefront/components/MortgageEstimate'
+import { SearchSplit } from '@/features/storefront/components/SearchSplit'
+import { estimatedMonthly } from '@/features/storefront/lib/mortgage'
 import { getCustomer } from '@/features/storefront/lib/data/account'
 import { getSavedPropertyIds } from '@/features/storefront/lib/data/saved'
-import { getStorefrontListingBySlug } from '@/features/storefront/lib/data/properties'
+import { getStorefrontListingBySlug, getStorefrontListings } from '@/features/storefront/lib/data/properties'
 import { getBrokerageSettings } from '@/features/storefront/lib/data/settings'
 import { ListingGallery } from '@/features/storefront/components/ListingGallery'
-import { emailHref, formatLocation, formatPrice, formatPricePerSqFt, initials, listingStatusLabel, listingStatusPlate, listingTone, phoneHref, propertyTypeLabel, resultsHeading } from '@/features/storefront/lib/format'
+import { emailHref, formatLocation, formatPrice, formatPricePerSqFt, formatPriceShort, initials, listingAddress, listingStatusLabel, listingStatusPlate, listingTone, phoneHref, propertyTypeLabel, resultsHeading } from '@/features/storefront/lib/format'
 import { formatMoney } from '@/features/lib/money'
 import { stateTimeZone, timeZoneLabel } from '@/features/lib/date-time'
 import { ListingActionPanel } from './ListingActionPanel'
@@ -64,7 +70,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
   const settingsState = await getBrokerageSettings()
   if (settingsState.status !== 'ready') return null
   const settings = settingsState.settings
-  const [result, customer] = await Promise.all([getStorefrontListingBySlug(slug), getCustomer()])
+  const [result, customer, nearby] = await Promise.all([getStorefrontListingBySlug(slug), getCustomer(), getStorefrontListings()])
   const savedIds = customer ? await getSavedPropertyIds() : {}
   if (!result.listing && !result.error) notFound()
   const listing = result.listing
@@ -131,112 +137,131 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
   const location = listing.neighborhood || listing.city
   const listingTimeZone = stateTimeZone(listing.state)
 
+  const nearbyListings = [listing, ...nearby.listings.filter(item => item.id !== listing.id)]
+  const pins = listingPins(nearbyListings, item => formatPriceShort(item))
+  const hoaMonthly = Number(listing.hoaFee) > 0 ? Number(listing.hoaFee) : 0
+  const price = Number(listing.price)
+  const forSale = listing.listingType !== 'rent' && price > 0
+  const monthly = forSale ? estimatedMonthly(price, hoaMonthly) : 0
+  const placeLine = [listing.neighborhood, [listing.city, [listing.state, listing.postalCode].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean)
+  const statFacts: Array<[ReactNode, string, string]> = [
+    ...(!land && listing.bedrooms ? [[<BedDouble key="i" aria-hidden />, String(listing.bedrooms), listing.bedrooms === 1 ? 'Bed' : 'Beds'] as [ReactNode, string, string]] : []),
+    ...(!land && Number(listing.bathrooms) > 0 ? [[<Bath key="i" aria-hidden />, String(Number(listing.bathrooms)), Number(listing.bathrooms) === 1 ? 'Bath' : 'Baths'] as [ReactNode, string, string]] : []),
+    ...(listing.squareFeet ? [[<Ruler key="i" aria-hidden />, listing.squareFeet.toLocaleString('en-US'), 'Sq Ft'] as [ReactNode, string, string]] : []),
+    ...(land && listing.lotSizeSquareFeet ? [[<Ruler key="i" aria-hidden />, listing.lotSizeSquareFeet.toLocaleString('en-US'), 'Sq Ft lot'] as [ReactNode, string, string]] : []),
+  ]
+
   return (
     <>
       <StorefrontNav settings={settings} />
-      <main>
-        <nav className="sf-container sf-crumbs" aria-label="Breadcrumb">
-          <Link href={listing.listingType === 'rent' ? '/listings?type=rent' : '/listings?type=sale'}><ArrowLeft aria-hidden />{resultsHeading(listing.listingType === 'rent' ? 'rent' : 'sale', settings.city)}</Link>
-          {location ? <Link href={`/listings?q=${encodeURIComponent(location)}`}>{location}</Link> : null}
-        </nav>
+      <main className="sf-detail-page">
+        <SearchSplit pins={pins} activeId={listing.id} variant="detail" overlay={<CompactSearch marketCity={settings.city} type={listing.listingType === 'rent' ? 'rent' : 'sale'} />}>
+          <nav className="sf-crumbs" aria-label="Breadcrumb">
+            <Link href={listing.listingType === 'rent' ? '/listings?type=rent' : '/listings?type=sale'}><ArrowLeft aria-hidden />{resultsHeading(listing.listingType === 'rent' ? 'rent' : 'sale', settings.city)}</Link>
+            {location ? <Link href={`/listings?q=${encodeURIComponent(location)}`}>{location}</Link> : null}
+          </nav>
 
-        <div className="sf-container sf-detail-top">
           <ListingGallery photos={photos} title={listing.title} plaque={formatLocation(listing)} />
 
-          <section className="sf-signplate" aria-labelledby="listing-title" data-saved={savedIds[listing.id] ? true : undefined}>
-            <div className="sf-signplate__status">
-              <span className="sf-plate" data-tone={listingTone(listing.status)}>{listingStatusPlate(listing)}</span>
-              <span>{propertyTypeLabel(listing.propertyType)}</span>
-              <SaveHomeButton className="sf-signplate__save" propertyId={listing.id} title={listing.title} slug={listing.slug} savedId={savedIds[listing.id] || null} signedIn={Boolean(customer)} />
-            </div>
-            <h1 id="listing-title" className="sf-signplate__title">{listing.title}</h1>
-            <p className="sf-signplate__address">{formatLocation(listing)}</p>
-            <p className="sf-signplate__price">
-              <span className="sf-num">{formatPrice(listing)}</span>
-              {perFoot ? <small className="sf-num">{perFoot}/sq ft</small> : null}
-            </p>
-            {keyFacts.length ? (
-              <dl className="sf-keyfacts">
-                {keyFacts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="sf-num">{value}</dd></div>)}
-              </dl>
-            ) : null}
-            {nextOpenHouse ? (
-              <p className="sf-signplate__openhouse">
-                <CalendarDays aria-hidden />
-                <span>Open house <LocalDateTime value={nextOpenHouse.startsAt} options={openHouseTime} /></span>
-              </p>
-            ) : null}
-            <div className="sf-signplate__actions">
-              <a href="#showing" className="sf-btn sf-btn--primary">Request a showing</a>
-              {rental && listing.applicationFeeMinor ? <a href="#apply" className="sf-btn sf-btn--quiet">Apply</a> : null}
-              <a href="#ask" className="sf-btn sf-btn--quiet">{listing.listingType === 'rent' ? 'Ask about applying' : 'Ask a question'}</a>
-            </div>
-            {listing.virtualTourUrl ? <a href={listing.virtualTourUrl} className="sf-link" target="_blank" rel="noopener noreferrer">Virtual tour <ArrowUpRight aria-hidden /></a> : null}
-          </section>
-        </div>
-
-        <div className="sf-container sf-detail">
-          <div className="sf-detail__main">
-            {listing.description || listing.shortDescription ? (
-              <section className="sf-prose">
-                <h2>About this home</h2>
-                <p>{listing.description || listing.shortDescription}</p>
-              </section>
-            ) : null}
-
-            {listing.openHouses.length ? (
-              <section className="sf-prose">
-                <h2>Open houses</h2>
-                <ul className="sf-openhouses">
-                  {listing.openHouses.map(openHouse => (
-                    <li key={openHouse.id} className="sf-openhouse">
-                      <span className="sf-openhouse__date" aria-hidden><LocalDateTime value={openHouse.startsAt} options={openHouseMonth} /><b><LocalDateTime value={openHouse.startsAt} options={openHouseDay} /></b></span>
-                      <div>
-                        <strong>{openHouse.title}</strong>
-                        <p><LocalDateTime value={openHouse.startsAt} options={openHouseTime} />{openHouse.hostName ? <>, hosted by {openHouse.hostName}</> : null}</p>
-                        <a className="sf-link" href={`/calendar/open-house/${encodeURIComponent(listing.slug)}/${encodeURIComponent(openHouse.id)}`}>Add to calendar</a>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-
-            {rentalTerms.length ? (
-              <section className="sf-prose">
-                <h2>Rental terms</h2>
-                <dl className="sf-facts">
-                  {rentalTerms.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-                </dl>
-                <p className="sf-prose__after"><a href="#ask" className="sf-link">Ask about applying</a></p>
-              </section>
-            ) : null}
-
-            <section className="sf-prose">
-              <h2>Details</h2>
-              <dl className="sf-facts">
-                {facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-              </dl>
+          <div className="sf-detail-head">
+            <section className="sf-detail-head__main" aria-labelledby="listing-title" data-saved={savedIds[listing.id] ? true : undefined}>
+              <div className="sf-detail-head__status">
+                <span className="sf-badge" data-tone={listingTone(listing.status)}>{listingStatusPlate(listing)}</span>
+                <span>{propertyTypeLabel(listing.propertyType)}</span>
+                <SaveHomeButton className="sf-detail-head__save" propertyId={listing.id} title={listing.title} slug={listing.slug} savedId={savedIds[listing.id] || null} signedIn={Boolean(customer)} />
+              </div>
+              <h1 id="listing-title" className="sf-detail-head__title">
+                {listingAddress(listing)}
+                {listing.status === 'active' ? <BadgeCheck aria-label="Active listing" className="sf-detail-head__verified" /> : null}
+              </h1>
+              {placeLine.length ? <p className="sf-detail-head__place">{placeLine.map((line, index) => <span key={index}>{line}{index < placeLine.length - 1 ? ',' : ''}</span>)}</p> : null}
+              <p className="sf-detail-head__price sf-num">{formatPrice(listing)}</p>
+              <div className="sf-detail-head__stats">
+                {statFacts.map(([icon, value, unit]) => <span key={unit}>{icon}<span className="sf-num">{value}</span> {unit}</span>)}
+                {monthly ? <span className="sf-chip sf-num">Est. ${monthly.toLocaleString('en-US')}/mo</span> : perFoot ? <span className="sf-chip sf-num">{perFoot}/sq ft</span> : null}
+              </div>
+              {nextOpenHouse ? (
+                <p className="sf-detail-head__openhouse">
+                  <CalendarDays aria-hidden />
+                  <span>Open house <LocalDateTime value={nextOpenHouse.startsAt} options={openHouseTime} /></span>
+                </p>
+              ) : null}
+              {listing.virtualTourUrl ? <a href={listing.virtualTourUrl} className="sf-link" target="_blank" rel="noopener noreferrer">Virtual tour <ArrowUpRight aria-hidden /></a> : null}
             </section>
+
+            <aside className="sf-detail-head__agent" aria-label="Listing agent">
+              <div className="sf-agent-card">
+                {agent
+                  ? agent.imagePath ? <img src={agent.imagePath} alt="" loading="eager" /> : <span className="sf-agent__initials" aria-hidden>{initials(agent.name)}</span>
+                  : <span className="sf-agent-card__mark" aria-hidden><BrokerageMark className="" logoIcon={settings.logoIcon} logoColor={settings.logoColor} /></span>}
+                <div>
+                  <strong>{agent ? agent.name : settings.businessName}</strong>
+                  <span>{agent ? agent.brokerageTitle || 'Listing agent' : 'Contact the office'}</span>
+                  {agent?.licenseNumber ? <span className="sf-num">License {agent.licenseNumber}</span> : null}
+                  <span className="sf-agent-card__links">
+                    {phoneLink ? <a href={phoneLink} aria-label={`Call ${advisorPhone}`}><Phone aria-hidden /><span className="sf-num">{advisorPhone}</span></a> : null}
+                    {emailLink ? <a href={emailLink} aria-label={`Email ${advisorEmail}`}><Mail aria-hidden /></a> : null}
+                  </span>
+                </div>
+              </div>
+              <div className="sf-agent-card__actions">
+                <a href="#showing" className="sf-btn sf-btn--primary">Request a showing <CalendarDays aria-hidden /></a>
+                <a href="#ask" className="sf-btn sf-btn--outline">{listing.listingType === 'rent' ? 'Ask about applying' : 'Message agent'}</a>
+              </div>
+              {rental && listing.applicationFeeMinor ? <a href="#apply" className="sf-link sf-agent-card__apply">Apply for this rental</a> : null}
+            </aside>
           </div>
 
-          <aside className="sf-detail__aside">
-            <div className="sf-advisor-card">
-              {agent
-                ? agent.imagePath ? <img src={agent.imagePath} alt="" loading="eager" /> : <span className="sf-advisor__initials" aria-hidden>{initials(agent.name)}</span>
-                : <span className="sf-advisor-card__mark" aria-hidden><BrokerageMark className="" logoIcon={settings.logoIcon} logoColor={settings.logoColor} /></span>}
-              <div>
-                <strong title={agent ? agent.name : undefined}>{agent ? agent.name : 'Contact the office'}</strong>
-                <span title={agent ? undefined : settings.businessName}>{agent ? agent.brokerageTitle || 'Listing advisor' : settings.businessName}</span>
-              </div>
-              <span className="sf-advisor-card__links">
-                {phoneLink ? <a href={phoneLink} className="sf-icon-btn" aria-label={`Call ${advisorPhone}`}><Phone aria-hidden /></a> : null}
-                {emailLink ? <a href={emailLink} className="sf-icon-btn" aria-label={`Email ${advisorEmail}`}><Mail aria-hidden /></a> : null}
-              </span>
+          <div className="sf-detail-body">
+            <div className="sf-detail-body__main">
+              {listing.description || listing.shortDescription ? (
+                <section className="sf-prose">
+                  <h2>About this home</h2>
+                  <p>{listing.description || listing.shortDescription}</p>
+                </section>
+              ) : null}
+
+              {listing.openHouses.length ? (
+                <section className="sf-prose">
+                  <h2>Open houses</h2>
+                  <ul className="sf-openhouses">
+                    {listing.openHouses.map(openHouse => (
+                      <li key={openHouse.id} className="sf-openhouse">
+                        <span className="sf-openhouse__date" aria-hidden><LocalDateTime value={openHouse.startsAt} options={openHouseMonth} /><b><LocalDateTime value={openHouse.startsAt} options={openHouseDay} /></b></span>
+                        <div>
+                          <strong>{openHouse.title}</strong>
+                          <p><LocalDateTime value={openHouse.startsAt} options={openHouseTime} />{openHouse.hostName ? <>, hosted by {openHouse.hostName}</> : null}</p>
+                          <a className="sf-link" href={`/calendar/open-house/${encodeURIComponent(listing.slug)}/${encodeURIComponent(openHouse.id)}`}>Add to calendar</a>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {rentalTerms.length ? (
+                <section className="sf-prose">
+                  <h2>Rental terms</h2>
+                  <dl className="sf-facts">
+                    {rentalTerms.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+                  </dl>
+                </section>
+              ) : null}
+
+              <section className="sf-prose">
+                <h2>Details</h2>
+                <dl className="sf-facts">
+                  {[...keyFacts.filter(([label]) => label === 'Lot sq ft'), ...facts].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+                </dl>
+              </section>
             </div>
-            <ListingActionPanel applicationFee={rental && listing.applicationFeeMinor ? { label: formatMoney((listing.applicationFeeMinor / 100).toFixed(2)) } : null} propertyId={listing.id} intent={listing.listingType === 'rent' ? 'rent' : 'buy'} customer={prefill} accountHref={accountHref} timeZone={listingTimeZone} timeZoneName={listingTimeZone ? timeZoneLabel(listingTimeZone) : ''} />
-          </aside>
-        </div>
+
+            <div className="sf-detail-body__aside">
+              {forSale ? <MortgageEstimate price={price} hoaMonthly={hoaMonthly} /> : null}
+              <ListingActionPanel applicationFee={rental && listing.applicationFeeMinor ? { label: formatMoney((listing.applicationFeeMinor / 100).toFixed(2)) } : null} propertyId={listing.id} intent={listing.listingType === 'rent' ? 'rent' : 'buy'} customer={prefill} accountHref={accountHref} timeZone={listingTimeZone} timeZoneName={listingTimeZone ? timeZoneLabel(listingTimeZone) : ''} />
+            </div>
+          </div>
+        </SearchSplit>
       </main>
       <StickyShowingBar>
         <div>
