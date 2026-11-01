@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, ArrowUpRight, Bath, BadgeCheck, BedDouble, CalendarDays, Mail, Phone, Ruler } from 'lucide-react'
 import { LocalDateTime } from '@/features/platform/showings/components/LocalDateTime'
 import { BrokerageMark } from '@/features/storefront/components/BrokerageMark'
+import { storeOwnMark } from '@/features/storefront/lib/store-mark'
 import { SaveHomeButton } from '@/features/storefront/components/SaveHomeButton'
 import { StickyShowingBar } from '@/features/storefront/components/StickyShowingBar'
 import { StorefrontFooter } from '@/features/storefront/components/StorefrontFooter'
@@ -193,7 +194,9 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
               <div className="sf-agent-card">
                 {agent
                   ? agent.imagePath ? <img src={agent.imagePath} alt="" loading="eager" /> : <span className="sf-agent__initials" aria-hidden>{initials(agent.name)}</span>
-                  : <span className="sf-agent-card__mark" aria-hidden><BrokerageMark className="" logoIcon={settings.logoIcon} logoColor={settings.logoColor} /></span>}
+                  : storeOwnMark(settings.logoIcon)
+                    ? <span className="sf-agent-card__mark" aria-hidden><BrokerageMark className="" logoIcon={settings.logoIcon} logoColor={settings.logoColor} /></span>
+                    : <span className="sf-agent__initials" aria-hidden>{initials(settings.businessName)}</span>}
                 <div>
                   <strong>{agent ? agent.name : settings.businessName}</strong>
                   <span>{agent ? agent.brokerageTitle || 'Listing agent' : 'Contact the office'}</span>
