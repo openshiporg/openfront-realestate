@@ -66,7 +66,7 @@ export function ListingSearchForm({ params, marketCity = '', action = '/listings
           <MapPin aria-hidden className="sf-search__pin" />
           <Search aria-hidden className="sf-search__lens" />
           <span className="sr-only">City, neighborhood, or ZIP</span>
-          <input name="q" defaultValue={params.q || ''} type="search" enterKeyHint="search" placeholder="City, neighborhood, or ZIP" data-phone-placeholder="Search location, price, beds" autoComplete="off" maxLength={120} />
+          <input name="q" defaultValue={params.q || ''} type="search" enterKeyHint="search" placeholder="City, neighborhood, or ZIP" autoComplete="off" maxLength={120} />
         </label>
         <label className="sf-search__select">
           <span>Price</span>
