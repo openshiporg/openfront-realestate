@@ -3,6 +3,7 @@ import { ArrowUpRight } from 'lucide-react'
 import { getAuthenticatedUser } from '@/features/dashboard/actions/auth'
 import { upgradeLegacyImagePath } from '@/features/lib/real-estate-images'
 import { humanize } from '../../leads/lib/labels'
+import { plural } from '../../lib/plural'
 import { DataTable, EmptyState, ErrorBanner, PlatformPage, Stats, StatusCell, Td, rowActionLineClass, rowActionsBlockClass } from '../../components/PlatformUI'
 import { FilterTabs } from '../../listings/components/FilterTabs'
 import { getPlatformPeople, type PlatformAgent } from '../actions/people'
@@ -92,7 +93,7 @@ export async function PeoplePage({ searchParams }: { searchParams?: Promise<{ [k
                         <div className="min-w-0">
                           <p className="max-w-[12rem] truncate font-medium text-foreground sm:max-w-[18rem]">{agent.name}</p>
                           <p className="max-w-[12rem] truncate text-xs text-muted-foreground sm:max-w-[18rem]">{[agent.brokerageTitle || agent.role?.name, agent.email].filter(Boolean).join(' · ')}</p>
-                          <p className="text-xs text-muted-foreground sm:hidden">{agent.listingCount} listings · {agent.showingCount} showings · {agent.dealCount} deals</p>
+                          <p className="text-xs text-muted-foreground sm:hidden">{plural(agent.listingCount, 'listing')} · {plural(agent.showingCount, 'showing')} · {plural(agent.dealCount, 'deal')}</p>
                         </div>
                       </div>
                       <div className={rowActionLineClass}>{actions(rowActionsBlockClass)}</div>
