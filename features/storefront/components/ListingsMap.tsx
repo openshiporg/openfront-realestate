@@ -67,6 +67,10 @@ export function ListingsMap({ pins, activeId, className = '' }: { pins: MapPin[]
       mapRef.current = map
       map.touchZoomRotate.disableRotation()
       map.on('style.load', () => map && tintStyle(map))
+      // On a phone the credits sit behind the (i) button instead of across the result cards.
+      if (window.matchMedia('(max-width: 39.99rem)').matches) {
+        map.once('load', () => box.current?.querySelector('.maplibregl-compact-show')?.classList.remove('maplibregl-compact-show'))
+      }
       map.on('error', event => { if (!map?.loaded() && String(event?.error?.message || '').includes('style')) setFailed(true) })
 
       for (const pin of pins) {
