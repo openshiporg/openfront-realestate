@@ -431,7 +431,7 @@
     .sf-gallery__side { display: grid; gap: 0.5rem; }
     .sf-gallery[data-count="3"] .sf-gallery__all { right: calc(24% + 1.25rem); }
     .sf-gallery[data-count="2"] .sf-gallery__all { right: calc(33.3% + 1.25rem); }
-    .sf-gallery[data-count="2"], .sf-gallery[data-count="3"] { height: clamp(18rem, 28vw, 23rem); }
+    .sf-gallery { height: clamp(18rem, 28vw, 23rem); }
     .sf-gallery__lead { aspect-ratio: auto; height: 100%; }
     .sf-gallery__side { grid-auto-rows: minmax(0, 1fr); height: 100%; min-height: 0; }
     .sf-gallery__side button { height: 100%; min-height: 0; }
