@@ -1,4 +1,4 @@
-# Openfront Real Estate
+![openfront-real-estate](.github/logo.svg)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fopenshiporg%2Fopenfront-realestate&env=DATABASE_URL%2CSESSION_SECRET)
 
