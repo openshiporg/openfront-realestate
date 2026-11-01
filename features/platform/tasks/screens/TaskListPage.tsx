@@ -154,9 +154,9 @@ export async function TaskListPage({ searchParams }: { searchParams: Promise<{ s
                   return (
                     <tr key={task.id} className="transition-colors hover:bg-muted/30">
                       <Td className="min-w-0 max-w-[28rem] py-2">
-                        <span className="block font-medium text-foreground">{task.title}</span>
-                        {related.length ? <span className="block truncate text-xs text-muted-foreground">{related}</span> : null}
-                        {task.notes ? <span className="block truncate text-xs text-foreground/80">{task.notes}</span> : null}
+                        <span className="block break-words font-medium text-foreground">{task.title}</span>
+                        {related.length ? <span className="block max-w-[calc(100vw-3.75rem)] md:max-w-none truncate text-xs text-muted-foreground">{related}</span> : null}
+                        {task.notes ? <span className="block max-w-[calc(100vw-3.75rem)] md:max-w-none truncate text-xs text-foreground/80">{task.notes}</span> : null}
                         <span className="mt-1 flex flex-wrap items-center gap-x-3 text-xs md:hidden"><StatusCell tone={meta.tone}>{meta.label}</StatusCell><Due task={task} now={now} /></span>
                         {showAgent ? <span className="block text-xs text-muted-foreground xl:hidden">{task.assignedAgent?.name || 'Unassigned'}</span> : null}
                         <div className={rowActionLineClass}><TaskRowActions task={task} options={options} className={rowActionsBlockClass} /></div>
