@@ -47,6 +47,8 @@ export type StorefrontProperty = {
   state: string
   postalCode: string
   neighborhood: string
+  latitude?: number | null
+  longitude?: number | null
   addressLabel: string
   price: string
   bedrooms?: number | null
@@ -68,6 +70,7 @@ export type StorefrontProperty = {
     email: string
     phone: string
     brokerageTitle: string
+    licenseNumber?: string
     imagePath: string
   } | null
   media: StorefrontPropertyMedia[]
@@ -79,9 +82,9 @@ type ListingResponse = { publicRealEstateListing: StorefrontProperty | null }
 
 const LISTING_SELECTION = `
   id title slug status listingType propertyType shortDescription description
-  addressLine1 addressLine2 city state postalCode neighborhood
+  addressLine1 addressLine2 city state postalCode neighborhood latitude longitude
   price bedrooms bathrooms squareFeet lotSizeSquareFeet yearBuilt hoaFee availableAt isFeatured virtualTourUrl leaseTerm securityDeposit applicationFeeMinor petPolicy imagePath
-  assignedAgent { name email phone brokerageTitle imagePath }
+  assignedAgent { name email phone brokerageTitle licenseNumber imagePath }
   media { title mediaType imagePath externalUrl altText caption sortOrder isHero }
   openHouses { id title startsAt endsAt hostName }
 `

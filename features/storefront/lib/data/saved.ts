@@ -25,9 +25,9 @@ type SavedDiscoveryResult = { ok: boolean; message: string; itemId: string | nul
 
 const LISTING_SELECTION = `
   id title slug status listingType propertyType shortDescription description
-  addressLine1 addressLine2 city state postalCode neighborhood
+  addressLine1 addressLine2 city state postalCode neighborhood latitude longitude
   price bedrooms bathrooms squareFeet lotSizeSquareFeet yearBuilt hoaFee availableAt isFeatured virtualTourUrl leaseTerm securityDeposit petPolicy imagePath
-  assignedAgent { name email phone brokerageTitle imagePath }
+  assignedAgent { name email phone brokerageTitle licenseNumber imagePath }
   media { title mediaType imagePath externalUrl altText caption sortOrder isHero }
   openHouses { id title startsAt endsAt hostName }
 `

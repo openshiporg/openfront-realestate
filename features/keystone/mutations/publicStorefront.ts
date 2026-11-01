@@ -12,12 +12,12 @@ const PUBLIC_STATUSES = ['active', 'coming_soon'] as const
 const PUBLIC_LISTING_MEDIA_LIMIT = 20
 const PUBLIC_LISTING_QUERY = `
   id title slug status listingType propertyType shortDescription description
-  addressLine1 addressLine2 city state postalCode neighborhood
+  addressLine1 addressLine2 city state postalCode neighborhood latitude longitude
   price bedrooms bathrooms squareFeet lotSizeSquareFeet yearBuilt hoaFee availableAt isFeatured virtualTourUrl
   leaseTerm securityDeposit applicationFeeMinor petPolicy
   primaryImageUrl
   brokerage { id }
-  assignedAgent { id name email phone brokerageTitle avatarUrl brokerageMemberships(where: { status: { equals: active } }) { brokerage { id status } } }
+  assignedAgent { id name email phone brokerageTitle licenseNumber avatarUrl brokerageMemberships(where: { status: { equals: active } }) { brokerage { id status } } }
 `
 
 export type PublicListingFilters = {
@@ -119,8 +119,15 @@ function toPublicAgent(agent: any, brokerageId: string) {
     email: agent.email || '',
     phone: agent.phone || '',
     brokerageTitle: agent.brokerageTitle || '',
+    licenseNumber: agent.licenseNumber || '',
     imagePath: publicImagePath(agent.avatarUrl),
   }
+}
+
+function coordinate(value: unknown, limit: number) {
+  if (value == null || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) && Math.abs(number) <= limit && number !== 0 ? number : null
 }
 
 function toPublicListing(property: any, media: readonly any[], openHouses: readonly any[]) {
@@ -139,6 +146,8 @@ function toPublicListing(property: any, media: readonly any[], openHouses: reado
     state: property.state,
     postalCode: property.postalCode || '',
     neighborhood: property.neighborhood || '',
+    latitude: coordinate(property.latitude, 90),
+    longitude: coordinate(property.longitude, 180),
     price: String(property.price),
     bedrooms: property.bedrooms,
     bathrooms: property.bathrooms == null ? '' : String(property.bathrooms),

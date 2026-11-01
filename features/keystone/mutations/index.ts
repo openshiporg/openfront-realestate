@@ -153,6 +153,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         email: String!
         phone: String!
         brokerageTitle: String!
+        licenseNumber: String!
         imagePath: String!
       }
 
@@ -190,6 +191,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         state: String!
         postalCode: String!
         neighborhood: String!
+        latitude: Float
+        longitude: Float
         price: String!
         bedrooms: Int
         bathrooms: String!
