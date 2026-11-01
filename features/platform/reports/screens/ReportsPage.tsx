@@ -62,22 +62,25 @@ export async function ReportsPage() {
           <h2 id="report-agents" className="text-sm font-semibold text-foreground">By agent</h2>
           <DataTable
             label="By agent"
-            className="[&_table]:min-w-[34rem]"
+            className="sm:[&_table]:min-w-[34rem]"
             head={[
               { label: 'Agent' },
               { label: 'Leads', className: 'text-right' },
               { label: 'Showings', className: 'text-right' },
               { label: 'Deals', className: 'text-right' },
-              { label: 'Projected commission', className: 'text-right' },
+              { label: 'Projected commission', className: 'hidden text-right sm:table-cell' },
             ]}
           >
             {report.agentRows.map(row => (
               <tr key={row.agent} className="transition-colors hover:bg-muted/30">
-                <Td className={row.agent === 'Unassigned' ? 'font-medium text-amber-700 dark:text-amber-400' : 'font-medium text-foreground'}>{row.agent}</Td>
+                <Td className={row.agent === 'Unassigned' ? 'font-medium text-amber-700 dark:text-amber-400' : 'font-medium text-foreground'}>
+                  {row.agent}
+                  <span className="block text-xs font-normal tabular-nums text-muted-foreground sm:hidden">{formatMoney(row.projectedCommission)} projected</span>
+                </Td>
                 <Td className="text-right tabular-nums">{row.leads}</Td>
                 <Td className="text-right tabular-nums">{row.showings}</Td>
                 <Td className="text-right tabular-nums">{row.deals}</Td>
-                <Td className="text-right font-medium tabular-nums text-foreground">{formatMoney(row.projectedCommission)}</Td>
+                <Td className="hidden text-right font-medium tabular-nums text-foreground sm:table-cell">{formatMoney(row.projectedCommission)}</Td>
               </tr>
             ))}
             {report.agentRows.length ? null : <tr><Td colSpan={5} className="py-6 text-center text-muted-foreground">No agent activity</Td></tr>}
