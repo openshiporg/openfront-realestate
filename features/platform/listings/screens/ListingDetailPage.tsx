@@ -6,6 +6,7 @@ import { ErrorBanner, Meta, Panel, PlatformPage, TitleLine, Track, trackItemClas
 import { getViewerPermissions } from '../../lib/records'
 import { label, leadIntentLabels, leadStatusColors, leadStatusLabels } from '../../leads/lib/labels'
 import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
+import { stateTimeZone } from '@/features/lib/date-time'
 import { showingStatusColors, showingStatusLabels, showingTypeLabels } from '../../showings/lib/labels'
 import { ListingStatusTrack } from '../components/ListingStatusTrack'
 import { AddMediaDrawer, EditListingDrawer, MediaActions, OpenHouseActions, ScheduleOpenHouseDrawer } from '../components/ListingRecordActions'
@@ -30,6 +31,8 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
   const { listing, media = [], openHouses = [], leads, showings, syndications = [] } = detail
   const status = listingStatuses.find(entry => entry.value === listing.status)
   const rental = listing.listingType === 'rent'
+  // Showings and open houses happen at this property: use its zone (from its state), else the viewer's.
+  const zone = stateTimeZone(listing.state) ?? undefined
   const price = `${formatMoney(listing.price)}${rental ? '/mo' : ''}`
   const address = [listing.addressLine1, listing.addressLine2, listing.city, [listing.state, listing.postalCode].filter(Boolean).join(' ')].filter(Boolean).join(', ')
   const nextSort = media.reduce((max, item) => Math.max(max, item.sortOrder), 0) + 1
@@ -95,7 +98,7 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
                   <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
                     <div className="min-w-0">
                       <TitleLine as="h3" tone={openHouseTones[item.status] || 'zinc'} status={label({ scheduled: 'Scheduled', completed: 'Completed', cancelled: 'Cancelled' }, item.status)} headingClassName="text-sm">{item.title}</TitleLine>
-                      <p className="text-sm text-muted-foreground"><ViewerTime value={item.startsAt} style="datetime" /> – <ViewerTime value={item.endsAt} style="datetime" />{item.hostAgent ? ` · ${item.hostAgent.name}` : ''}</p>
+                      <p className="text-sm text-muted-foreground"><ViewerTime value={item.startsAt} style="datetime" timeZone={zone} /> – <ViewerTime value={item.endsAt} style="datetime" timeZone={zone} />{item.hostAgent ? ` · ${item.hostAgent.name}` : ''}</p>
                     </div>
                     {item.status === 'scheduled' ? <Track label={`${item.title} actions`}><OpenHouseActions openHouseId={item.id} /></Track> : null}
                   </li>
@@ -129,7 +132,7 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
               <ul className="space-y-2.5">
                 {showings.map(showing => (
                   <li key={showing.id}>
-                    <TitleLine as="h3" tone={showingStatusColors[showing.status] || 'zinc'} status={label(showingStatusLabels, showing.status)} headingClassName="text-sm"><Link href={`/dashboard/platform/showings/${showing.id}`} className="hover:underline"><ViewerTime value={showing.scheduledStart} style="datetime" /></Link></TitleLine>
+                    <TitleLine as="h3" tone={showingStatusColors[showing.status] || 'zinc'} status={label(showingStatusLabels, showing.status)} headingClassName="text-sm"><Link href={`/dashboard/platform/showings/${showing.id}`} className="hover:underline"><ViewerTime value={showing.scheduledStart} style="datetime" timeZone={zone} /></Link></TitleLine>
                     <p className="text-xs text-muted-foreground">{showing.lead?.name || 'No client'} · {label(showingTypeLabels, showing.showingType)}</p>
                   </li>
                 ))}

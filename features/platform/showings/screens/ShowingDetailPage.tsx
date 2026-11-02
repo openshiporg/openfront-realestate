@@ -5,6 +5,7 @@ import { label } from '../../leads/lib/labels'
 import { getShowingDetail } from '../actions/showings'
 import { ShowingFeedbackForm, ShowingRescheduleDialog, ShowingStatusButton } from '../components/ShowingActionForms'
 import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
+import { stateTimeZone } from '@/features/lib/date-time'
 import { showingHistoryLabels, showingStatusColors, showingStatusLabels, showingTypeLabels } from '../lib/labels'
 
 interface PageProps {
@@ -20,6 +21,8 @@ export async function ShowingDetailPage({ params, searchParams }: PageProps) {
   const href = `/dashboard/platform/showings/${encodeURIComponent(id)}`
   const title = detail?.showing.property?.title || 'Showing'
   const showing = detail && !error ? detail.showing : null
+  // The property's zone (from its state) when known; otherwise the viewer's own zone.
+  const zone = stateTimeZone(showing?.property?.state) ?? undefined
 
   return (
     <PlatformPage
@@ -27,7 +30,7 @@ export async function ShowingDetailPage({ params, searchParams }: PageProps) {
       title={showing
         ? <TitleLine as="h1" tone={showingStatusColors[showing.status] || 'zinc'} status={label(showingStatusLabels, showing.status)} headingClassName="text-2xl tracking-tight">{title}</TitleLine>
         : 'Showing'}
-      meta={showing ? <><ViewerTime value={showing.scheduledStart} style="long" /> · {label(showingTypeLabels, showing.showingType, 'Showing')}{showing.status === 'requested' ? <span className="text-amber-700 dark:text-amber-400"> · Not confirmed</span> : null}</> : null}
+      meta={showing ? <><ViewerTime value={showing.scheduledStart} style="long" timeZone={zone} /> · {label(showingTypeLabels, showing.showingType, 'Showing')}{showing.status === 'requested' ? <span className="text-amber-700 dark:text-amber-400"> · Not confirmed</span> : null}</> : null}
     >
       {!detail || error ? (
         <ErrorBanner>{error || 'This showing could not be loaded.'}</ErrorBanner>
@@ -69,7 +72,7 @@ export async function ShowingDetailPage({ params, searchParams }: PageProps) {
                     <Meta label="Listing">{snapshot.listingTitle}</Meta>
                     <Meta label="Address">{[snapshot.addressLine1, snapshot.city, snapshot.state].filter(Boolean).join(', ')}</Meta>
                     <Meta label="Price"><span className="tabular-nums">{snapshot.price ? `${formatMoney(snapshot.price)}${snapshot.listingType === 'rent' ? '/mo' : ''}` : '—'}</span></Meta>
-                    <Meta label="Requested time"><ViewerTime value={snapshot.scheduledStart} style="datetime" /> – <ViewerTime value={snapshot.scheduledEnd} style="datetime" /></Meta>
+                    <Meta label="Requested time"><ViewerTime value={snapshot.scheduledStart} style="datetime" timeZone={zone} /> – <ViewerTime value={snapshot.scheduledEnd} style="datetime" timeZone={zone} /></Meta>
                     <Meta label="Received"><ViewerTime value={snapshot.capturedAt} style="datetime" /></Meta>
                     <div className="sm:col-span-2">
                       <dt className="text-xs text-muted-foreground">Note</dt>

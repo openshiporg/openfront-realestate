@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Fragment, useSyncExternalStore } from 'react'
+import { stateTimeZone } from '@/features/lib/date-time'
 import { formatMoney as exactMoney, moneyToMinor } from '@/features/lib/money'
 import { cn } from '@/lib/utils'
 import { DataTable, StatusCell, Td } from '../../components/PlatformUI'
@@ -47,18 +48,32 @@ function RowAction({ showing, version, href, now }: { showing: PlatformShowing; 
 /** Showings as a dense table grouped by day, in the viewer's own time zone once running in the browser. */
 export function ShowingBoard({ showings, versions }: { showings: PlatformShowing[]; versions: Record<string, ShowingVersion> }) {
   const hydrated = useSyncExternalStore(subscribe, clientSnapshot, serverSnapshot)
-  // Grouping uses UTC until mounted, but no UTC text is ever shown: day/time/zone stay empty until the viewer zone applies
-  const timeZone = hydrated ? undefined : 'UTC'
+  // A showing is an appointment at its property: use the property's zone (from its state); the viewer's zone only when unknown.
+  // Viewer-zone text is empty until mounted, so no UTC text is ever shown.
   const now = Date.now()
-  const dayFormat = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone })
-  const timeFormat = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone })
-  const zoneFormat = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short', timeZone })
-  const groups: Array<{ day: string; items: PlatformShowing[] }> = []
+  const zoneOf = (showing: PlatformShowing) => stateTimeZone(showing.property?.state) ?? undefined
+  const formats = new Map<string, { day: Intl.DateTimeFormat; time: Intl.DateTimeFormat; zone: Intl.DateTimeFormat }>()
+  const formatsFor = (showing: PlatformShowing) => {
+    const timeZone = zoneOf(showing) ?? (hydrated ? undefined : 'UTC')
+    const key = timeZone ?? 'viewer'
+    let found = formats.get(key)
+    if (!found) {
+      found = {
+        day: new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone }),
+        time: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone }),
+        zone: new Intl.DateTimeFormat('en-US', { timeZoneName: 'short', timeZone }),
+      }
+      formats.set(key, found)
+    }
+    return found
+  }
+  const visible = (showing: PlatformShowing) => Boolean(zoneOf(showing)) || hydrated
+  const groups: Array<{ day: string; items: PlatformShowing[]; shown: boolean }> = []
   for (const showing of showings) {
-    const day = dayFormat.format(new Date(showing.scheduledStart))
+    const day = formatsFor(showing).day.format(new Date(showing.scheduledStart))
     const last = groups[groups.length - 1]
     if (last && last.day === day) last.items.push(showing)
-    else groups.push({ day, items: [showing] })
+    else groups.push({ day, items: [showing], shown: visible(showing) })
   }
 
   return (
@@ -67,14 +82,15 @@ export function ShowingBoard({ showings, versions }: { showings: PlatformShowing
         <Fragment key={group.day}>
           <tr>
             <th scope="colgroup" colSpan={6} className="border-b bg-muted/20 px-3 py-1.5 text-left text-xs font-semibold text-foreground">
-              {hydrated ? group.day : ''}<span className="ml-2 font-medium tabular-nums text-muted-foreground">{group.items.length}</span>
+              {group.shown ? group.day : ''}<span className="ml-2 font-medium tabular-nums text-muted-foreground">{group.items.length}</span>
             </th>
           </tr>
           {group.items.map(showing => {
             const { property, lead, assignedAgent: agent } = showing
             const start = new Date(showing.scheduledStart)
-            const time = hydrated ? timeFormat.format(start) : ''
-            const zone = !hydrated ? undefined : zoneFormat.formatToParts(start).find(part => part.type === 'timeZoneName')?.value
+            const shown = visible(showing)
+            const time = shown ? formatsFor(showing).time.format(start) : ''
+            const zone = !shown ? undefined : formatsFor(showing).zone.formatToParts(start).find(part => part.type === 'timeZoneName')?.value
             const href = `/dashboard/platform/showings/${encodeURIComponent(showing.id)}`
             const past = showing.status === 'requested' && start.getTime() < now
             const status = <StatusCell tone={showingStatusColors[showing.status] || 'zinc'}>{label(showingStatusLabels, showing.status)}</StatusCell>
