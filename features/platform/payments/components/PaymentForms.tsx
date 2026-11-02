@@ -1,7 +1,7 @@
 'use client'
 
 import { Choice, Field, FormDrawer, RecordForm, ActionButton, Toggle } from '../../components/RecordForm'
-import { checkPaymentStatus, requestPayment, savePaymentProvider } from '../actions/payments'
+import { checkPaymentStatus, refundPaymentAction, requestPayment, savePaymentProvider } from '../actions/payments'
 
 export function ProviderDrawer({ label = 'Add provider' }: { label?: string }) {
   return (
@@ -37,4 +37,8 @@ export function RequestPaymentDrawer({ leadId, dealId, disabled }: { leadId: str
 
 export function CheckStatusButton({ paymentId }: { paymentId: string }) {
   return <ActionButton action={checkPaymentStatus} fields={{ paymentId }} label="Check status" pendingLabel="Checking…" />
+}
+
+export function RefundPaymentButton({ paymentId }: { paymentId: string }) {
+  return <ActionButton action={refundPaymentAction} fields={{ paymentId }} label="Refund" pendingLabel="Refunding…" confirm="Refund the full paid amount to the payer's card?" />
 }

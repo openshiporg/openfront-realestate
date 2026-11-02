@@ -48,7 +48,7 @@ import { createChecklistItemCommand, createCounterOfferCommand, createOfferComma
 import { recordListingEngagementAuthorityCommand, recordListingPublicationAuthorityCommand, recordPractitionerLicenseAuthorityCommand, recordRepresentationAuthorityCommand } from './authorityCommands'
 import { appendDocumentEvidenceEventCommand } from './documentEvidenceCommands'
 import { approveCommissionAllocationCommand, proposeCommissionAllocationCommand, recordCommissionReceiptCommand, reconcileCommissionLedgerCommand, reverseCommissionLedgerEntryCommand } from './commissionLedgerCommands'
-import { beginPaymentCheckout, paymentByToken, reconcilePaymentByToken, reconcilePaymentCommand, requestPaymentCommand, startApplicationFeeCheckout } from './payments'
+import { beginPaymentCheckout, paymentByToken, reconcilePaymentByToken, reconcilePaymentCommand, refundPaymentCommand, requestPaymentCommand, startApplicationFeeCheckout } from './payments'
 import { assignTransactionFileRetentionCommand, createTransactionExportManifestCommand, recordRetentionPolicyCommand, recordTransactionLegalHoldCommand } from './retentionCommands'
 
 const graphql = String.raw
@@ -585,6 +585,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         reconcilePaymentByToken(token: String!): PublicPayment
         requestPaymentCommand(data: RequestPaymentCommandInput!): PaymentCommandResult!
         reconcilePaymentCommand(paymentId: ID!): PaymentCommandResult!
+        refundPaymentCommand(paymentId: ID!): PaymentCommandResult!
         submitListingInquiry(data: SubmitListingInquiryInput!): SubmitListingInquiryResult!
         requestPropertyShowing(data: RequestPropertyShowingInput!): RequestPropertyShowingResult!
         transitionLeadStatus(data: OperatorTransitionInput!): OperatorTransitionResult!
@@ -673,6 +674,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         reconcilePaymentByToken,
         requestPaymentCommand,
         reconcilePaymentCommand,
+        refundPaymentCommand,
         submitListingInquiry,
         requestPropertyShowing,
         transitionLeadStatus,

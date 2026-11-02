@@ -7210,6 +7210,7 @@ type Mutation {
   reconcilePaymentByToken(token: String!): PublicPayment
   requestPaymentCommand(data: RequestPaymentCommandInput!): PaymentCommandResult!
   reconcilePaymentCommand(paymentId: ID!): PaymentCommandResult!
+  refundPaymentCommand(paymentId: ID!): PaymentCommandResult!
   submitListingInquiry(data: SubmitListingInquiryInput!): SubmitListingInquiryResult!
   requestPropertyShowing(data: RequestPropertyShowingInput!): RequestPropertyShowingResult!
   transitionLeadStatus(data: OperatorTransitionInput!): OperatorTransitionResult!

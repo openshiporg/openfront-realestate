@@ -2,10 +2,11 @@ import Link from 'next/link'
 import { DataTable, EmptyState, ErrorBanner, PlatformPage, StatusCell, Td } from '../../components/PlatformUI'
 import { formatMoney } from '@/features/lib/money'
 import { LocalDateTime } from '../../showings/components/LocalDateTime'
-import { CheckStatusButton } from '../components/PaymentForms'
+import { CheckStatusButton, RefundPaymentButton } from '../components/PaymentForms'
 import { getPayments, purposeLabels, statusLabels, statusTones } from '../lib/data'
 
 const checkable = (payment: { providerPaymentId?: string | null; status: string }) => Boolean(payment.providerPaymentId) && !['refunded', 'failed'].includes(payment.status)
+const refundable = (payment: { status: string; amountMinor: number; refundedMinor?: number | null }) => payment.status === 'captured' && payment.amountMinor > (payment.refundedMinor || 0)
 const dollars = (minor: number, currency: string) => currency === 'USD' ? formatMoney((minor / 100).toFixed(2)) : `${(minor / 100).toFixed(2)} ${currency}`
 
 export async function PaymentsPage() {
@@ -27,14 +28,14 @@ export async function PaymentsPage() {
               <tr key={payment.id} className="transition-colors hover:bg-muted/30">
                 <Td>
                   {purposeLabels[payment.purpose] || payment.purpose}
-                  {checkable(payment) ? <div className="mt-2 sm:hidden"><CheckStatusButton paymentId={payment.id} /></div> : null}
+                  {checkable(payment) || refundable(payment) ? <div className="mt-2 flex flex-wrap gap-2 sm:hidden">{checkable(payment) ? <CheckStatusButton paymentId={payment.id} /> : null}{refundable(payment) ? <RefundPaymentButton paymentId={payment.id} /> : null}</div> : null}
                 </Td>
                 <Td className="text-right tabular-nums">{dollars(payment.amountMinor, payment.currency)}</Td>
                 <Td><StatusCell tone={statusTones[payment.status] || 'zinc'}>{statusLabels[payment.status] || payment.status}</StatusCell></Td>
                 <Td className="hidden max-w-[14rem] truncate md:table-cell">{payment.property?.title || '—'}</Td>
                 <Td className="hidden md:table-cell">{payment.lead ? <Link href={`/dashboard/platform/leads/${encodeURIComponent(payment.lead.id)}`} className="hover:underline">{payment.lead.name}</Link> : '—'}</Td>
                 <Td className="hidden whitespace-nowrap lg:table-cell"><LocalDateTime value={payment.createdAt} options={{ dateStyle: 'medium' }} /></Td>
-                <Td className="hidden text-right sm:table-cell">{checkable(payment) ? <CheckStatusButton paymentId={payment.id} /> : null}</Td>
+                <Td className="hidden text-right sm:table-cell"><div className="inline-flex gap-2">{checkable(payment) ? <CheckStatusButton paymentId={payment.id} /> : null}{refundable(payment) ? <RefundPaymentButton paymentId={payment.id} /> : null}</div></Td>
               </tr>
             ))}
           </DataTable>

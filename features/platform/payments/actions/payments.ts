@@ -66,3 +66,13 @@ export async function checkPaymentStatus(_state: RecordResult, form: FormData): 
   revalidatePath(PAYMENTS)
   return response.success ? { ok: response.data.result.ok, message: response.data.result.message } : { ok: false, message: 'Could not check the payment. Please try again.' }
 }
+
+/** "Refund": refunds the unrefunded balance of a paid payment through its provider. */
+export async function refundPaymentAction(_state: RecordResult, form: FormData): Promise<RecordResult> {
+  const paymentId = text(form, 'paymentId')
+  if (!paymentId) return { ok: false, message: 'Payment not found.' }
+  const response = await keystoneClient<{ result: { ok: boolean; message: string } }>(
+    'mutation RefundPayment($paymentId: ID!) { result: refundPaymentCommand(paymentId: $paymentId) { ok message } }', { paymentId }, { cache: 'no-store' })
+  revalidatePath(PAYMENTS)
+  return response.success ? { ok: response.data.result.ok, message: response.data.result.message } : { ok: false, message: 'Could not refund the payment. Please try again.' }
+}

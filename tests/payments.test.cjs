@@ -218,3 +218,16 @@ test('dispatcher: finite registry, projected provider, filtered headers, normali
   await assert.rejects(executeAdapterFunction({ provider: { getPaymentStatusFunction: '../../etc/passwd' }, functionName: 'getPaymentStatusFunction', args: {} }), /Unknown registered payment adapter/);
   await assert.rejects(executeAdapterFunction({ provider: {}, functionName: 'eval', args: {} }), /Unknown payment adapter operation/);
 });
+
+test('refund: staff command refunds the unrefunded balance once, wired to the Payments page', () => {
+  const source = fs.readFileSync(path.join(root, 'features/keystone/mutations/payments.ts'), 'utf8');
+  const body = source.slice(source.indexOf('export async function refundPaymentCommand'), source.indexOf('// ── Webhook ingress'));
+  assert.match(body, /payment\.status !== 'captured'/);
+  assert.match(body, /const amount = payment\.amountMinor - \(payment\.refundedMinor \|\| 0\)/);
+  assert.match(body, /idempotencyKey: `refund:\$\{payment\.id\}:\$\{amount\}`/);
+  assert.match(body, /staffCan\(context, payment\.brokerage\.id/);
+  const index = fs.readFileSync(path.join(root, 'features/keystone/mutations/index.ts'), 'utf8');
+  assert.match(index, /refundPaymentCommand\(paymentId: ID!\): PaymentCommandResult!/);
+  const page = fs.readFileSync(path.join(root, 'features/platform/payments/screens/PaymentsPage.tsx'), 'utf8');
+  assert.match(page, /<RefundPaymentButton paymentId=\{payment\.id\} \/>/);
+});

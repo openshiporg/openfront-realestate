@@ -7,7 +7,7 @@ import { leadIdentityKey } from './leadCapture'
 import { runControlledEvidenceCommand } from './controlledEvidenceCommand'
 import { submitListingInquiry } from './submitListingInquiry'
 import { sendPaymentRequestEmail } from '../lib/mail'
-import { createPayment, getPaymentStatus, handleWebhook } from '../utils/paymentProviderAdapter'
+import { createPayment, getPaymentStatus, handleWebhook, refundPayment } from '../utils/paymentProviderAdapter'
 import { isPaymentProviderConfigured } from '../utils/paymentProviderConfig'
 import { commandText as clean } from '../../lib/date-time'
 
@@ -280,6 +280,40 @@ export async function reconcilePaymentCommand(_root: unknown, { paymentId }: { p
   } catch {
     return { ok: false, message: 'The provider could not be reached. Try again shortly.', itemId: payment.id, url: null, replayed: false }
   }
+}
+
+/**
+ * "Refund" on a captured payment: refunds what is still unrefunded through the payment's own provider,
+ * then settles the local record from the provider's answer (the charge.refunded webhook agrees later).
+ * The amount is never an input; the idempotency key is bound to the payment and the refundable amount,
+ * so a double click or retry cannot refund twice.
+ */
+export async function refundPaymentCommand(_root: unknown, { paymentId }: { paymentId: string }, context: Context) {
+  const session = context.session as any
+  if (!session?.itemId || !paymentId || paymentId.length > 200) return { ok: false, message: 'Access denied.', itemId: null, url: null, replayed: false }
+  const row: any = await context.sudo().query.Payment.findOne({ where: { id: paymentId }, query: PAYMENT_QUERY })
+  const payment = row ? asPayment(row) : null
+  if (!payment || !staffCan(context, payment.brokerage.id, 'canManageDeals', null) && !staffCan(context, payment.brokerage.id, 'canManageLeads', null)) return { ok: false, message: 'Payment not found or access denied.', itemId: null, url: null, replayed: false }
+  if (payment.status === 'refunded') return { ok: true, message: 'This payment is already refunded.', itemId: payment.id, url: null, replayed: true }
+  if (payment.status !== 'captured') return { ok: false, message: 'Only paid payments can be refunded.', itemId: payment.id, url: null, replayed: false }
+  const provider = await providerFor(context, payment)
+  if (!provider) return { ok: false, message: 'The payment provider for this payment is not available.', itemId: payment.id, url: null, replayed: false }
+  let intentId = payment.providerPaymentIntentId
+  if (!intentId && payment.providerPaymentId) {
+    try {
+      const status: any = await getPaymentStatus({ provider, paymentId: payment.providerPaymentId })
+      intentId = status?.paymentIntentId || null
+    } catch { /* handled below */ }
+  }
+  const amount = payment.amountMinor - (payment.refundedMinor || 0)
+  if (!intentId || amount < 1) return { ok: false, message: 'The provider payment could not be found. Use Check status, then try again.', itemId: payment.id, url: null, replayed: false }
+  try {
+    await refundPayment({ provider, paymentId: intentId, amount, currency: payment.currency, idempotencyKey: `refund:${payment.id}:${amount}` })
+  } catch {
+    return { ok: false, message: 'The provider did not accept the refund. Nothing was changed.', itemId: payment.id, url: null, replayed: false }
+  }
+  const updated = await reconcile(context, payment, `refund:${Date.now()}`, session.itemId)
+  return { ok: true, message: updated.status === 'refunded' ? 'Refunded in full.' : 'Refund sent. The status updates when the provider confirms it.', itemId: payment.id, url: null, replayed: false }
 }
 
 // ── Webhook ingress ───────────────────────────────────────────────────────────
