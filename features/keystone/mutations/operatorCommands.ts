@@ -7,6 +7,7 @@ import { showingReviewRevision } from '../lib/showingReviewRevision'
 import { sameShowingIdentity, scopedSchedulingIdentity, scopedShowingIdentity } from '../lib/showingAssociations'
 import { ownedShowingEventHeader } from '../lib/showingEventScope'
 import { leadStatusAfterShowing, reconcileLeadStatusAfterShowing, requireAvailableShowingSlot, showingInterval } from '../lib/showingPolicy'
+import { planShowingReschedule } from '../lib/showingReschedule'
 import { runControlledEvidenceCommand } from './controlledEvidenceCommand'
 import { ownsShowingScheduleReceipt, showingSnapshot } from './showingJourney'
 
@@ -190,6 +191,61 @@ export async function completeShowingWithFeedback(_root: unknown, { data }: { da
       }
       const result = { ok: true, message: 'Feedback saved and showing completed.', itemId: showingId }
       return { result, event: { eventType: 'showing.completed_with_feedback', brokerageId: showing.brokerage.id, aggregateType: 'showing', aggregateId: showingId, actorId: actorId(scoped), action: 'complete_with_feedback', before: { status: showing.status, feedback: showing.feedback }, after: { ...result, status: 'completed', subject: { showingId, leadId: header.lead.id, propertyId: header.property.id } } } }
+    },
+  })
+}
+
+/** Staff move an open showing to a new time. Status is kept; a confirmed showing must land on a free slot. */
+export async function rescheduleShowingCommand(_root: unknown, { data }: { data: any }, context: Context) {
+  const showingId = clean(data.showingId), scheduledStart = clean(data.scheduledStart), note = clean(data.note), key = clean(data.idempotencyKey)
+  const expectedStatus = clean(data.expectedStatus), expectedUpdatedAt = clean(data.expectedUpdatedAt), expectedRevision = clean(data.expectedRevision)
+  if (!showingId || !scheduledStart || note.length > 2000 || !key || !expectedStatus || !expectedUpdatedAt || !/^[a-f0-9]{64}$/.test(expectedRevision)) {
+    return { ok: false, message: 'Showing, new time, current version, and idempotency key are required.', itemId: null, replayed: false }
+  }
+  const eventKey = `command:showing:${showingId}:reschedule:${key}`
+  const request = { showingId, scheduledStart, note, expectedStatus, expectedUpdatedAt, expectedRevision }
+  return command(context, {
+    eventKey, lockKey: `aggregate:showing:${showingId}`, permission: 'canManageShowings', request,
+    authorizeTarget: async scoped => Boolean(await scopedShowingIdentity(scoped, showingId)),
+    authorizeReplayHeader: (scoped, header) => ownedShowingEventHeader(scoped, header, { eventKey, eventType: 'showing.rescheduled', purpose: 'showing' }),
+    authorizeReplay: async (scoped, existing) => {
+      if (existing.payload?.actorId !== actorId(scoped) || existing.payload?.aggregate?.type !== 'showing' || existing.payload.aggregate.id !== showingId
+        || existing.payload?.request?.showingId !== showingId || existing.payload?.result?.itemId !== showingId || existing.payload?.result?.ok !== true) return false
+      const showing = await scoped.sudo().query.Showing.findOne({ where: { id: showingId }, query: 'id brokerage { id } assignedAgent { id }' })
+      return Boolean(showing && authorized(scoped, showing.brokerage?.id, 'canManageShowings', showing.assignedAgent?.id))
+    },
+    execute: async scoped => {
+      const sudo = scoped.sudo() as any
+      const header = await scopedShowingIdentity(scoped, showingId)
+      if (!header) return { result: { ok: false, message: 'Showing not found or access denied.', itemId: null }, event: null as never }
+      await lockPropertyForDecision(scoped, header.property.id, header.brokerage.id)
+      const showing = await sudo.query.Showing.findOne({ where: { id: showingId }, query: 'id status updatedAt showingType notes feedback scheduledStart scheduledEnd brokerage { id status } assignedAgent { id } lead { id status brokerage { id status } } property { id state brokerage { id status } }' })
+      if (!sameShowingIdentity(showing, header) || !showing || !authorized(scoped, showing.brokerage?.id, 'canManageShowings', showing.assignedAgent?.id)) {
+        return { result: { ok: false, message: 'Showing not found or access denied.', itemId: null }, event: null as never }
+      }
+      if (showing.status !== expectedStatus || showing.updatedAt !== expectedUpdatedAt || await showingReviewRevision(scoped, showing) !== expectedRevision) {
+        return { result: { ok: false, message: 'The showing changed after review. Refresh before rescheduling.', itemId: showingId }, event: null as never }
+      }
+      const plan = planShowingReschedule(showing, scheduledStart)
+      if (!plan.ok) return { result: { ok: false, message: plan.message, itemId: showingId }, event: null as never }
+      const agentId = showing.assignedAgent?.id
+      if (showing.status === 'scheduled') {
+        if (!agentId) return { result: { ok: false, message: 'Assign an advisor before rescheduling a confirmed showing.', itemId: showingId }, event: null as never }
+        try {
+          await requireAvailableShowingSlot(scoped, { brokerageId: showing.brokerage.id, propertyId: showing.property.id, agentId, scheduledStart: plan.scheduledStart, scheduledEnd: plan.scheduledEnd, excludeId: showingId })
+        } catch (error) {
+          return { result: { ok: false, message: error instanceof Error ? error.message : 'That time is not available.', itemId: showingId }, event: null as never }
+        }
+      }
+      const now = new Date().toISOString()
+      await sudo.query.Showing.updateOne({ where: { id: showingId }, data: { scheduledStart: plan.scheduledStart, scheduledEnd: plan.scheduledEnd }, query: 'id' })
+      if (showing.lead?.id) {
+        await sudo.query.LeadActivity.createOne({ data: { brokerage: { connect: { id: showing.brokerage.id } }, lead: { connect: { id: showing.lead.id } }, property: { connect: { id: showing.property.id } }, showing: { connect: { id: showingId } }, agent: { connect: { id: actorId(scoped)! } }, activityType: 'status_change', direction: 'internal', channel: 'crm', subject: 'Showing rescheduled', body: note || `Moved from ${showing.scheduledStart} to ${plan.scheduledStart}`, occurredAt: now }, query: 'id' })
+      }
+      const result = { ok: true, message: 'Showing rescheduled.', itemId: showingId }
+      return { result, event: { eventType: 'showing.rescheduled', brokerageId: showing.brokerage.id, aggregateType: 'showing', aggregateId: showingId, actorId: actorId(scoped), action: 'reschedule',
+        before: { status: showing.status, scheduledStart: showing.scheduledStart, scheduledEnd: showing.scheduledEnd },
+        after: { ...result, status: showing.status, scheduledStart: plan.scheduledStart, scheduledEnd: plan.scheduledEnd, subject: { showingId, leadId: header.lead.id, propertyId: header.property.id } } } }
     },
   })
 }

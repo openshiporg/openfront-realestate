@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
-import { classifyShowingFeedbackResponse, classifyShowingStatusResponse, type ShowingActionState } from '../lib/showingActionFeedback'
+import { classifyShowingFeedbackResponse, classifyShowingRescheduleResponse, classifyShowingStatusResponse, type ShowingActionState } from '../lib/showingActionFeedback'
 import { readShowingDetail } from '../lib/showingDetail'
 import { isShowingBoardProjection, type ShowingBoardItem, type ShowingBoardStats } from '../lib/showingProjection'
 
@@ -85,6 +85,36 @@ export async function updateShowingStatus(_prevState: ShowingActionState, formDa
   const result = classifyShowingStatusResponse(response, id, status)
   if (!result.ok) return result
 
+  revalidatePath(`/dashboard/platform/showings/${id}`)
+  revalidatePath('/dashboard/platform/showings')
+  revalidatePath('/dashboard/platform/leads')
+  return result
+}
+
+export async function rescheduleShowing(_prevState: ShowingActionState, formData: FormData): Promise<ShowingActionState> {
+  if (_prevState.uncertain) return _prevState
+  const id = String(formData.get('showingId') || '')
+  const scheduledStart = String(formData.get('scheduledStart') || '')
+  const note = String(formData.get('note') || '').trim()
+  const expectedStatus = String(formData.get('expectedStatus') || '')
+  const expectedUpdatedAt = String(formData.get('expectedUpdatedAt') || '')
+  const expectedRevision = String(formData.get('expectedRevision') || '')
+  if (!id || !expectedStatus || !expectedUpdatedAt || !/^[a-f0-9]{64}$/.test(expectedRevision)) return { ok: false, message: 'Refresh the page and try again.' }
+  if (!Number.isFinite(Date.parse(scheduledStart))) return { ok: false, message: 'Choose a new date and time.' }
+
+  const mutation = `
+    mutation RescheduleShowing($data: RescheduleShowingInput!) {
+      rescheduleShowingCommand(data: $data) { ok message itemId replayed }
+    }
+  `
+  let response: unknown
+  try {
+    response = await keystoneClient<any>(mutation, { data: { showingId: id, scheduledStart, note, expectedStatus, expectedUpdatedAt, expectedRevision, idempotencyKey: crypto.randomUUID() } }, { cache: 'no-store' })
+  } catch {
+    return classifyShowingRescheduleResponse(null, id)
+  }
+  const result = classifyShowingRescheduleResponse(response, id)
+  if (!result.ok) return result
   revalidatePath(`/dashboard/platform/showings/${id}`)
   revalidatePath('/dashboard/platform/showings')
   revalidatePath('/dashboard/platform/leads')

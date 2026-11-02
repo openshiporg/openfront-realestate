@@ -3,7 +3,7 @@ import { formatMoney } from '@/features/lib/money'
 import { ErrorBanner, Meta, Panel, PlatformPage, TitleLine, trackItemClass } from '../../components/PlatformUI'
 import { label } from '../../leads/lib/labels'
 import { getShowingDetail } from '../actions/showings'
-import { ShowingFeedbackForm, ShowingStatusButton } from '../components/ShowingActionForms'
+import { ShowingFeedbackForm, ShowingRescheduleDialog, ShowingStatusButton } from '../components/ShowingActionForms'
 import { LocalDateTime } from '../components/LocalDateTime'
 import { showingHistoryLabels, showingStatusColors, showingStatusLabels, showingTypeLabels } from '../lib/labels'
 
@@ -45,6 +45,7 @@ export async function ShowingDetailPage({ params, searchParams }: PageProps) {
                     <div role="group" aria-label="Showing status" className="flex flex-wrap items-start gap-1.5">
                       {current.status === 'requested' ? <ShowingStatusButton showingId={id} leadId={current.lead?.id} status="scheduled" label="Confirm showing" {...version} /> : null}
                       {current.status === 'scheduled' ? <ShowingStatusButton showingId={id} leadId={current.lead?.id} status="no_show" label="Mark no show" {...version} /> : null}
+                      <ShowingRescheduleDialog showingId={id} scheduledStart={current.scheduledStart} {...version} />
                       <ShowingStatusButton showingId={id} leadId={current.lead?.id} status="cancelled" label="Cancel showing" quiet {...version} />
                     </div>
                     {current.status === 'scheduled' ? <ShowingFeedbackForm showingId={id} leadId={current.lead?.id} {...version} /> : null}

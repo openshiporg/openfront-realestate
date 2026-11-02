@@ -32,6 +32,7 @@ import { submitListingInquiry } from './submitListingInquiry'
 import {
   addLeadActivityCommand,
   completeShowingWithFeedback,
+  rescheduleShowingCommand,
   inviteBrokerageMemberCommand,
   resolveDuplicateLeadCommand,
   scheduleShowingForLeadCommand,
@@ -442,6 +443,16 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         idempotencyKey: String!
       }
 
+      input RescheduleShowingInput {
+        showingId: ID!
+        scheduledStart: String!
+        note: String
+        idempotencyKey: String!
+        expectedStatus: String!
+        expectedUpdatedAt: String!
+        expectedRevision: String!
+      }
+
       input CompleteShowingWithFeedbackInput {
         showingId: ID!
         feedback: String!
@@ -615,6 +626,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         updateDealFinancialTermsCommand(data: UpdateDealFinancialTermsInput!): OperatorCommandResult!
         updateDealNextStepCommand(data: UpdateDealNextStepInput!): OperatorCommandResult!
         completeShowingWithFeedback(data: CompleteShowingWithFeedbackInput!): OperatorCommandResult!
+        rescheduleShowingCommand(data: RescheduleShowingInput!): OperatorCommandResult!
         scheduleShowingForLeadCommand(data: ScheduleShowingForLeadInput!): OperatorCommandResult!
         addLeadActivityCommand(data: AddLeadActivityCommandInput!): OperatorCommandResult!
         resolveDuplicateLeadCommand(data: ResolveDuplicateLeadInput!): OperatorCommandResult!
@@ -702,6 +714,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         updateDealFinancialTermsCommand,
         updateDealNextStepCommand,
         completeShowingWithFeedback,
+        rescheduleShowingCommand,
         scheduleShowingForLeadCommand,
         addLeadActivityCommand,
         resolveDuplicateLeadCommand,

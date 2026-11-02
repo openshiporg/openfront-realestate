@@ -59,3 +59,14 @@ export function classifyShowingFeedbackResponse(response: unknown, showingId: st
   }
   return { ok: false, message: result.message as string }
 }
+
+export const SHOWING_RESCHEDULE_UNCONFIRMED =
+  'We couldn\u2019t confirm the new time was saved. Refresh the page to check before trying again.'
+
+export function classifyShowingRescheduleResponse(response: unknown, showingId: string): ShowingActionState {
+  const result = commandResult(response, 'rescheduleShowingCommand', false)
+  if (!result) return uncertain(SHOWING_RESCHEDULE_UNCONFIRMED)
+  if (result.itemId !== null && result.itemId !== showingId) return uncertain(SHOWING_RESCHEDULE_UNCONFIRMED)
+  if (result.ok) return result.itemId === showingId ? { ok: true, message: result.message as string } : uncertain(SHOWING_RESCHEDULE_UNCONFIRMED)
+  return { ok: false, message: result.message as string }
+}

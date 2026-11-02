@@ -7225,6 +7225,7 @@ type Mutation {
   updateDealFinancialTermsCommand(data: UpdateDealFinancialTermsInput!): OperatorCommandResult!
   updateDealNextStepCommand(data: UpdateDealNextStepInput!): OperatorCommandResult!
   completeShowingWithFeedback(data: CompleteShowingWithFeedbackInput!): OperatorCommandResult!
+  rescheduleShowingCommand(data: RescheduleShowingInput!): OperatorCommandResult!
   scheduleShowingForLeadCommand(data: ScheduleShowingForLeadInput!): OperatorCommandResult!
   addLeadActivityCommand(data: AddLeadActivityCommandInput!): OperatorCommandResult!
   resolveDuplicateLeadCommand(data: ResolveDuplicateLeadInput!): OperatorCommandResult!
@@ -8920,6 +8921,16 @@ input UpdateDealNextStepInput {
   nextStep: String!
   notes: String
   idempotencyKey: String!
+}
+
+input RescheduleShowingInput {
+  showingId: ID!
+  scheduledStart: String!
+  note: String
+  idempotencyKey: String!
+  expectedStatus: String!
+  expectedUpdatedAt: String!
+  expectedRevision: String!
 }
 
 input CompleteShowingWithFeedbackInput {
