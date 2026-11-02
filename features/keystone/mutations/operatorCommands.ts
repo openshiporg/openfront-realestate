@@ -4,6 +4,7 @@ import { lockPropertyForDecision } from '../lib/propertyLock'
 import { activeBrokerageIds, type Session } from '../access'
 import { requireRepresentationAuthority } from '../lib/authorityEvidence'
 import { showingReviewRevision } from '../lib/showingReviewRevision'
+import { reviewedIso, sameReviewedVersion } from '../lib/reviewedVersion'
 import { sameShowingIdentity, scopedSchedulingIdentity, scopedShowingIdentity } from '../lib/showingAssociations'
 import { ownedShowingEventHeader } from '../lib/showingEventScope'
 import { leadStatusAfterShowing, reconcileLeadStatusAfterShowing, requireAvailableShowingSlot, showingInterval } from '../lib/showingPolicy'
@@ -139,7 +140,7 @@ export async function completeShowingWithFeedback(_root: unknown, { data }: { da
   if (!showingId || !feedback || feedback.length > 10_000 || !key) return { ok: false, message: 'Showing, feedback, and idempotency key are required.', itemId: null, replayed: false }
   const request = { showingId, feedback,
     ...(data.expectedStatus != null ? { expectedStatus: clean(data.expectedStatus) } : {}),
-    ...(data.expectedUpdatedAt != null ? { expectedUpdatedAt: clean(data.expectedUpdatedAt) } : {}),
+    ...(data.expectedUpdatedAt != null ? { expectedUpdatedAt: reviewedIso(clean(data.expectedUpdatedAt)) ?? clean(data.expectedUpdatedAt) } : {}),
     ...(data.expectedRevision != null ? { expectedRevision: clean(data.expectedRevision) } : {}),
   }
   return command(context, {
@@ -164,7 +165,7 @@ export async function completeShowingWithFeedback(_root: unknown, { data }: { da
       if (!sameShowingIdentity(showing, header)) return { result: { ok: false, message: 'Showing not found or access denied.', itemId: null }, event: null as never }
       if (!showing || !authorized(scoped, showing.brokerage?.id, 'canManageShowings', showing.assignedAgent?.id)) return { result: { ok: false, message: 'Showing not found or access denied.', itemId: null }, event: null as never }
       if ((data.expectedStatus != null && showing.status !== clean(data.expectedStatus))
-        || (data.expectedUpdatedAt != null && showing.updatedAt !== clean(data.expectedUpdatedAt))
+        || (data.expectedUpdatedAt != null && !sameReviewedVersion(showing.updatedAt, clean(data.expectedUpdatedAt)))
         || (data.expectedRevision != null && await showingReviewRevision(scoped, showing) !== clean(data.expectedRevision))) {
         return { result: { ok: false, message: 'The showing changed after review. Refresh before saving feedback.', itemId: showingId }, event: null as never }
       }
@@ -198,7 +199,7 @@ export async function completeShowingWithFeedback(_root: unknown, { data }: { da
 /** Staff move an open showing to a new time. Status is kept; a confirmed showing must land on a free slot. */
 export async function rescheduleShowingCommand(_root: unknown, { data }: { data: any }, context: Context) {
   const showingId = clean(data.showingId), scheduledStart = clean(data.scheduledStart), note = clean(data.note), key = clean(data.idempotencyKey)
-  const expectedStatus = clean(data.expectedStatus), expectedUpdatedAt = clean(data.expectedUpdatedAt), expectedRevision = clean(data.expectedRevision)
+  const expectedStatus = clean(data.expectedStatus), expectedUpdatedAt = reviewedIso(clean(data.expectedUpdatedAt)) ?? '', expectedRevision = clean(data.expectedRevision)
   if (!showingId || !scheduledStart || note.length > 2000 || !key || !expectedStatus || !expectedUpdatedAt || !/^[a-f0-9]{64}$/.test(expectedRevision)) {
     return { ok: false, message: 'Showing, new time, current version, and idempotency key are required.', itemId: null, replayed: false }
   }
@@ -223,7 +224,7 @@ export async function rescheduleShowingCommand(_root: unknown, { data }: { data:
       if (!sameShowingIdentity(showing, header) || !showing || !authorized(scoped, showing.brokerage?.id, 'canManageShowings', showing.assignedAgent?.id)) {
         return { result: { ok: false, message: 'Showing not found or access denied.', itemId: null }, event: null as never }
       }
-      if (showing.status !== expectedStatus || showing.updatedAt !== expectedUpdatedAt || await showingReviewRevision(scoped, showing) !== expectedRevision) {
+      if (showing.status !== expectedStatus || !sameReviewedVersion(showing.updatedAt, expectedUpdatedAt) || await showingReviewRevision(scoped, showing) !== expectedRevision) {
         return { result: { ok: false, message: 'The showing changed after review. Refresh before rescheduling.', itemId: showingId }, event: null as never }
       }
       const plan = planShowingReschedule(showing, scheduledStart)

@@ -8,6 +8,7 @@ import { domainPayloadHash, enqueueDomainEvent, normalizeDomainJson } from '../l
 import { freshOperatorCommandContext } from '../lib/commandContext'
 import { requireCurrentCommissionState } from '../lib/commissionState'
 import { showingReviewRevision } from '../lib/showingReviewRevision'
+import { reviewedIso, sameReviewedVersion } from '../lib/reviewedVersion'
 import { sameShowingIdentity, scopedShowingIdentity } from '../lib/showingAssociations'
 import { ownedShowingEventHeader, showingEventPayloadMatches, SHOWING_EVENT_HEADER_QUERY } from '../lib/showingEventScope'
 import { showingTransitions, reconcileLeadStatusAfterShowing, requireAvailableShowingSlot, showingInterval } from '../lib/showingPolicy'
@@ -143,7 +144,7 @@ async function transitionInContext(context: Context, domain: Domain, data: Trans
   const definition = config[domain]
   const request = { domain, id, status: next, note: safeString(data.note),
     ...(data.expectedStatus != null ? { expectedStatus: data.expectedStatus } : {}),
-    ...(data.expectedUpdatedAt != null ? { expectedUpdatedAt: data.expectedUpdatedAt } : {}),
+    ...(data.expectedUpdatedAt != null ? { expectedUpdatedAt: reviewedIso(data.expectedUpdatedAt) ?? String(data.expectedUpdatedAt) } : {}),
     ...(data.expectedRevision != null ? { expectedRevision: data.expectedRevision } : {}),
   }
   const eventKey = `command:${domain}:${id}:${commandKey}`
@@ -199,7 +200,7 @@ async function transitionInContext(context: Context, domain: Domain, data: Trans
     return { ...(showingReplay.payload?.result || {}), replayed: true }
   }
   if (domain === 'showing' && ((data.expectedStatus != null && item.status !== data.expectedStatus)
-    || (data.expectedUpdatedAt != null && item.updatedAt !== data.expectedUpdatedAt)
+    || (data.expectedUpdatedAt != null && !sameReviewedVersion(item.updatedAt, data.expectedUpdatedAt))
     || (data.expectedRevision != null && await showingReviewRevision(context, item) !== data.expectedRevision))) {
     return { ok: false, message: 'The showing changed after review. Refresh before submitting a new decision.', itemId: id, status: item.status, replayed: false }
   }
