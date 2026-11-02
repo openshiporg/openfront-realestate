@@ -32,6 +32,22 @@ function tintStyle(map: MapLibreMap) {
 }
 
 /**
+ * Room around the homes when fitting them in view. On a phone the result cards float over the right
+ * of the map, so every pin is kept in the open strip to their left.
+ */
+function openPadding(canvas: HTMLElement | null) {
+  const padding = { top: 90, bottom: 60, left: 60, right: 60 }
+  const map = canvas?.getBoundingClientRect()
+  const cards = canvas?.closest('.sf-split')?.querySelector<HTMLElement>('.sf-split__main')
+  if (!map || !cards || !map.width) return padding
+  const style = getComputedStyle(cards)
+  const covered = map.right - (cards.getBoundingClientRect().left + parseFloat(style.paddingLeft || '0'))
+  // Only when the cards sit over the map, and only if a usable strip is left.
+  if (covered > 0 && covered < map.width - 120) return { top: 40, bottom: 80, left: 44, right: covered + 44 }
+  return padding
+}
+
+/**
  * The map half of the search: every located home as a price pin. Hovering or focusing a result card
  * (anything carrying data-listing-id) lifts its pin; choosing a pin scrolls to that card, or opens
  * the home when its card is not on the page.
@@ -114,7 +130,7 @@ export function ListingsMap({ pins, activeId, className = '' }: { pins: MapPin[]
       if (pins.length > 1) {
         const bounds = new maplibregl.LngLatBounds()
         for (const pin of pins) bounds.extend([pin.longitude, pin.latitude])
-        map.fitBounds(bounds, { padding: { top: 90, bottom: 60, left: 60, right: 60 }, maxZoom: 13, duration: 0 })
+        map.fitBounds(bounds, { padding: openPadding(box.current), maxZoom: 13, duration: 0 })
       } else if (pins.length === 1) {
         map.jumpTo({ center: [pins[0].longitude, pins[0].latitude], zoom: 13 })
       }
@@ -162,7 +178,7 @@ export function ListingsMap({ pins, activeId, className = '' }: { pins: MapPin[]
     if (active) return map.easeTo({ center: [active.longitude, active.latitude], zoom: 13, duration: 300 })
     if (pins.length) {
       const lng = pins.map(pin => pin.longitude), lat = pins.map(pin => pin.latitude)
-      map.fitBounds([[Math.min(...lng), Math.min(...lat)], [Math.max(...lng), Math.max(...lat)]], { padding: 60, maxZoom: 13, duration: 300 })
+      map.fitBounds([[Math.min(...lng), Math.min(...lat)], [Math.max(...lng), Math.max(...lat)]], { padding: openPadding(box.current), maxZoom: 13, duration: 300 })
     }
   }
 
