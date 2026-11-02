@@ -65,6 +65,22 @@ async function deriveBrokerage(context: any, inputData: any, config: HookConfig)
   return null
 }
 
+/**
+ * The create/update input as plain JSON for the audit trail. A file or image upload arrives as a
+ * stream promise, which can't be stored; the event keeps a marker and the stored file is on `after`.
+ */
+export function auditableInput(inputData: unknown): unknown {
+  if (!inputData || typeof inputData !== 'object' || Array.isArray(inputData)) return inputData
+  const input = inputData as Record<string, unknown>
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(input)) {
+    const upload = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>).upload : undefined
+    if (upload !== undefined) out[key] = { upload: 'file' }
+    else if (value !== undefined) out[key] = value
+  }
+  return out
+}
+
 export function createTenantOwnedHooks(config: HookConfig) {
   return {
     async resolveInput({ operation, inputData, resolvedData, context }: any) {
@@ -161,7 +177,7 @@ export function createTenantOwnedHooks(config: HookConfig) {
         aggregateType,
         aggregateId: record.id,
         actorId,
-        request: inputData || { id: record.id },
+        request: auditableInput(inputData) || { id: record.id },
         before: normalizeMoneyRecord(config.listKey, originalItem || null),
         after: normalizeMoneyRecord(config.listKey, item || null),
       })
