@@ -5,7 +5,7 @@ import { formatMoney } from '@/features/lib/money'
 import { ErrorBanner, Meta, Panel, PlatformPage, TitleLine, Track, trackItemClass, type Tone } from '../../components/PlatformUI'
 import { getViewerPermissions } from '../../lib/records'
 import { label, leadIntentLabels, leadStatusColors, leadStatusLabels } from '../../leads/lib/labels'
-import { LocalDateTime } from '../../showings/components/LocalDateTime'
+import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
 import { showingStatusColors, showingStatusLabels, showingTypeLabels } from '../../showings/lib/labels'
 import { ListingStatusTrack } from '../components/ListingStatusTrack'
 import { AddMediaDrawer, EditListingDrawer, MediaActions, OpenHouseActions, ScheduleOpenHouseDrawer } from '../components/ListingRecordActions'
@@ -57,7 +57,7 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
               <Meta label="Lot">{listing.lotSizeSquareFeet ? `${listing.lotSizeSquareFeet.toLocaleString()} sq ft` : '—'}</Meta>
               <Meta label="Year built">{listing.yearBuilt || '—'}</Meta>
               <Meta label="HOA">{listing.hoaFee && Number(listing.hoaFee) > 0 ? `${formatMoney(listing.hoaFee)}/mo` : '—'}</Meta>
-              <Meta label="Available">{listing.availableAt ? <LocalDateTime value={listing.availableAt} options={{ dateStyle: 'medium' }} /> : '—'}</Meta>
+              <Meta label="Available">{listing.availableAt ? <ViewerTime value={listing.availableAt} style="date" /> : '—'}</Meta>
               <Meta label="Neighborhood">{listing.neighborhood || '—'}</Meta>
               <Meta label="Featured">{listing.isFeatured ? 'Yes' : 'No'}</Meta>
               {rental ? <>
@@ -95,7 +95,7 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
                   <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
                     <div className="min-w-0">
                       <TitleLine as="h3" tone={openHouseTones[item.status] || 'zinc'} status={label({ scheduled: 'Scheduled', completed: 'Completed', cancelled: 'Cancelled' }, item.status)} headingClassName="text-sm">{item.title}</TitleLine>
-                      <p className="text-sm text-muted-foreground"><LocalDateTime value={item.startsAt} options={{ weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }} /> – <LocalDateTime value={item.endsAt} options={{ hour: 'numeric', minute: '2-digit' }} />{item.hostAgent ? ` · ${item.hostAgent.name}` : ''}</p>
+                      <p className="text-sm text-muted-foreground"><ViewerTime value={item.startsAt} style="datetime" /> – <ViewerTime value={item.endsAt} style="datetime" />{item.hostAgent ? ` · ${item.hostAgent.name}` : ''}</p>
                     </div>
                     {item.status === 'scheduled' ? <Track label={`${item.title} actions`}><OpenHouseActions openHouseId={item.id} /></Track> : null}
                   </li>
@@ -117,7 +117,7 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
                 {leads.map(lead => (
                   <li key={lead.id}>
                     <TitleLine as="h3" tone={leadStatusColors[lead.status] || 'zinc'} status={label(leadStatusLabels, lead.status)} headingClassName="text-sm"><Link href={`/dashboard/platform/leads/${lead.id}`} className="hover:underline">{lead.name}</Link></TitleLine>
-                    <p className="text-xs text-muted-foreground">{label(leadIntentLabels, lead.intent)} · <LocalDateTime value={lead.createdAt} options={{ dateStyle: 'medium' }} /></p>
+                    <p className="text-xs text-muted-foreground">{label(leadIntentLabels, lead.intent)} · <ViewerTime value={lead.createdAt} style="date" /></p>
                   </li>
                 ))}
               </ul>
@@ -129,7 +129,7 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
               <ul className="space-y-2.5">
                 {showings.map(showing => (
                   <li key={showing.id}>
-                    <TitleLine as="h3" tone={showingStatusColors[showing.status] || 'zinc'} status={label(showingStatusLabels, showing.status)} headingClassName="text-sm"><Link href={`/dashboard/platform/showings/${showing.id}`} className="hover:underline"><LocalDateTime value={showing.scheduledStart} options={{ month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }} /></Link></TitleLine>
+                    <TitleLine as="h3" tone={showingStatusColors[showing.status] || 'zinc'} status={label(showingStatusLabels, showing.status)} headingClassName="text-sm"><Link href={`/dashboard/platform/showings/${showing.id}`} className="hover:underline"><ViewerTime value={showing.scheduledStart} style="datetime" /></Link></TitleLine>
                     <p className="text-xs text-muted-foreground">{showing.lead?.name || 'No client'} · {label(showingTypeLabels, showing.showingType)}</p>
                   </li>
                 ))}

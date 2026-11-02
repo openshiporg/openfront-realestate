@@ -7,7 +7,7 @@ import { getPlatformLeads } from '../../leads/actions/leads'
 import { getPlatformListings } from '../../listings/actions/listings'
 import { FilterTabs } from '../../listings/components/FilterTabs'
 import { getPlatformPeople } from '../../people/actions/people'
-import { LocalDateTime } from '../../showings/components/LocalDateTime'
+import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
 import { getPlatformOperations, type OperationsWorkspace } from '../actions/operations'
 import { buildOperationsOptions, type OperationsOptions } from '../lib/options'
 import { DataTable, EmptyState, ErrorBanner, PlatformPage, StatusCell, Td, rowSingleActionLineClass, trackItemClass, type Tone } from '../../components/PlatformUI'
@@ -53,7 +53,7 @@ function Status({ value, label }: { value?: string | null; label?: string }) {
 }
 
 function DateText({ value }: { value?: string | null }) {
-  return value ? <LocalDateTime value={value} options={{ dateStyle: 'medium' }} /> : <span className="text-muted-foreground">Not set</span>
+  return value ? <ViewerTime value={value} style="date" /> : <span className="text-muted-foreground">Not set</span>
 }
 
 const DAY = 86_400_000
@@ -371,7 +371,7 @@ function OpenHousesSection({ workspace }: { workspace: OperationsWorkspace }) {
         {workspace.openHouses.length ? workspace.openHouses.map((item) => (
           <Row key={item.id}>
             <Td><p className="max-w-[16rem] truncate font-medium text-foreground">{item.title}</p><p className="max-w-[16rem] truncate text-xs text-muted-foreground">{item.property?.title}</p></Td>
-            <Td className="whitespace-nowrap tabular-nums"><LocalDateTime value={item.startsAt} options={{ weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }} /></Td>
+            <Td className="whitespace-nowrap tabular-nums"><ViewerTime value={item.startsAt} style="datetime" /></Td>
             <Td className="whitespace-nowrap">{item.hostAgent?.name || <span className="text-muted-foreground">No host</span>}</Td>
             <Td className="whitespace-nowrap"><Status value={item.status} /></Td>
             <Actions>
@@ -519,7 +519,7 @@ function DocumentsSection({ workspace, options }: { workspace: OperationsWorkspa
             <Td className="font-medium text-foreground">{item.document?.title}</Td>
             <Td className="whitespace-nowrap">{humanize(item.eventType)}</Td>
             <Td>{item.provider} · <span className="text-muted-foreground">{item.providerReference}</span></Td>
-            <Td className="whitespace-nowrap tabular-nums"><LocalDateTime value={item.occurredAt} /></Td>
+            <Td className="whitespace-nowrap tabular-nums"><ViewerTime value={item.occurredAt} style="datetime" /></Td>
           </Row>
         )) : <NoRows colSpan={4}>No document events</NoRows>}
       </DataTable>
@@ -622,7 +622,7 @@ function ImportsSection({ workspace }: { workspace: OperationsWorkspace }) {
               <Td className="font-medium text-foreground">{humanize(item.eventType)}</Td>
               <Td><Status value={item.status} />{item.lastError ? <p className="mt-0.5 max-w-[18rem] text-xs text-destructive">{item.lastError}</p> : null}</Td>
               <Td className="text-right tabular-nums">{item.attempts || 0}</Td>
-              <Td className="whitespace-nowrap tabular-nums"><LocalDateTime value={item.availableAt} /></Td>
+              <Td className="whitespace-nowrap tabular-nums"><ViewerTime value={item.availableAt} style="datetime" /></Td>
             </Row>
           )) : <NoRows colSpan={4}>No jobs</NoRows>}
         </DataTable>
@@ -655,7 +655,7 @@ function RecordsSection({ workspace, options }: { workspace: OperationsWorkspace
               <Td className="font-medium text-foreground">{humanize(item.eventType)}</Td>
               <Td>{item.document?.title || item.deal?.title}</Td>
               <Td className="text-muted-foreground">{item.holdKey || item.manifestKey || '—'}</Td>
-              <Td className="whitespace-nowrap tabular-nums"><LocalDateTime value={item.occurredAt} /></Td>
+              <Td className="whitespace-nowrap tabular-nums"><ViewerTime value={item.occurredAt} style="datetime" /></Td>
             </Row>
           )) : <NoRows colSpan={4}>No activity</NoRows>}
         </DataTable>

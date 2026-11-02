@@ -47,6 +47,7 @@ function RowAction({ showing, version, href, now }: { showing: PlatformShowing; 
 /** Showings as a dense table grouped by day, in the viewer's own time zone once running in the browser. */
 export function ShowingBoard({ showings, versions }: { showings: PlatformShowing[]; versions: Record<string, ShowingVersion> }) {
   const hydrated = useSyncExternalStore(subscribe, clientSnapshot, serverSnapshot)
+  // Grouping uses UTC until mounted, but no UTC text is ever shown: day/time/zone stay empty until the viewer zone applies
   const timeZone = hydrated ? undefined : 'UTC'
   const now = Date.now()
   const dayFormat = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone })
@@ -66,14 +67,14 @@ export function ShowingBoard({ showings, versions }: { showings: PlatformShowing
         <Fragment key={group.day}>
           <tr>
             <th scope="colgroup" colSpan={6} className="border-b bg-muted/20 px-3 py-1.5 text-left text-xs font-semibold text-foreground">
-              {group.day}<span className="ml-2 font-medium tabular-nums text-muted-foreground">{group.items.length}</span>
+              {hydrated ? group.day : ''}<span className="ml-2 font-medium tabular-nums text-muted-foreground">{group.items.length}</span>
             </th>
           </tr>
           {group.items.map(showing => {
             const { property, lead, assignedAgent: agent } = showing
             const start = new Date(showing.scheduledStart)
-            const time = timeFormat.format(start)
-            const zone = zoneFormat.formatToParts(start).find(part => part.type === 'timeZoneName')?.value
+            const time = hydrated ? timeFormat.format(start) : ''
+            const zone = !hydrated ? undefined : zoneFormat.formatToParts(start).find(part => part.type === 'timeZoneName')?.value
             const href = `/dashboard/platform/showings/${encodeURIComponent(showing.id)}`
             const past = showing.status === 'requested' && start.getTime() < now
             const status = <StatusCell tone={showingStatusColors[showing.status] || 'zinc'}>{label(showingStatusLabels, showing.status)}</StatusCell>

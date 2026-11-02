@@ -5,7 +5,7 @@ import { formatMoney } from '@/features/lib/money'
 import { cn } from '@/lib/utils'
 import { ErrorBanner, Meta, Panel, PlatformPage, StatusDot, TitleLine, type Tone } from '../../components/PlatformUI'
 import { ChecklistDrawer, CommissionAction, CounterOfferDrawer, DealOfferDrawer, DisclosureAction, DocumentAction, InspectionAction, MilestoneAction, OfferAction } from '../../operations/components/TaskForms'
-import { LocalDateTime } from '../../showings/components/LocalDateTime'
+import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
 import { DealFinancialTermsForm, DealNextStepForm } from '../components/DealActionForms'
 import { DealRowActions } from '../components/DealRowActions'
 import { RequestPaymentDrawer } from '../../payments/components/PaymentForms'
@@ -84,7 +84,7 @@ export async function DealDetailPage({ params }: { params: Promise<{ id: string 
     { key: 'checklist', filled: filled(workspace.milestones), node: (
             <Panel title="Closing checklist" actions={workspace.milestones ? <div className="flex flex-wrap gap-1.5"><ChecklistDrawer dealId={deal.id} /></div> : null}>
               <Rows items={workspace.milestones} empty="No checklist items" render={item => (
-                <Row title={item.name} status={item.status} meta={item.dueAt || item.assignedTo ? <>{item.dueAt ? <>Due <LocalDateTime value={item.dueAt} options={{ month: 'short', day: 'numeric' }} /></> : null}{item.dueAt && item.assignedTo ? ' · ' : ''}{item.assignedTo?.name}</> : undefined}>
+                <Row title={item.name} status={item.status} meta={item.dueAt || item.assignedTo ? <>{item.dueAt ? <>Due <ViewerTime value={item.dueAt} style="date" /></> : null}{item.dueAt && item.assignedTo ? ' · ' : ''}{item.assignedTo?.name}</> : undefined}>
                   {(milestoneNext[item.status] || []).map(([status, text]) => <MilestoneAction key={status} milestoneId={item.id} status={status} label={text} />)}
                 </Row>
               )} />
@@ -163,7 +163,7 @@ export async function DealDetailPage({ params }: { params: Promise<{ id: string 
     <PlatformPage
       crumbs={[{ label: 'Pipeline', href: '/platform/pipeline' }, { label: deal.title }]}
       title={<TitleLine as="h1" tone={stage?.[2] || 'zinc'} status={stage?.[1] || human(deal.stage)} headingClassName="text-2xl tracking-tight">{deal.title}</TitleLine>}
-      meta={<>{human(deal.transactionType)} · {deal.assignedAgent?.name || 'Unassigned'}{deal.expectedCloseDate ? <> · Close <LocalDateTime value={deal.expectedCloseDate} options={{ dateStyle: 'medium' }} /></> : null}</>}
+      meta={<>{human(deal.transactionType)} · {deal.assignedAgent?.name || 'Unassigned'}{deal.expectedCloseDate ? <> · Close <ViewerTime value={deal.expectedCloseDate} style="date" /></> : null}</>}
       actions={open ? <div className="flex flex-wrap items-center gap-2">{deal.lead ? <RequestPaymentDrawer leadId={deal.lead.id} dealId={deal.id} /> : null}<DealRowActions editInMenu={false} deal={{ id: deal.id, title: deal.title, stage: deal.stage }} /></div> : null}
       toolbar={deal.stage !== 'closed_lost' ? (
         <nav aria-label="Deal stages" className="relative -mx-4 overflow-x-auto px-4 [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin] md:mx-0 md:px-0">
@@ -204,7 +204,7 @@ export async function DealDetailPage({ params }: { params: Promise<{ id: string 
               <Meta label="Offer"><span className="tabular-nums">{amount(deal.offerAmount)}</span></Meta>
               <Meta label="Commission"><span className="tabular-nums">{amount(deal.commissionAmount)}</span></Meta>
               <Meta label="Team">{deal.assignedTeam?.name || '—'}</Meta>
-              <Meta label="Opened"><LocalDateTime value={deal.createdAt} options={{ dateStyle: 'medium' }} /></Meta>
+              <Meta label="Opened"><ViewerTime value={deal.createdAt} style="date" /></Meta>
             </dl>
             <details className="group mt-3 border-t border-border pt-3">
               <summary className="inline-flex min-h-8 cursor-pointer list-none items-center rounded-[6px] text-sm font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50">Edit amounts</summary>

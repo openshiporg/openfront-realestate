@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Mail, Phone } from 'lucide-react'
 import { formatMoney as exactMoney, moneyToMinor } from '@/features/lib/money'
-import { LocalDateTime } from '../../showings/components/LocalDateTime'
+import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
 import { ErrorBanner, Meta, Panel, PlatformPage, TitleLine, trackItemClass } from '../../components/PlatformUI'
 import { getPlatformLeadDetail, getShowingRequestViewer } from '../actions/leads'
 import { LogActivityButton, ScheduleShowingButton } from '../components/LeadDetailDrawers'
@@ -78,8 +78,8 @@ export async function LeadDetailPage({ params, searchParams }: PageProps) {
                     </Meta>
                     <Meta label="Price">{lead.property ? <span className="tabular-nums">{price(lead.property.price, lead.property.listingType)}</span> : '—'}</Meta>
                     <Meta label="Agent">{lead.assignedAgent ? lead.assignedAgent.name || 'Assigned' : 'Unassigned'}</Meta>
-                    <Meta label="Received"><LocalDateTime value={lead.createdAt} /></Meta>
-                    <Meta label="Last contact">{lead.lastContactedAt ? <LocalDateTime value={lead.lastContactedAt} /> : 'Not yet'}</Meta>
+                    <Meta label="Received"><ViewerTime value={lead.createdAt} style="datetime" /></Meta>
+                    <Meta label="Last contact">{lead.lastContactedAt ? <ViewerTime value={lead.lastContactedAt} style="datetime" /> : 'Not yet'}</Meta>
                     <Meta label="Showings"><span className="tabular-nums">{lead.showingsCount ?? 0}</span></Meta>
                   </dl>
                 </div>
@@ -100,7 +100,7 @@ export async function LeadDetailPage({ params, searchParams }: PageProps) {
                   <ol className="divide-y divide-border">
                     {lead.activities.map((activity) => (
                       <li key={activity.id} className="grid gap-x-4 gap-y-0.5 py-3 first:pt-0 last:pb-0 sm:grid-cols-[9.5rem_minmax(0,1fr)]">
-                        <p className="text-xs tabular-nums text-muted-foreground sm:pt-0.5"><LocalDateTime value={activity.occurredAt} /></p>
+                        <p className="text-xs tabular-nums text-muted-foreground sm:pt-0.5"><ViewerTime value={activity.occurredAt} style="datetime" /></p>
                         <div className="min-w-0">
                           <h3 className="text-sm font-medium text-foreground">{activity.subject ? <LocalizedText text={activity.subject} /> : label(activityTypeLabels, activity.activityType)}</h3>
                           {activity.body ? <p className="mt-0.5 whitespace-pre-wrap text-sm text-foreground/90"><LocalizedText text={activity.body} /></p> : null}

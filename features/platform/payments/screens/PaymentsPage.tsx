@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { DataTable, EmptyState, ErrorBanner, PlatformPage, StatusCell, Td } from '../../components/PlatformUI'
 import { formatMoney } from '@/features/lib/money'
-import { LocalDateTime } from '../../showings/components/LocalDateTime'
+import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
 import { CheckStatusButton, RefundPaymentButton } from '../components/PaymentForms'
 import { getPayments, purposeLabels, statusLabels, statusTones } from '../lib/data'
 
@@ -34,7 +34,7 @@ export async function PaymentsPage() {
                 <Td><StatusCell tone={statusTones[payment.status] || 'zinc'}>{statusLabels[payment.status] || payment.status}</StatusCell></Td>
                 <Td className="hidden max-w-[14rem] truncate md:table-cell">{payment.property?.title || '—'}</Td>
                 <Td className="hidden md:table-cell">{payment.lead ? <Link href={`/dashboard/platform/leads/${encodeURIComponent(payment.lead.id)}`} className="hover:underline">{payment.lead.name}</Link> : '—'}</Td>
-                <Td className="hidden whitespace-nowrap lg:table-cell"><LocalDateTime value={payment.createdAt} options={{ dateStyle: 'medium' }} /></Td>
+                <Td className="hidden whitespace-nowrap lg:table-cell"><ViewerTime value={payment.createdAt} style="date" /></Td>
                 <Td className="hidden text-right sm:table-cell"><div className="inline-flex gap-2">{checkable(payment) ? <CheckStatusButton paymentId={payment.id} /> : null}{refundable(payment) ? <RefundPaymentButton paymentId={payment.id} /> : null}</div></Td>
               </tr>
             ))}

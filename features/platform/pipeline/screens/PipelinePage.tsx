@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Fragment } from 'react'
 import { formatMoney as money, moneyToMinor } from '@/features/lib/money'
 import { cn } from '@/lib/utils'
-import { LocalDateTime } from '../../showings/components/LocalDateTime'
+import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
 import { DataTable, EmptyState, ErrorBanner, PlatformPage, StatusDot, Td, rowActionLineClass, rowActionsBlockClass, trackItemClass } from '../../components/PlatformUI'
 import { FilterTabs } from '../../listings/components/FilterTabs'
 import { getPipelineDeals, type PlatformDeal } from '../actions/deals'
@@ -54,7 +54,7 @@ function Idle({ deal, className }: { deal: PlatformDeal; className?: string }) {
   return (
     <span title={title} className={cn('whitespace-nowrap text-[13px] tabular-nums', className)}>
       {days >= 7 ? <span className={cn('mr-1.5', tone)}>{days}d</span> : null}
-      <LocalDateTime value={changed} options={{ month: 'short', day: 'numeric' }} className="text-muted-foreground" />
+      <span className="text-muted-foreground"><ViewerTime value={changed} style="date" /></span>
     </span>
   )
 }
@@ -65,7 +65,7 @@ function Closing({ deal, inline = false }: { deal: PlatformDeal; inline?: boolea
   const open = isOpen(deal)
   return (
     <span className={cn('whitespace-nowrap', inline ? 'inline-flex items-baseline gap-1.5 text-xs' : 'block text-[13px]')}>
-      <LocalDateTime value={deal.expectedCloseDate} options={inline ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' }} className="tabular-nums text-foreground" />
+      <span className="tabular-nums text-foreground"><ViewerTime value={deal.expectedCloseDate} style="date" /></span>
       {open && days !== null ? (
         <span className={cn(inline ? 'inline' : 'block', 'text-xs tabular-nums', days < 0 ? 'font-medium text-destructive' : days <= CLOSING_WINDOW_DAYS ? 'font-medium text-amber-700 dark:text-amber-400' : 'text-muted-foreground')}>
           {days < 0 ? `${-days}d overdue` : days === 0 ? 'Today' : `in ${days}d`}

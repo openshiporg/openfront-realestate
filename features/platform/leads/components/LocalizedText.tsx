@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment } from 'react'
-import { LocalDateTime } from '../../showings/components/LocalDateTime'
+import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
 
 const ISO = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})/g
 
@@ -16,5 +16,5 @@ export function LocalizedText({ text }: { text: string }) {
     last = index + match[0].length
   }
   if (last < text.length) parts.push(text.slice(last))
-  return <>{parts.map((part, index) => typeof part === 'string' ? <Fragment key={index}>{part}</Fragment> : <LocalDateTime key={index} value={part.iso} />)}</>
+  return <>{parts.map((part, index) => typeof part === 'string' ? <Fragment key={index}>{part}</Fragment> : <ViewerTime key={index} value={part.iso} style="datetime" />)}</>
 }

@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
+import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
 import { localDateTimeToIso } from '@/features/lib/date-time'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -255,8 +256,7 @@ type FileDocument = { id: string; title: string; documentType?: string | null; s
 
 function shortDate(value?: string | null) {
   if (!value) return 'No date'
-  const date = new Date(value)
-  return Number.isFinite(date.getTime()) ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date'
+  return Number.isFinite(new Date(value).getTime()) ? <ViewerTime value={value} style="date" /> : 'No date'
 }
 const words = (value?: string | null) => value ? value.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase()) : ''
 

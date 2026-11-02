@@ -3,7 +3,7 @@ import { Fragment } from 'react'
 import { cn } from '@/lib/utils'
 import { DataTable, EmptyState, ErrorBanner, PlatformPage, StatusCell, Td, rowActionLineClass, rowActionsBlockClass, type Tone } from '../../components/PlatformUI'
 import { FilterTabs } from '../../listings/components/FilterTabs'
-import { LocalDateTime } from '../../showings/components/LocalDateTime'
+import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
 import { TaskDrawer } from '../components/TaskForms'
 import { priorityOptions } from '../lib/options'
 import { TaskRowActions } from '../components/TaskRowActions'
@@ -54,7 +54,7 @@ function Due({ task, now, className }: { task: AgentTaskRow; now: number; classN
   const overdue = task.status !== 'done' && Date.parse(task.dueAt) < now
   return (
     <span className={cn('whitespace-nowrap tabular-nums', overdue ? 'font-semibold text-destructive' : 'text-foreground', className)}>
-      {overdue ? 'Overdue · ' : null}<LocalDateTime value={task.dueAt} options={{ month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }} />
+      {overdue ? 'Overdue · ' : null}<ViewerTime value={task.dueAt} style="datetime" />
     </span>
   )
 }

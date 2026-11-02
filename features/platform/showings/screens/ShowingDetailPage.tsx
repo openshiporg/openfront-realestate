@@ -4,7 +4,7 @@ import { ErrorBanner, Meta, Panel, PlatformPage, TitleLine, trackItemClass } fro
 import { label } from '../../leads/lib/labels'
 import { getShowingDetail } from '../actions/showings'
 import { ShowingFeedbackForm, ShowingRescheduleDialog, ShowingStatusButton } from '../components/ShowingActionForms'
-import { LocalDateTime } from '../components/LocalDateTime'
+import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
 import { showingHistoryLabels, showingStatusColors, showingStatusLabels, showingTypeLabels } from '../lib/labels'
 
 interface PageProps {
@@ -27,7 +27,7 @@ export async function ShowingDetailPage({ params, searchParams }: PageProps) {
       title={showing
         ? <TitleLine as="h1" tone={showingStatusColors[showing.status] || 'zinc'} status={label(showingStatusLabels, showing.status)} headingClassName="text-2xl tracking-tight">{title}</TitleLine>
         : 'Showing'}
-      meta={showing ? <><LocalDateTime value={showing.scheduledStart} options={{ dateStyle: 'full', timeStyle: 'short' }} /> · {label(showingTypeLabels, showing.showingType, 'Showing')}{showing.status === 'requested' ? <span className="text-amber-700 dark:text-amber-400"> · Not confirmed</span> : null}</> : null}
+      meta={showing ? <><ViewerTime value={showing.scheduledStart} style="long" /> · {label(showingTypeLabels, showing.showingType, 'Showing')}{showing.status === 'requested' ? <span className="text-amber-700 dark:text-amber-400"> · Not confirmed</span> : null}</> : null}
     >
       {!detail || error ? (
         <ErrorBanner>{error || 'This showing could not be loaded.'}</ErrorBanner>
@@ -69,8 +69,8 @@ export async function ShowingDetailPage({ params, searchParams }: PageProps) {
                     <Meta label="Listing">{snapshot.listingTitle}</Meta>
                     <Meta label="Address">{[snapshot.addressLine1, snapshot.city, snapshot.state].filter(Boolean).join(', ')}</Meta>
                     <Meta label="Price"><span className="tabular-nums">{snapshot.price ? `${formatMoney(snapshot.price)}${snapshot.listingType === 'rent' ? '/mo' : ''}` : '—'}</span></Meta>
-                    <Meta label="Requested time"><LocalDateTime value={snapshot.scheduledStart} /> – <LocalDateTime value={snapshot.scheduledEnd} options={{ timeStyle: 'short' }} /></Meta>
-                    <Meta label="Received"><LocalDateTime value={snapshot.capturedAt} /></Meta>
+                    <Meta label="Requested time"><ViewerTime value={snapshot.scheduledStart} style="datetime" /> – <ViewerTime value={snapshot.scheduledEnd} style="datetime" /></Meta>
+                    <Meta label="Received"><ViewerTime value={snapshot.capturedAt} style="datetime" /></Meta>
                     <div className="sm:col-span-2">
                       <dt className="text-xs text-muted-foreground">Note</dt>
                       <dd className="mt-0.5 whitespace-pre-wrap text-sm text-foreground">{snapshot.notes || 'None'}</dd>
@@ -101,7 +101,7 @@ export async function ShowingDetailPage({ params, searchParams }: PageProps) {
                         <span aria-hidden className="absolute -left-[3px] top-1.5 size-1.5 rounded-full bg-muted-foreground" />
                         <p className="font-medium text-foreground">{label(showingHistoryLabels, event.action)}</p>
                         {event.fromStatus || event.toStatus ? <p className="text-xs text-muted-foreground">{label(showingStatusLabels, event.fromStatus)} to {label(showingStatusLabels, event.toStatus)}</p> : null}
-                        <p className="text-xs text-muted-foreground"><LocalDateTime value={event.occurredAt} /></p>
+                        <p className="text-xs text-muted-foreground"><ViewerTime value={event.occurredAt} style="datetime" /></p>
                       </li>
                     ))}
                   </ol>
