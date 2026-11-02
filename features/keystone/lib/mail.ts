@@ -113,7 +113,7 @@ export async function sendShowingRequestEmail(
       subject: `${details.brokerageName}: we received your ${kind} request`,
       html: `<body style="font-family: Helvetica, Arial, sans-serif; color: #444;"><p>${escape(details.brokerageName)} received your ${kind} request. An agent will contact you to confirm the time.</p><p><strong>${escape(details.propertyTitle)}</strong>${details.address ? `<br>${escape(details.address)}` : ''}<br>Requested time: ${escape(details.whenLabel)}<br>Request number: ${escape(details.showingNumber)}</p><p><a href="${escape(details.url)}" style="background:#346df1;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;display:inline-block;">View the listing</a></p></body>`,
     })
-    return { sent: true }
+    return { sent: true, messageId: [String((info as any)?.messageId || ''), String((info as any)?.response || '').slice(0,120)].filter(Boolean).join(' | ') }
   } catch (error) {
     return { sent: false, error: error instanceof Error ? error.message : 'send_failed' }
   }
