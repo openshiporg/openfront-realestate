@@ -49,7 +49,7 @@ export function PageBreadcrumbs({ items, actions }: PageBreadcrumbsProps) {
                       </BreadcrumbLink>
                     )}
                     {item.type === "page" && (
-                      <BreadcrumbPage className="block truncate">{item.label}</BreadcrumbPage>
+                      <BreadcrumbPage className="block leading-tight max-md:line-clamp-none md:truncate">{item.label}</BreadcrumbPage>
                     )}
                   </BreadcrumbItem>
                 </React.Fragment>
