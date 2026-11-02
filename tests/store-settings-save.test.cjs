@@ -70,3 +70,17 @@ test('the hue is normalized to 0-359', () => {
 test('an unsafe SVG rejects the save', () => {
   assert.deepEqual(payload({ logoIcon: '<svg onload="alert(1)"></svg>' }), { success: false, error: 'Invalid SVG format' });
 });
+
+test('the logo colour only tints the mark: the storefront palette follows brandHue, not logoColor', () => {
+  const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
+  const theme = read('features/lib/storefront-theme.ts');
+  assert.doesNotMatch(theme, /storefrontBrandHueFromLogoColor/);
+  assert.match(theme, /export function storefrontBrandHue\(brandHue: unknown\)/);
+  assert.doesNotMatch(theme, /normalizeStoreLogoColor/);
+  assert.match(read('features/storefront/components/StorefrontFrame.tsx'), /storefrontBrandHue\(brandHue\)/);
+  assert.match(read('app/(storefront)/layout.tsx'), /state\.settings\.brandHue/);
+  assert.doesNotMatch(read('app/(storefront)/layout.tsx'), /settings\.logoColor/);
+  assert.match(read('features/storefront/lib/data/settings.ts'), /publicEmail\n\s+brandHue\n\s+logoIcon/);
+  const mark = read('features/storefront/components/BrokerageMark.tsx');
+  assert.match(mark, /hue-rotate\(/);
+});

@@ -1,5 +1,3 @@
-import { normalizeStoreLogoColor } from './store-logo'
-
 export const DEFAULT_STOREFRONT_BRAND_HUE = 151
 export const MIN_STOREFRONT_BRAND_HUE = 0
 export const MAX_STOREFRONT_BRAND_HUE = 359
@@ -11,9 +9,13 @@ export function normalizeStorefrontBrandHue(value: unknown): number {
   return ((integer % 360) + 360) % 360
 }
 
-/** The storefront palette follows the store logo colour (as in Openfront Restaurant). */
-export function storefrontBrandHueFromLogoColor(logoColor: unknown): number {
-  return normalizeStorefrontBrandHue(DEFAULT_STOREFRONT_BRAND_HUE + Number(normalizeStoreLogoColor(logoColor)))
+/**
+ * The storefront palette follows the brokerage's own brand hue, not the logo colour:
+ * the logo colour only tints the mark (hue-rotate), so picking a mark colour never repaints
+ * buttons, price pins or the search bar.
+ */
+export function storefrontBrandHue(brandHue: unknown): number {
+  return normalizeStorefrontBrandHue(brandHue ?? DEFAULT_STOREFRONT_BRAND_HUE)
 }
 
 export function storefrontThemeColor(value: unknown): string {

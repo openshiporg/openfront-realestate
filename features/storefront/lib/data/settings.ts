@@ -13,6 +13,7 @@ export type BrokerageSettings = {
   equalHousingNotice: string
   publicPhone: string
   publicEmail: string
+  brandHue: number
   logoIcon: string
   logoColor: string
 }
@@ -48,6 +49,7 @@ export const getBrokerageSettings = cache(async function getBrokerageSettings():
           equalHousingNotice
           publicPhone
           publicEmail
+          brandHue
           logoIcon
           logoColor
         }

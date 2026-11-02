@@ -3,7 +3,7 @@ import { getBrokerageSettings } from '@/features/storefront/lib/data/settings'
 import { StorefrontSettingsState } from '@/features/storefront/components/StorefrontSettingsState'
 import { storefrontOrigin } from '@/features/storefront/lib/metadata'
 import { StorefrontFrame } from '@/features/storefront/components/StorefrontFrame'
-import { storefrontBrandHueFromLogoColor, storefrontThemeColor } from '@/features/lib/storefront-theme'
+import { storefrontBrandHue, storefrontThemeColor } from '@/features/lib/storefront-theme'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,13 +29,13 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export async function generateViewport(): Promise<Viewport> {
   const state = await getBrokerageSettings()
-  return { themeColor: storefrontThemeColor(storefrontBrandHueFromLogoColor(state.status === 'ready' ? state.settings.logoColor : undefined)) }
+  return { themeColor: storefrontThemeColor(storefrontBrandHue(state.status === 'ready' ? state.settings.brandHue : undefined)) }
 }
 
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
   const state = await getBrokerageSettings()
   return (
-    <StorefrontFrame logoColor={state.status === 'ready' ? state.settings.logoColor : undefined}>
+    <StorefrontFrame brandHue={state.status === 'ready' ? state.settings.brandHue : undefined}>
       {state.status === 'ready' ? children : <StorefrontSettingsState state={state} />}
     </StorefrontFrame>
   )
