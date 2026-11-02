@@ -167,8 +167,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
           <div className="sf-detail-head">
             <section className="sf-detail-head__main" aria-labelledby="listing-title" data-saved={savedIds[listing.id] ? true : undefined}>
               <div className="sf-detail-head__status">
-                <span className="sf-badge" data-tone={listingTone(listing.status)}>{listingStatusPlate(listing)}</span>
-                <span>{propertyTypeLabel(listing.propertyType)}</span>
+                <p className="sf-detail-head__kind" data-tone={listingTone(listing.status)}>{[listingStatusPlate(listing), propertyTypeLabel(listing.propertyType)].filter(Boolean).join(' · ')}</p>
                 <SaveHomeButton className="sf-detail-head__save" propertyId={listing.id} title={listing.title} slug={listing.slug} savedId={savedIds[listing.id] || null} signedIn={Boolean(customer)} />
               </div>
               <h1 id="listing-title" className="sf-detail-head__title">

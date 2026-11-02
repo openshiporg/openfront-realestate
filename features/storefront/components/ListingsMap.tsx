@@ -95,7 +95,8 @@ export function ListingsMap({ pins, activeId, className = '' }: { pins: MapPin[]
         element.type = 'button'
         element.className = 'sf-pin'
         element.setAttribute('aria-label', `${pin.title}, ${pin.label}`)
-        element.innerHTML = `<span class="sf-pin__label"></span>`
+        // The current home also gets vega's radar ring on the ground under its pointer.
+        element.innerHTML = `<span class="sf-pin__label"></span>${pin.id === activeId ? '<span class="sf-pin__radar" aria-hidden="true"><i></i></span>' : ''}`
         element.firstElementChild!.textContent = pin.label
         element.addEventListener('click', event => {
           event.stopPropagation()
