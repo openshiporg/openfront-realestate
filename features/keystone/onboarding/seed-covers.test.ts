@@ -64,3 +64,9 @@ test('the upload resolves like a multipart file for the image field', async () =
   for await (const chunk of file.createReadStream()) chunks.push(chunk)
   assert.ok(Buffer.concat(chunks).length > 100_000)
 })
+
+test('the uploaded cover is the only seeded cover photo', async () => {
+  const expansion = (await import('../../platform/onboarding/lib/expansion-seed.json')).default as any
+  const heroes = expansion.records.filter((record: any) => record.listKey === 'PropertyMedia' && record.data.isHero)
+  assert.deepEqual(heroes, [])
+})

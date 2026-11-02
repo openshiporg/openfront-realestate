@@ -40,7 +40,7 @@
         "altText": "Living room of the Riverfront Loft with floor-to-ceiling windows",
         "caption": "Riverfront Loft living room and skyline view.",
         "sortOrder": 1,
-        "isHero": true,
+        "isHero": false,
         "property": {
           "$anchor": "property"
         }
