@@ -72,8 +72,8 @@ function ListingRow({ item, now }: { item: PlatformListing; now: number }) {
             aria-label={item.primaryImageUrl ? `${item.title} photo` : 'No photo'}
           />
           <div className="min-w-0">
-            <Link href={href} className="block max-w-[19rem] truncate font-medium sm:max-w-[22rem] xl:max-w-[19rem] 2xl:max-w-[22rem] text-foreground underline-offset-2 hover:underline">{item.title}</Link>
-            <p className="max-w-[19rem] truncate text-xs text-muted-foreground sm:max-w-[22rem] xl:max-w-[19rem] 2xl:max-w-[22rem]">{[place || 'No address', facts].filter(Boolean).join(' · ')}</p>
+            <Link href={href} className="block max-w-[19rem] truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] font-medium sm:max-w-[22rem] xl:max-w-[19rem] 2xl:max-w-[22rem] text-foreground underline-offset-2 hover:underline">{item.title}</Link>
+            <p className="max-w-[19rem] truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] text-xs text-muted-foreground sm:max-w-[22rem] xl:max-w-[19rem] 2xl:max-w-[22rem]">{[place || 'No address', facts].filter(Boolean).join(' · ')}</p>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs md:hidden">
               {statusCell}
               <span className="font-semibold tabular-nums text-foreground">{priceLabel(item)}</span>
@@ -89,7 +89,7 @@ function ListingRow({ item, now }: { item: PlatformListing; now: number }) {
       <Td className="hidden whitespace-nowrap text-right font-medium tabular-nums md:table-cell">{priceLabel(item)}</Td>
       <Td className="hidden text-right tabular-nums lg:table-cell">{countCell(item.leadsCount)}</Td>
       <Td className="hidden text-right tabular-nums lg:table-cell">{countCell(item.showingsCount)}</Td>
-      <Td className="hidden max-w-[10rem] truncate md:table-cell">{item.assignedAgent ? item.assignedAgent.name : <span className="text-amber-700 dark:text-amber-400">Unassigned</span>}</Td>
+      <Td className="hidden max-w-[10rem] truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] md:table-cell">{item.assignedAgent ? item.assignedAgent.name : <span className="text-amber-700 dark:text-amber-400">Unassigned</span>}</Td>
       <Td className="hidden whitespace-nowrap text-muted-foreground tabular-nums xl:table-cell">{updatedLabel(item.updatedAt, now)}</Td>
       <Td className="hidden w-px whitespace-nowrap py-2 text-right md:table-cell">
         <div className="flex justify-end">

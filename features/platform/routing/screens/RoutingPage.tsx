@@ -18,9 +18,9 @@ type Coverage = { intent: string; label: string; tone: Tone; state: string; deta
 function RouteTo({ from, to }: { from: string; to: string }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5">
-      <span className="truncate">{from}</span>
+      <span className="truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere]">{from}</span>
       <ArrowRight aria-label="assigns to" className="size-3.5 shrink-0" />
-      <span className="truncate">{to || 'nobody'}</span>
+      <span className="truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere]">{to || 'nobody'}</span>
     </span>
   )
 }
@@ -73,7 +73,7 @@ export async function RoutingPage() {
                   <li key={row.intent} className="grid gap-x-4 gap-y-0.5 px-3 py-2 text-sm sm:grid-cols-[7rem_9rem_minmax(0,1fr)] sm:items-center">
                     <span className="font-medium text-foreground">{row.label}</span>
                     <StatusCell tone={row.tone}>{row.state}</StatusCell>
-                    <span className="min-w-0 truncate text-muted-foreground">{row.detail}</span>
+                    <span className="min-w-0 truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] text-muted-foreground">{row.detail}</span>
                   </li>
                 ))}
               </ul>
@@ -104,8 +104,8 @@ export async function RoutingPage() {
                     <tr key={rule.id} className={rule.status === 'active' ? 'transition-colors hover:bg-muted/30' : 'text-muted-foreground transition-colors hover:bg-muted/30'}>
                       <Td className="text-right tabular-nums text-muted-foreground">{rule.priority ?? '—'}</Td>
                       <Td className="min-w-0">
-                        <p className="max-w-[12rem] truncate font-medium text-foreground sm:max-w-[16rem]">{rule.name}</p>
-                        <p className="max-w-[12rem] truncate text-xs text-muted-foreground sm:max-w-[16rem] xl:hidden">
+                        <p className="max-w-[12rem] truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] font-medium text-foreground sm:max-w-[16rem]">{rule.name}</p>
+                        <p className="max-w-[12rem] truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] text-xs text-muted-foreground sm:max-w-[16rem] xl:hidden">
                           <span className="md:hidden">{optionLabel(intentOptions, rule.intent)} · </span>{optionLabel(sourceOptions, rule.source)} · {where}
                           <span className="md:hidden"> · {to || 'Nobody'}</span>
                         </p>
@@ -117,7 +117,7 @@ export async function RoutingPage() {
                       <Td className="hidden whitespace-nowrap md:table-cell">{optionLabel(intentOptions, rule.intent)}</Td>
                       <Td className="hidden whitespace-nowrap xl:table-cell">{optionLabel(sourceOptions, rule.source)}</Td>
                       <Td className="hidden whitespace-nowrap xl:table-cell">{where}</Td>
-                      <Td className="hidden max-w-[11rem] truncate md:table-cell">{to || <span className="text-amber-700 dark:text-amber-400">Nobody</span>}{!rule.assignedAgent && rule.assignedTeam ? <span className="block text-xs text-amber-700 dark:text-amber-400">No agent: never matches</span> : null}</Td>
+                      <Td className="hidden max-w-[11rem] truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] md:table-cell">{to || <span className="text-amber-700 dark:text-amber-400">Nobody</span>}{!rule.assignedAgent && rule.assignedTeam ? <span className="block text-xs text-amber-700 dark:text-amber-400">No agent: never matches</span> : null}</Td>
                       <Td className="hidden lg:table-cell">{rule.isFallback ? 'Yes' : <span className="text-muted-foreground">—</span>}</Td>
                       <Td className="hidden whitespace-nowrap md:table-cell"><StatusCell tone={rule.status === 'active' ? 'emerald' : 'zinc'}>{rule.status === 'active' ? 'Active' : 'Paused'}</StatusCell></Td>
                       <Td className="hidden w-px whitespace-nowrap py-2 text-right md:table-cell">

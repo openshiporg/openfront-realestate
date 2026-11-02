@@ -91,8 +91,8 @@ export async function PeoplePage({ searchParams }: { searchParams?: Promise<{ [k
                           ? <img src={upgradeLegacyImagePath(agent.avatarUrl)} alt="" className="size-8 shrink-0 rounded-full object-cover" />
                           : <div className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold text-foreground">{initials(agent.name)}</div>}
                         <div className="min-w-0">
-                          <p className="max-w-[12rem] truncate font-medium text-foreground sm:max-w-[18rem]">{agent.name}</p>
-                          <p className="max-w-[12rem] truncate text-xs text-muted-foreground sm:max-w-[18rem]">{[agent.brokerageTitle || agent.role?.name, agent.email].filter(Boolean).join(' · ')}</p>
+                          <p className="max-w-[12rem] truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] font-medium text-foreground sm:max-w-[18rem]">{agent.name}</p>
+                          <p className="max-w-[12rem] truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] text-xs text-muted-foreground sm:max-w-[18rem]">{[agent.brokerageTitle || agent.role?.name, agent.email].filter(Boolean).join(' · ')}</p>
                           <p className="text-xs text-muted-foreground sm:hidden">{plural(agent.listingCount, 'listing')} · {plural(agent.showingCount, 'showing')} · {plural(agent.dealCount, 'deal')}</p>
                         </div>
                       </div>
@@ -127,7 +127,7 @@ export async function PeoplePage({ searchParams }: { searchParams?: Promise<{ [k
                 <tr key={team.id} className="transition-colors hover:bg-muted/30">
                   <Td>
                     <p className="font-medium text-foreground">{team.name}</p>
-                    <p className="max-w-[16rem] truncate text-xs text-muted-foreground sm:max-w-[22rem]">{team.description || `${humanize(team.teamType)} team`}</p>
+                    <p className="max-w-[16rem] truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] text-xs text-muted-foreground sm:max-w-[22rem]">{team.description || `${humanize(team.teamType)} team`}</p>
                   </Td>
                   <Td className="whitespace-nowrap"><StatusCell tone={team.status === 'active' ? 'emerald' : 'zinc'}>{humanize(team.status)}</StatusCell></Td>
                   <Td className="hidden whitespace-nowrap md:table-cell">{team.leadAgent?.name || <span className="text-amber-700 dark:text-amber-400">Unassigned</span>}</Td>
