@@ -28,7 +28,7 @@ function fakeSudo() {
     query: { DomainAuditEvent: {
       async createOne({ data }) { if (rows.has(data.eventKey)) throw new Error('unique'); rows.set(data.eventKey, { id: data.eventKey, ...data }); return { id: data.eventKey }; },
       async findOne({ where }) { return rows.has(where.eventKey) ? { id: where.eventKey } : null; },
-      async updateOne({ where, data }) { Object.assign(rows.get(where.id), data); return { id: where.id }; },
+      async updateOne() { throw new Error('audit rows are append-only'); },
     } },
   };
 }
@@ -49,18 +49,18 @@ test('sends once and records sent; replay does not resend', async () => {
   assert.equal(sent.length, 1);
   assert.equal(sent[0].d.url, 'https://shop.test/listings/loft');
   assert.match(sent[0].d.whenLabel, /10:00 AM CST/);
-  assert.equal(sudo.rows.get('showing-request-email:sh1').afterState.status, 'sent');
+  assert.equal(sudo.rows.get('showing-request-email:sh1:result').afterState.status, 'sent');
 });
 
 test('a mail throw or failure is recorded and never surfaces', async () => {
   const { mod } = setup({ env: configured, send: () => { throw new Error('boom'); } });
   const sudo = fakeSudo();
   await assert.doesNotReject(mod.deliverShowingRequestEmail(sudo, receipt));
-  assert.equal(sudo.rows.get('showing-request-email:sh1').afterState.status, 'failed');
+  assert.equal(sudo.rows.get('showing-request-email:sh1:result').afterState.status, 'failed');
   const failed = setup({ env: configured, send: () => ({ sent: false, error: 'rejected' }) });
   const sudo2 = fakeSudo();
   await failed.mod.deliverShowingRequestEmail(sudo2, receipt);
-  assert.equal(sudo2.rows.get('showing-request-email:sh1').afterState.error, 'rejected');
+  assert.equal(sudo2.rows.get('showing-request-email:sh1:result').afterState.error, 'rejected');
 });
 
 test('unconfigured mail is recorded as skipped_not_configured', async () => {
@@ -68,7 +68,7 @@ test('unconfigured mail is recorded as skipped_not_configured', async () => {
   const sudo = fakeSudo();
   await mod.deliverShowingRequestEmail(sudo, receipt);
   assert.equal(sent.length, 0);
-  assert.equal(sudo.rows.get('showing-request-email:sh1').afterState.status, 'skipped_not_configured');
+  assert.equal(sudo.rows.get('showing-request-email:sh1:result').afterState.status, 'skipped_not_configured');
 });
 
 test('the request mutation sends only after the transaction and only when ok', () => {

@@ -1,7 +1,7 @@
 // Showing-request receipt email. Runs AFTER the request transaction has committed; a mail
-// failure never fails the request. Dedupe + status live in one DomainAuditEvent row whose
-// unique eventKey is claimed atomically, so a replay or concurrent retry never resends.
-const PENDING = 'sending'
+// failure never fails the request. Dedupe: a DomainAuditEvent claim row whose unique eventKey is
+// created atomically (a replay or concurrent retry fails the create); outcome in a :result row.
+const PENDING = 'claimed'
 
 export type ShowingReceipt = {
   showingId: string
@@ -42,10 +42,22 @@ export async function deliverShowingRequestEmail(sudo: any, receipt: ShowingRece
   } catch {
     return // already claimed (replay or concurrent request) or bookkeeping unavailable
   }
+  // DomainAuditEvent is append-only (database triggers reject updates), so the outcome is a
+  // second row keyed :result rather than an update of the claim row.
   const mark = async (status: string, extra: Record<string, unknown> = {}) => {
     try {
-      const row = await sudo.query.DomainAuditEvent.findOne({ where: { eventKey }, query: 'id' })
-      if (row) await sudo.query.DomainAuditEvent.updateOne({ where: { id: row.id }, data: { afterState: { status, ...extra } }, query: 'id' })
+      await sudo.query.DomainAuditEvent.createOne({
+        data: {
+          eventKey: `${eventKey}:result`,
+          brokerage: { connect: { id: receipt.brokerageId } },
+          aggregateType: 'showing',
+          aggregateId: receipt.showingId,
+          action: 'request_email_result',
+          afterState: { status, ...extra },
+          occurredAt: new Date().toISOString(),
+        },
+        query: 'id',
+      })
     } catch {
       // The request is already committed; status bookkeeping must never surface.
     }
@@ -70,7 +82,7 @@ export async function deliverShowingRequestEmail(sudo: any, receipt: ShowingRece
       showingNumber: receipt.showingId,
       url: receipt.listingUrl,
     })
-    if (result.sent) await mark('sent', { sentAt: new Date().toISOString() })
+    if (result.sent) await mark('sent', { sentAt: new Date().toISOString(), messageId: result.messageId || '' })
     else await mark('failed', { error: result.error || 'send_failed' })
   } catch (error) {
     console.error('Showing request email failed:', error instanceof Error ? error.message : 'Unknown error')

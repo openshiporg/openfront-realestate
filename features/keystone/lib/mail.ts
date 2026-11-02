@@ -102,12 +102,12 @@ export async function sendPaymentRequestEmail(to: string, details: { url: string
 export async function sendShowingRequestEmail(
   to: string,
   details: { brokerageName: string; propertyTitle: string; address: string; whenLabel: string; showingType: 'in_person' | 'virtual'; showingNumber: string; url: string },
-): Promise<{ sent: boolean; error?: string }> {
+): Promise<{ sent: boolean; error?: string; messageId?: string }> {
   if (!process.env.SMTP_HOST || !process.env.SMTP_FROM) return { sent: false, error: 'not_configured' }
   const escape = (value: string) => value.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch] as string)
   const kind = details.showingType === 'virtual' ? 'virtual tour' : 'showing'
   try {
-    await transport.sendMail({
+    const info = await transport.sendMail({
       to,
       from: process.env.SMTP_FROM,
       subject: `${details.brokerageName}: we received your ${kind} request`,
