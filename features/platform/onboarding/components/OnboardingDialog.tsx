@@ -2,64 +2,21 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertCircle, ArrowUpRight, Building2, CircleCheck, Home, Loader2, Building } from 'lucide-react'
+import { AlertCircle, ArrowUpRight, Building2, CircleCheck, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import seed from '../lib/seed.json'
-import expansionSeed from '../lib/expansion-seed.json'
+import { operationItems, SECTION_DEFINITIONS, STORE_TEMPLATES, type TemplateType } from '../config/templates'
 import { applyOnboarding, dismissOnboarding, startOnboarding } from '../actions/onboarding'
 
-type Template = 'minimal' | 'full'
+type Template = TemplateType
 type Step = 'template' | 'progress' | 'done'
 type Summary = { created: number; skipped: number; total: number }
 
-const SECTION_TITLES: Array<{ key: keyof typeof seed.sections; title: string }> = [
-  { key: 'agents', title: 'Agents' },
-  { key: 'properties', title: 'Listings' },
-  { key: 'routingRules', title: 'Lead routing' },
-  { key: 'leads', title: 'Leads' },
-  { key: 'showings', title: 'Showings' },
-  { key: 'deals', title: 'Deals' },
-]
-
-const OPERATIONS_LABELS: Record<string, string> = {
-  Neighborhood: 'Neighborhood guide',
-  PropertyMedia: 'Listing photos',
-  PropertyInspection: 'Inspection',
-  Offer: 'Accepted offer',
-  DealDocument: 'Seller disclosure',
-  Commission: 'Commission',
-  SavedSearch: 'Saved search',
-  SavedProperty: 'Saved property',
-  MarketComp: 'Market comp',
-  AgentTeam: 'Agent team',
-  AgentTask: 'Agent task',
-  ListingSyndication: 'MLS syndication',
-  SourceFeed: 'Listing feed',
-  OpenHouse: 'Open house',
-  ShowingFeedback: 'Showing feedback',
-  Escrow: 'Escrow',
-  TitleOrder: 'Title order',
-  MortgageApplication: 'Mortgage application',
-  TransactionMilestone: 'Closing milestone',
-  PropertyValuation: 'Valuation',
-  Disclosure: 'HOA disclosure',
-  SavedSearchAlert: 'Saved-search alert',
-}
-
-const TEMPLATES: Array<{ value: Template; title: string; description: string; icon: typeof Home }> = [
-  { value: 'minimal', title: 'Basic setup', description: seed.templateModes.minimal, icon: Home },
-  { value: 'full', title: 'Complete setup', description: seed.templateModes.full, icon: Building },
-]
-
 function sectionItems(template: Template) {
-  return SECTION_TITLES.map(({ key, title }) => ({
-    title,
-    items: seed.sections[key].items.filter(item => item.templates.includes(template)).map(item => item.label),
-  }))
+  return SECTION_DEFINITIONS.map(section => ({ title: section.label, items: section.getItemsFn(template) }))
 }
 
 type Props = { isOpen: boolean; onClose: () => void }
@@ -74,10 +31,7 @@ export function OnboardingDialog({ isOpen, onClose }: Props) {
   const isLoading = step === 'progress'
 
   const sections = useMemo(() => sectionItems(template), [template])
-  const operations = useMemo(
-    () => template === 'full' ? expansionSeed.records.map(record => OPERATIONS_LABELS[record.listKey] || record.listKey) : [],
-    [template]
-  )
+  const operations = useMemo(() => operationItems(template), [template])
 
   const close = () => {
     if (isLoading) return
@@ -190,7 +144,7 @@ export function OnboardingDialog({ isOpen, onClose }: Props) {
                 <>
                   <h4 className="mb-4 text-sm font-medium text-foreground">Setup type</h4>
                   <RadioGroup value={template} onValueChange={value => setTemplate(value as Template)} className="space-y-3">
-                    {TEMPLATES.map(option => {
+                    {(Object.keys(STORE_TEMPLATES) as Template[]).map(value => ({ value, ...STORE_TEMPLATES[value] })).map(option => {
                       const Icon = option.icon
                       const selected = template === option.value
                       return (
@@ -202,7 +156,7 @@ export function OnboardingDialog({ isOpen, onClose }: Props) {
                           <RadioGroupItem value={option.value} id={`onboarding-${option.value}`} className="sr-only" />
                           <Icon className={`mt-0.5 size-5 shrink-0 ${selected ? 'text-primary' : 'text-muted-foreground'}`} aria-hidden />
                           <span className="flex-1">
-                            <span className="mb-1 block text-base font-medium">{option.title}</span>
+                            <span className="mb-1 block text-base font-medium">{option.name}</span>
                             <span className="block text-sm font-normal text-muted-foreground">{option.description}</span>
                           </span>
                         </Label>
