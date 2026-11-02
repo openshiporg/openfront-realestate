@@ -342,7 +342,6 @@
             "availableAt": "2026-07-15T15:00:00.000Z",
             "isFeatured": true,
             "virtualTourUrl": "",
-            "primaryImageUrl": "/images/real-estate/photos/riverfront-loft-austin.jpg",
             "assignedAgent": {
               "connect": {
                 "$ref": "agents:maya-chen"
@@ -381,7 +380,6 @@
             "availableAt": "2026-08-01T15:00:00.000Z",
             "isFeatured": true,
             "virtualTourUrl": "",
-            "primaryImageUrl": "/images/real-estate/photos/hill-country-estate.jpg",
             "assignedAgent": {
               "connect": {
                 "$ref": "agents:maya-chen"
@@ -422,7 +420,6 @@
             "leaseTerm": "12 months",
             "securityDeposit": 3800,
             "petPolicy": "Cats and dogs under 40 lb, $500 pet deposit",
-            "primaryImageUrl": "/images/real-estate/photos/eastside-townhome-rental.jpg",
             "assignedAgent": {
               "connect": {
                 "$ref": "agents:omar-patel"
@@ -459,7 +456,6 @@
             "yearBuilt": 1948,
             "availableAt": "2026-07-30T15:00:00.000Z",
             "isFeatured": false,
-            "primaryImageUrl": "/images/real-estate/photos/mueller-bungalow.jpg",
             "assignedAgent": {
               "connect": {
                 "$ref": "agents:evelyn-brooks"
@@ -998,23 +994,31 @@
     }
   },
   "imagePack": {
-    "description": "Public image paths for the starter listings, agents, and neighborhoods.",
+    "description": "Starter photos. Listing covers are uploaded to image storage during setup from features/platform/onboarding/photos; agent and neighborhood images are public paths.",
     "properties": [
       {
         "key": "riverfront-loft-austin",
-        "imagePath": "/images/real-estate/photos/riverfront-loft-austin.jpg"
+        "photo": "riverfront-loft-austin.jpg",
+        "title": "River and skyline view",
+        "altText": "Lady Bird Lake and the downtown Austin skyline at sunset"
       },
       {
         "key": "hill-country-estate",
-        "imagePath": "/images/real-estate/photos/hill-country-estate.jpg"
+        "photo": "hill-country-estate.jpg",
+        "title": "Front exterior",
+        "altText": "Stone and stucco Hill Country estate with a polished concrete drive at sunset"
       },
       {
         "key": "eastside-townhome-rental",
-        "imagePath": "/images/real-estate/photos/eastside-townhome-rental.jpg"
+        "photo": "eastside-townhome-rental.jpg",
+        "title": "Front exterior",
+        "altText": "Row of modern white stucco townhomes with cedar-slat balconies"
       },
       {
         "key": "mueller-bungalow",
-        "imagePath": "/images/real-estate/photos/mueller-bungalow.jpg"
+        "photo": "mueller-bungalow.jpg",
+        "title": "Front exterior",
+        "altText": "Renovated bungalow with a deep front porch on a tree-lined Mueller street"
       }
     ],
     "agents": [

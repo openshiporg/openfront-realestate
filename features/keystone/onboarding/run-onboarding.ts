@@ -2,6 +2,7 @@ import coreSeed from '../../platform/onboarding/lib/seed.json'
 import expansionSeed from '../../platform/onboarding/lib/expansion-seed.json'
 import authoritySeed from '../../platform/onboarding/lib/authority-seed.json'
 import { applyAuthoritySeed } from './authority-runtime'
+import { applySeedCovers } from './seed-covers'
 import { applyCoreSeed, applyExpansionSeed, type SeedContext, type SeedTarget } from './seed-runtime'
 
 export async function runRealEstateOnboarding(context: SeedContext, target: SeedTarget, template: 'full' | 'minimal' = 'full') {
@@ -13,6 +14,7 @@ export async function runRealEstateOnboarding(context: SeedContext, target: Seed
     practitioners: authoritySeed.practitioners.filter(item => selectedAgents.has(item.email)),
     listings: authoritySeed.listings.filter(item => selectedProperties.has(item.propertySlug)),
   }, target)
+  await applySeedCovers(context, coreSeed.imagePack.properties, selectedProperties, target)
   const expansion = template === 'full' ? await applyExpansionSeed(context, expansionSeed, target) : { created: 0, skipped: 0, total: 0 }
   return { core, expansion }
 }

@@ -5,7 +5,8 @@ const s3Hostname = process.env.S3_ENDPOINT ? process.env.S3_ENDPOINT.replace(/^h
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
-  serverExternalPackages: ['graphql'],
+  // graphql-upload stays external so the Upload class the seed builds is the one the scalar checks.
+  serverExternalPackages: ['graphql', 'graphql-upload'],
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb',

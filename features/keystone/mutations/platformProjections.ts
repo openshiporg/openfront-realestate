@@ -55,6 +55,22 @@ const LISTING_QUERY = `
   leadsCount showingsCount
 `
 
+/** The admin thumbnail is the listing's uploaded cover photo, falling back to its own image path. */
+async function withCoverThumbnails(sudo: any, rows: any[]) {
+  if (!rows.length) return rows
+  const covers = await sudo.query.PropertyMedia.findMany({
+    where: { property: { id: { in: rows.map(row => row.id) } }, isHero: { equals: true }, mediaType: { equals: 'photo' } },
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    query: 'property { id } image { url }',
+  })
+  const byProperty = new Map<string, string>()
+  for (const cover of covers) {
+    const url = cover.image?.url || ''
+    if (cover.property?.id && /^https:\/\//.test(url) && !byProperty.has(cover.property.id)) byProperty.set(cover.property.id, url)
+  }
+  return rows.map(row => ({ ...row, primaryImageUrl: byProperty.get(row.id) || row.primaryImageUrl }))
+}
+
 export async function platformListings(_root: unknown, { status, q, take = 60, after, before }: any, context: Context) {
   const current = scope(context, 'canManageListings')
   const { ids } = current
@@ -112,7 +128,7 @@ export async function platformListings(_root: unknown, { status, q, take = 60, a
   const hasMoreInDirection = found.length > pageSize
   const pageRows = found.slice(0, pageSize)
   if (cursor && !pageRows.length) throw new Error(INVALID_LISTING_CURSOR)
-  const items = hasBefore ? pageRows.reverse() : pageRows
+  const items = await withCoverThumbnails(sudo, hasBefore ? pageRows.reverse() : pageRows)
   const pageInfo = {
     hasNextPage: hasBefore ? items.length > 0 : hasMoreInDirection,
     hasPreviousPage: hasBefore ? hasMoreInDirection : hasAfter && items.length > 0,

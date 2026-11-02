@@ -1,9 +1,5 @@
-export const PROPERTY_IMAGE_PATHS: Record<string, string> = {
-  'riverfront-loft-austin': '/images/real-estate/photos/riverfront-loft-austin.jpg',
-  'hill-country-estate': '/images/real-estate/photos/hill-country-estate.jpg',
-  'eastside-townhome-rental': '/images/real-estate/photos/eastside-townhome-rental.jpg',
-  'mueller-bungalow': '/images/real-estate/photos/mueller-bungalow.jpg',
-}
+// Listing covers are uploaded to image storage (PropertyMedia), not served from /public.
+export const PROPERTY_IMAGE_PATHS: Record<string, string> = {}
 
 export const AGENT_IMAGE_PATHS: Record<string, string> = {
   'maya.chen@example.realestate.local': '/images/real-estate/photos/agents/maya-chen.jpg',
