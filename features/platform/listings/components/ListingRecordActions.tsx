@@ -1,6 +1,6 @@
 'use client'
 
-import { ActionButton, Choice, Field, FormDrawer, RecordForm, TextArea } from '../../components/RecordForm'
+import { ActionButton, Choice, Field, FileField, FormDrawer, RecordForm, TextArea } from '../../components/RecordForm'
 import { transitionOpenHouse } from '../../operations/actions/operations'
 import { addListingMedia, deleteListingMedia, scheduleOpenHouse, updateListingMedia } from '../actions/listingRecords'
 import type { AgentOption, ListingDetail } from '../lib/listingDetail'
@@ -19,7 +19,8 @@ export function AddMediaDrawer({ propertyId, nextSort }: { propertyId: string; n
         <RecordForm action={addListingMedia} submitLabel="Add media" onDone={close}>
           <input type="hidden" name="propertyId" value={propertyId} />
           <input type="hidden" name="sortOrder" value={nextSort} />
-          <Field name="url" label="URL" required wide placeholder="https://… or /images/…" />
+          <FileField name="image" label="Photo" accept="image/jpeg,image/png,image/webp" hint="Upload a photo, or give a link below for a tour, video or document." />
+          <Field name="url" label="Link" wide placeholder="https://…" />
           <Field name="title" label="Title" required />
           <Choice name="mediaType" label="Type" options={mediaTypes} defaultValue="photo" />
           <Field name="altText" label="Alt text" wide />

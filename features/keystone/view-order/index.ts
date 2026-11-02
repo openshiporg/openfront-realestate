@@ -19,5 +19,6 @@ export const VIEW_ORDER = [
   "password",
   "decimal",
   "virtual",
+  "image",
   "bigInt"
 ];

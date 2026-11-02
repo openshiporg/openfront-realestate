@@ -8,7 +8,7 @@ export type ListingDetail = {
   primaryImageUrl: string; updatedAt: string
   assignedAgent: { id: string; name: string } | null
 }
-export type ListingMedia = { id: string; title: string; mediaType: string; url: string; altText: string; caption: string; sortOrder: number; isHero: boolean }
+export type ListingMedia = { id: string; title: string; mediaType: string; url: string; image?: { url: string } | null; altText: string; caption: string; sortOrder: number; isHero: boolean }
 export type ListingOpenHouse = { id: string; title: string; status: string; startsAt: string; endsAt: string; attendeeCount: number | null; notes: string; hostAgent: { id: string; name: string } | null }
 export type ListingLead = { id: string; name: string; status: string; intent: string; createdAt: string; assignedAgent: { name: string } | null }
 export type ListingShowing = { id: string; status: string; showingType: string; scheduledStart: string; lead: { name: string } | null }
@@ -32,7 +32,7 @@ export async function getListingDetail(id: string) {
   if (!listing) return { listing: null, error: null }
   const where = { property: { id: { equals: id } } }
   const [media, openHouses, leads, showings, syndications] = await Promise.all([
-    section('query ListingMedia($where: PropertyMediaWhereInput!) { propertyMedias(where: $where, orderBy: [{ sortOrder: asc }], take: 50) { id title mediaType url altText caption sortOrder isHero } }', { where }, d => d.propertyMedias as ListingMedia[], [] as ListingMedia[]),
+    section('query ListingMedia($where: PropertyMediaWhereInput!) { propertyMedias(where: $where, orderBy: [{ sortOrder: asc }], take: 50) { id title mediaType url image { url } altText caption sortOrder isHero } }', { where }, d => d.propertyMedias as ListingMedia[], [] as ListingMedia[]),
     section('query ListingOpenHouses($where: OpenHouseWhereInput!) { openHouses(where: $where, orderBy: [{ startsAt: desc }], take: 30) { id title status startsAt endsAt attendeeCount notes hostAgent { id name } } }', { where }, d => d.openHouses as ListingOpenHouse[], [] as ListingOpenHouse[]),
     section('query ListingLeads($where: LeadWhereInput!) { leads(where: $where, orderBy: [{ createdAt: desc }], take: 20) { id name status intent createdAt assignedAgent { name } } }', { where }, d => d.leads as ListingLead[], null as ListingLead[] | null),
     section('query ListingShowings($where: ShowingWhereInput!) { showings(where: $where, orderBy: [{ scheduledStart: desc }], take: 20) { id status showingType scheduledStart lead { name } } }', { where }, d => d.showings as ListingShowing[], null as ListingShowing[] | null),

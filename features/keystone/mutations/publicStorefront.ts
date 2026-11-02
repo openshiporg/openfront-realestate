@@ -1,4 +1,5 @@
 import type { Context } from '.keystone/types'
+import { publicHeroImagePath, publicMediaImagePath } from '../lib/propertyMediaSource'
 
 import { upgradeLegacyImagePath } from '../../lib/real-estate-images'
 import { ListingAuthorityDeniedError, requireListingAuthority } from '../lib/authorityEvidence'
@@ -162,7 +163,7 @@ function toPublicListing(property: any, media: readonly any[], openHouses: reado
     securityDeposit: property.securityDeposit ?? null,
     applicationFeeMinor: property.listingType === 'rent' ? property.applicationFeeMinor ?? null : null,
     petPolicy: property.petPolicy || '',
-    imagePath: publicImagePath(property.primaryImageUrl),
+    imagePath: publicHeroImagePath(media, publicImagePath(property.primaryImageUrl)),
     assignedAgent: toPublicAgent(property.assignedAgent, property.brokerage.id),
     openHouses: openHouses.map(item => ({
       id: item.id,
@@ -174,8 +175,8 @@ function toPublicListing(property: any, media: readonly any[], openHouses: reado
     media: media.map(item => ({
       title: item.title,
       mediaType: item.mediaType,
-      imagePath: publicImagePath(item.url),
-      externalUrl: publicImagePath(item.url) ? '' : item.url,
+      imagePath: publicMediaImagePath(item, publicImagePath),
+      externalUrl: publicMediaImagePath(item, publicImagePath) ? '' : item.url || '',
       altText: item.altText || '',
       caption: item.caption || '',
       sortOrder: item.sortOrder || 0,
@@ -189,7 +190,7 @@ async function findPublicMedia(context: Context, propertyId: string) {
     where: { property: { id: { equals: propertyId } } },
     orderBy: [{ isHero: 'desc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     take: PUBLIC_LISTING_MEDIA_LIMIT,
-    query: 'title mediaType url altText caption sortOrder isHero',
+    query: 'title mediaType url image { url } altText caption sortOrder isHero',
   })
 }
 

@@ -8,6 +8,7 @@ import { sendPasswordResetEmail } from "./lib/mail";
 import { installInitialOwnerResolver } from './lib/initialOwnerBootstrap';
 import { permissions } from './access';
 import { preserveLegacyMoneyColumns } from './lib/money';
+import { s3ForcePathStyle } from './lib/s3-storage';
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -16,6 +17,21 @@ function requiredEnv(name: string): string {
 }
 
 const databaseURL = requiredEnv("DATABASE_URL");
+
+// As in E-commerce: placeholder storage only outside production.
+function productionEnv(name: string, developmentFallback: string): string {
+  if (process.env[name]) return process.env[name]!;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(`${name} is required in production`);
+  }
+  return developmentFallback;
+}
+
+const bucketName = productionEnv("S3_BUCKET_NAME", "keystone-test");
+const region = productionEnv("S3_REGION", "ap-southeast-2");
+const accessKeyId = productionEnv("S3_ACCESS_KEY_ID", "keystone");
+const secretAccessKey = productionEnv("S3_SECRET_ACCESS_KEY", "keystone");
+const endpoint = productionEnv("S3_ENDPOINT", "https://sfo3.digitaloceanspaces.com");
 const sessionSecret = requiredEnv("SESSION_SECRET");
 if (sessionSecret.length < 32) {
   throw new Error("SESSION_SECRET must be at least 32 characters long");
@@ -108,6 +124,19 @@ export default withAuth(
       extendPrismaSchema: schema => preserveLegacyMoneyColumns(enforceRequiredBrokerageRelations(schema)),
     },
     lists: models,
+    storage: {
+      my_images: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        endpoint,
+        signed: { expiry: 5000 },
+        forcePathStyle: s3ForcePathStyle(endpoint),
+      },
+    },
     ui: {
       isAccessAllowed: ({ session }) => permissions.canAccessDashboard({ session }),
       basePath,

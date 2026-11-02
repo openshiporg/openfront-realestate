@@ -2,6 +2,8 @@
 
 import { connect, getActiveBrokerageId, isoOrNull, money, optionalInt, runRecordMutation, text, type RecordResult } from '../../lib/records'
 
+import { mediaUploadProblem } from '../lib/mediaUpload'
+
 const LISTINGS = '/dashboard/platform/listings'
 
 function slugify(value: string) {
@@ -89,11 +91,13 @@ export async function updateListing(_state: RecordResult, form: FormData): Promi
 
 export async function addListingMedia(_state: RecordResult, form: FormData): Promise<RecordResult> {
   const propertyId = text(form, 'propertyId'), url = text(form, 'url')
-  if (!propertyId || !url) return { ok: false, message: 'Enter the media URL.' }
-  if (!/^(https:\/\/|\/images\/)/.test(url)) return { ok: false, message: 'Use an https:// URL or a /images/ path.' }
+  const upload = form.get('image')
+  const file = upload instanceof File && upload.size > 0 ? upload : null
+  const problem = mediaUploadProblem({ file, url, propertyId })
+  if (problem) return { ok: false, message: problem }
   return runRecordMutation(
     'mutation AddMedia($data: PropertyMediaCreateInput!) { createPropertyMedia(data: $data) { id } }',
-    { data: { property: connect(propertyId), title: text(form, 'title') || 'Photo', mediaType: text(form, 'mediaType') || 'photo', url, altText: text(form, 'altText'), caption: text(form, 'caption'), sortOrder: optionalInt(form, 'sortOrder') ?? 0 } },
+    { data: { property: connect(propertyId), title: text(form, 'title') || 'Photo', mediaType: text(form, 'mediaType') || 'photo', url: file ? '' : url, ...(file ? { image: { upload: file } } : {}), altText: text(form, 'altText'), caption: text(form, 'caption'), sortOrder: optionalInt(form, 'sortOrder') ?? 0 } },
     'createPropertyMedia', 'Media added.', [`${LISTINGS}/${propertyId}`],
   )
 }

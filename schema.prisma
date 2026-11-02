@@ -492,18 +492,23 @@ model LeadRoutingRule {
 }
 
 model PropertyMedia {
-  id         String                     @id @default(cuid())
-  title      String                     @default("")
-  mediaType  PropertyMediaMediaTypeType @default(photo)
-  url        String                     @default("")
-  altText    String                     @default("")
-  caption    String                     @default("")
-  sortOrder  Int?                       @default(0)
-  isHero     Boolean                    @default(false)
-  property   Property?                  @relation("PropertyMedia_property", fields: [propertyId], references: [id])
-  propertyId String?                    @map("property")
-  createdAt  DateTime                   @default(now())
-  updatedAt  DateTime                   @default(now()) @updatedAt
+  id              String                     @id @default(cuid())
+  title           String                     @default("")
+  mediaType       PropertyMediaMediaTypeType @default(photo)
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  url             String                     @default("")
+  altText         String                     @default("")
+  caption         String                     @default("")
+  sortOrder       Int?                       @default(0)
+  isHero          Boolean                    @default(false)
+  property        Property?                  @relation("PropertyMedia_property", fields: [propertyId], references: [id])
+  propertyId      String?                    @map("property")
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @default(now()) @updatedAt
 
   @@index([propertyId])
 }

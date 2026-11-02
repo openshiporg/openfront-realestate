@@ -99,6 +99,17 @@ export function Field({ name, label, defaultValue, type = 'text', required, wide
   return <Shell id={id} label={label} wide={wide}><input id={id} name={name} type={type} required={required} defaultValue={defaultValue ?? ''} inputMode={inputMode} placeholder={placeholder} min={min} max={max} step={step} className={fieldClass} /></Shell>
 }
 
+/** A file picker; the chosen file is sent with the form. */
+export function FileField({ name, label, accept, hint, wide = true }: { name: string; label: string; accept?: string; hint?: string; wide?: boolean }) {
+  const id = useId()
+  return (
+    <Shell id={id} label={label} wide={wide}>
+      <input id={id} name={name} type="file" accept={accept} aria-describedby={hint ? `${id}-hint` : undefined} className={cn(fieldClass, 'h-auto py-1.5 file:mr-3 file:rounded-[4px] file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm file:font-medium')} />
+      {hint ? <p id={`${id}-hint`} className="text-xs text-muted-foreground">{hint}</p> : null}
+    </Shell>
+  )
+}
+
 export function TextArea({ name, label, defaultValue, rows = 3, wide = true, required }: { name: string; label: string; defaultValue?: string | null; rows?: number; wide?: boolean; required?: boolean }) {
   const id = useId()
   return <Shell id={id} label={label} wide={wide}><textarea id={id} name={name} rows={rows} required={required} defaultValue={defaultValue ?? ''} className={cn(fieldClass, 'h-auto py-2')} /></Shell>

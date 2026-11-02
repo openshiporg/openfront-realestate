@@ -75,8 +75,8 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
               <ul className="grid gap-3 sm:grid-cols-2">
                 {media.map(item => (
                   <li key={item.id} className="overflow-hidden rounded-[6px] border border-border">
-                    {mediaPreview(item.url, item.mediaType)
-                      ? <div className="aspect-[4/3] bg-muted bg-cover bg-center" style={{ backgroundImage: `url(${item.url})` }} role="img" aria-label={item.altText || item.title} />
+                    {mediaPreview(item.image?.url || item.url, item.mediaType)
+                      ? <div className="aspect-[4/3] bg-muted bg-cover bg-center" style={{ backgroundImage: `url(${item.image?.url || item.url})` }} role="img" aria-label={item.altText || item.title} />
                       : <a href={item.url} className="flex aspect-[4/3] items-center justify-center bg-muted text-sm text-muted-foreground hover:underline">{label({ virtual_tour: 'Virtual tour', video: 'Video', document: 'Document' }, item.mediaType)}</a>}
                     <div className="space-y-2 p-3">
                       <TitleLine as="h3" status={item.isHero ? 'Cover' : `#${item.sortOrder}`} headingClassName="text-sm">{item.title}</TitleLine>
