@@ -97,3 +97,24 @@ export async function sendPaymentRequestEmail(to: string, details: { url: string
     return false;
   }
 }
+
+/** Receipt for a showing request: the agent still has to confirm the time. */
+export async function sendShowingRequestEmail(
+  to: string,
+  details: { brokerageName: string; propertyTitle: string; address: string; whenLabel: string; showingType: 'in_person' | 'virtual'; showingNumber: string; url: string },
+): Promise<{ sent: boolean; error?: string }> {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_FROM) return { sent: false, error: 'not_configured' }
+  const escape = (value: string) => value.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch] as string)
+  const kind = details.showingType === 'virtual' ? 'virtual tour' : 'showing'
+  try {
+    await transport.sendMail({
+      to,
+      from: process.env.SMTP_FROM,
+      subject: `${details.brokerageName}: we received your ${kind} request`,
+      html: `<body style="font-family: Helvetica, Arial, sans-serif; color: #444;"><p>${escape(details.brokerageName)} received your ${kind} request. An agent will contact you to confirm the time.</p><p><strong>${escape(details.propertyTitle)}</strong>${details.address ? `<br>${escape(details.address)}` : ''}<br>Requested time: ${escape(details.whenLabel)}<br>Request number: ${escape(details.showingNumber)}</p><p><a href="${escape(details.url)}" style="background:#346df1;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;display:inline-block;">View the listing</a></p></body>`,
+    })
+    return { sent: true }
+  } catch (error) {
+    return { sent: false, error: error instanceof Error ? error.message : 'send_failed' }
+  }
+}
