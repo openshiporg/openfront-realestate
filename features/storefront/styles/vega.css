@@ -571,6 +571,7 @@
   .sf-tabs__item:first-child { padding-left: 0; }
   .sf-tabs__item:hover { color: var(--sf-ink); }
   .sf-tabs__item[aria-current="page"] { color: var(--sf-green); border-bottom-color: var(--sf-green); }
+  @media (max-width: 39.99rem) { .sf-tabs { justify-content: space-between; } .sf-tabs__item { padding: 0 0.25rem; font-size: 0.9375rem; } .sf-tabs__item:last-child { padding-right: 0; } }
   .sf-account__who { display: flex; align-items: center; gap: 1rem; padding-block: 0.5rem; font-size: 0.875rem; color: var(--sf-muted); min-width: 0; }
   .sf-account__who > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 16rem; }
   .sf-account__who .sf-link { min-height: 2.75rem; }
