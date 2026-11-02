@@ -8,6 +8,7 @@ import { getCustomer, getCustomerShowing } from '../lib/data/account'
 import { getStorefrontListingBySlug } from '../lib/data/properties'
 import { formatLocation, showingStatusLabel, showingTone, showingTypeLabel } from '../lib/format'
 import { storefrontTitle } from '../lib/metadata'
+import { customerShowingTime } from '../lib/showing-time'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -25,6 +26,7 @@ export default async function AccountShowingPage({ params }: Props) {
   if (!showing) notFound()
   const listing = showing.listingSlug ? (await getStorefrontListingBySlug(showing.listingSlug)).listing : null
   const open = ['requested', 'scheduled'].includes(showing.status)
+  const time = customerShowingTime(showing)
 
   return <>
     <nav className="sf-crumbs sf-crumbs--flush" aria-label="Breadcrumb"><Link href="/account"><ArrowLeft aria-hidden />My showings</Link></nav>
@@ -35,11 +37,13 @@ export default async function AccountShowingPage({ params }: Props) {
     <div className="sf-panel">
       <dl className="sf-facts">
         <div><dt>Status</dt><dd>{showingStatusLabel(showing.status)}</dd></div>
-        <div><dt>Time</dt><dd><LocalDateTime value={showing.requestedStart} options={when} /></dd></div>
+        <div><dt>Time</dt><dd><LocalDateTime value={time.start} options={when} /></dd></div>
+        {time.movedFrom ? <div><dt>You asked for</dt><dd><LocalDateTime value={time.movedFrom} options={when} /></dd></div> : null}
         <div><dt>Visit</dt><dd>{showingTypeLabel(showing.showingType)}</dd></div>
         {listing ? <div><dt>Address</dt><dd>{formatLocation(listing)}</dd></div> : null}
       </dl>
       {showing.status === 'requested' ? <p className="sf-hint" style={{ margin: 0 }}>Waiting for your advisor to confirm the time.</p> : null}
+      {time.movedFrom && open ? <p className="sf-hint" style={{ margin: 0 }}>Your advisor moved this showing to a new time.</p> : null}
       <div className="sf-trip__actions">
         {open ? <a className="sf-btn sf-btn--quiet" href={`/calendar/showing/${encodeURIComponent(showing.id)}`}><CalendarPlus aria-hidden /> Add to calendar</a> : null}
         {open ? <CancelShowingButton showingId={showing.id} listingTitle={showing.listingTitle} /> : null}

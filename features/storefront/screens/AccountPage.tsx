@@ -5,6 +5,7 @@ import { LocalDateTime } from '@/features/platform/showings/components/LocalDate
 import { getCustomer, getCustomerShowings } from '../lib/data/account'
 import { CancelShowingButton } from '../components/CancelShowingButton'
 import { showingStatusLabel, showingTone, showingTypeLabel } from '../lib/format'
+import { customerShowingTime } from '../lib/showing-time'
 import { storefrontTitle } from '../lib/metadata'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -12,6 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return (await getCustomer()) ? { title: await storefrontTitle('My showings') } : {}
 }
 
+const shortTime: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
 const requestedTime: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }
 
 export default async function AccountPage() {
@@ -31,13 +33,14 @@ export default async function AccountPage() {
       </div>
     ) : (
       <ul className="sf-trips">
-        {showings.items.map(showing => (
+        {showings.items.map(showing => { const time = customerShowingTime(showing); return (
           <li key={showing.id} className="sf-trip">
             <div>
               <h2><Link href={`/account/showings/${encodeURIComponent(showing.id)}`}>{showing.listingTitle}</Link></h2>
               <p className="sf-trip__meta">
                 <span className="sf-plate" data-tone={showingTone(showing.status)}>{showingStatusLabel(showing.status)}</span>
-                <LocalDateTime className="sf-num" value={showing.requestedStart} options={requestedTime} />
+                <LocalDateTime className="sf-num" value={time.start} options={requestedTime} />
+                {time.movedFrom ? <span className="sf-moved">New time, moved from <LocalDateTime className="sf-num" value={time.movedFrom} options={shortTime} /></span> : null}
                 <span>{showingTypeLabel(showing.showingType)}{showing.showingType === 'virtual' && ['requested', 'scheduled'].includes(showing.status) ? ', link sent by your advisor' : ''}</span>
               </p>
             </div>
@@ -46,7 +49,7 @@ export default async function AccountPage() {
               {showing.listingSlug ? <Link className="sf-link" href={`/listings/${encodeURIComponent(showing.listingSlug)}`}>{['requested', 'scheduled'].includes(showing.status) ? 'View home or request a new time' : 'View home'}</Link> : null}
             </div>
           </li>
-        ))}
+        ) })}
       </ul>
     )}
   </>
