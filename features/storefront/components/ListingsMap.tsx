@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { LocateFixed, Minus, Plus } from 'lucide-react'
 import type { Map as MapLibreMap, Marker } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { pinLifts } from '../lib/pin-layout'
 
 export type MapPin = { id: string; slug: string; latitude: number; longitude: number; label: string; title: string }
 
@@ -93,6 +94,22 @@ export function ListingsMap({ pins, activeId, className = '' }: { pins: MapPin[]
         const marker = new maplibregl.Marker({ element, anchor: 'bottom' }).setLngLat([pin.longitude, pin.latitude]).addTo(map)
         placed.set(pin.id, { marker, element })
       }
+
+      // Pins that would cover each other are raised on a longer stem, so every price stays readable
+      // and still points at its own home. Re-run whenever the view changes.
+      const spread = () => {
+        if (!map) return
+        const boxes = [...placed.entries()].map(([id, { marker, element }]) => {
+          const point = map!.project(marker.getLngLat())
+          const label = element.firstElementChild as HTMLElement
+          return { id, x: point.x, y: point.y, width: label.offsetWidth, height: label.offsetHeight + 8 }
+        })
+        const lifts = pinLifts(boxes)
+        placed.forEach(({ element }, id) => element.style.setProperty('--sf-pin-lift', `${-(lifts[id] || 0)}px`))
+      }
+      map.on('load', spread)
+      map.on('moveend', spread)
+      map.on('zoom', spread)
 
       if (pins.length > 1) {
         const bounds = new maplibregl.LngLatBounds()
