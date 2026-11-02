@@ -25,6 +25,7 @@ test('every seeded listing has a cover photo in the repo, outside /public', () =
   assert.deepEqual(seed.imagePack.properties.map(item => item.key).sort(), [...slugs].sort())
   for (const cover of seed.imagePack.properties) {
     assert.ok(existsSync(path.join(COVER_PHOTO_DIR, cover.photo)), cover.photo)
+    assert.ok(!existsSync(path.join(process.cwd(), 'public/images/real-estate/photos', cover.photo)), `${cover.photo} is still in /public`)
   }
   for (const item of seed.sections.properties.items) assert.equal((item.data as any).primaryImageUrl, undefined)
 })
