@@ -73,8 +73,13 @@ function sheetCover(canvas: HTMLElement | null) {
 function framePadding(canvas: HTMLElement | null, pins: MapPin[]) {
   const rect = canvas?.getBoundingClientRect()
   if (!rect || !rect.height) return { top: 64, bottom: 40, left: 56, right: 56 }
-  const widest = Math.max(72, ...pins.map(pin => 22 + pin.label.length * 8.5))
-  return fitPadding(rect, { below: sheetCover(canvas) }, widest)
+  // Close pins merge into a wider "2 homes · $825K+" pill, so leave room for one.
+  const widest = Math.max(150, ...pins.map(pin => 22 + pin.label.length * 8.5))
+  const padding = fitPadding(rect, { below: sheetCover(canvas) }, widest)
+  // The map controls sit in the top-left corner; keep homes out from under them.
+  const controls = canvas?.closest('.sf-map')?.querySelector<HTMLElement>('.sf-map__controls')?.getBoundingClientRect()
+  if (controls && controls.width) padding.left = Math.max(padding.left, Math.round(controls.right - rect.left + 12))
+  return padding
 }
 
 function pinBounds(pins: MapPin[]): LngLatBoundsLike {

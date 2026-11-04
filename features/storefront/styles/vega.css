@@ -378,6 +378,11 @@
     .sf-location__map .sf-preview { bottom: 0.75rem; }
     .sf-location__map .sf-preview__link { grid-template-columns: 6rem minmax(0, 1fr); min-height: 6rem; }
   }
+  /* Landscape phone: no sheet under the map, and a shorter card so the map still shows. */
+  @media (max-width: 63.99rem) and (orientation: landscape) and (max-height: 32rem) {
+    .sf-split[data-variant="results"] .sf-preview { bottom: 0.5rem; }
+    .sf-split[data-variant="results"] .sf-preview__link { grid-template-columns: 5.5rem minmax(0, 1fr); min-height: 5.5rem; }
+  }
 
   /* Price pins: a deep green marker with its price; the hovered or current home lifts. */
   .sf-pin { position: relative; display: block; padding: 0 0 calc(0.5rem + var(--sf-pin-lift, 0px)); border: 0; background: none; cursor: pointer; transform-origin: 50% 100%; transition: transform 160ms var(--sf-ease); filter: drop-shadow(0 3px 4px oklch(20% 0.02 160 / 0.3)); }
