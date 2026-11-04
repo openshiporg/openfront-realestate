@@ -74,7 +74,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
     <>
       <StorefrontNav settings={settings} sections={sections} search={<ListingSearchForm key={JSON.stringify(params)} params={params} marketCity={settings.city} action="/listings" countLabel={countLabel} />} />
       <main className="sf-home">
-        <SearchSplit pins={pins}>
+        <SearchSplit pins={pins} searchable sheetLabel={countLabel || resultsHeading(params.type, settings.city)} footer={<StorefrontFooter settings={settings} sections={sections} />}>
           <h1 className="sr-only">{resultsHeading(params.type, settings.city)}</h1>
           <section id="homes" aria-label="Homes">
             {error ? (

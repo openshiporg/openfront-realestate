@@ -9,6 +9,7 @@ import { storeOwnMark } from '@/features/storefront/lib/store-mark'
 import { SaveHomeButton } from '@/features/storefront/components/SaveHomeButton'
 import { StickyShowingBar } from '@/features/storefront/components/StickyShowingBar'
 import { StorefrontFooter } from '@/features/storefront/components/StorefrontFooter'
+import { LocationMap } from '@/features/storefront/components/LocationMap'
 import { StorefrontNav } from '@/features/storefront/components/StorefrontNav'
 import { CompactSearch } from '@/features/storefront/components/CompactSearch'
 import { listingPins } from '@/features/storefront/lib/map-pins'
@@ -249,6 +250,8 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
                   </dl>
                 </section>
               ) : null}
+
+              <LocationMap pins={pins} activeId={listing.id} place={placeLine.join(' · ')} />
 
               <section className="sf-prose">
                 <h2>Details</h2>

@@ -7,6 +7,7 @@ import {
   splitListingPage,
   STOREFRONT_LISTING_QUERY_SIZE,
 } from './listingPagination'
+import { formatMapArea, parseMapArea } from '../map-area'
 
 export type ListingSearchParams = {
   q?: string
@@ -19,6 +20,8 @@ export type ListingSearchParams = {
   baths?: string
   sort?: string
   skip?: string
+  /** "Search this area": west,south,east,north. */
+  bounds?: string
 }
 
 export type StorefrontPropertyMedia = {
@@ -126,6 +129,7 @@ export function normalizeListingParams(params: ListingSearchParams): ListingSear
   let minPrice = cleanPrice(params.minPrice), maxPrice = cleanPrice(params.maxPrice)
   if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) [minPrice, maxPrice] = [maxPrice, minPrice]
   const q = clean(params.q)?.slice(0, 120), city = clean(params.city)?.slice(0, 80)
+  const area = parseMapArea(params.bounds)
   return {
     ...(q ? { q } : {}),
     ...(city ? { city } : {}),
@@ -137,6 +141,7 @@ export function normalizeListingParams(params: ListingSearchParams): ListingSear
     ...(cleanCount(params.baths) ? { baths: cleanCount(params.baths) } : {}),
     ...(LISTING_SORTS.some(([value]) => value && value === params.sort) ? { sort: params.sort } : {}),
     ...(params.skip ? { skip: params.skip } : {}),
+    ...(area ? { bounds: formatMapArea(area) } : {}),
   }
 }
 
@@ -152,6 +157,7 @@ function buildFilters(raw: ListingSearchParams) {
     ...(params.beds ? { bedrooms: Number(params.beds) } : {}),
     ...(params.baths ? { bathrooms: Number(params.baths) } : {}),
     ...(params.sort ? { sort: params.sort } : {}),
+    ...(parseMapArea(params.bounds) || {}),
   }
 }
 
@@ -191,7 +197,7 @@ export async function getStorefrontListings(params: ListingSearchParams = {}) {
 export function hasListingFilters(raw: ListingSearchParams) {
   const params = normalizeListingParams(raw)
   return Boolean(params.q || params.city || params.type || params.propertyType || params.minPrice || params.maxPrice
-    || params.beds || params.baths || parseListingSkip(params.skip) > 0)
+    || params.beds || params.baths || params.bounds || parseListingSkip(params.skip) > 0)
 }
 
 export function getStorefrontListingPageHref(params: ListingSearchParams, skip: number) {

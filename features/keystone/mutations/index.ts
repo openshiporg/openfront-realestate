@@ -147,6 +147,10 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         bedrooms: Int
         bathrooms: Int
         sort: String
+        west: Float
+        south: Float
+        east: Float
+        north: Float
       }
 
       type PublicRealEstateAgent {

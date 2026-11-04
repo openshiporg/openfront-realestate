@@ -14,6 +14,7 @@ import { getSavedPropertyIds } from '@/features/storefront/lib/data/saved'
 import { STOREFRONT_LISTING_PAGE_SIZE } from '@/features/storefront/lib/data/listingPagination'
 import { getBrokerageSettings } from '@/features/storefront/lib/data/settings'
 import { formatPriceShort, resultCountLabel, resultsHeading } from '@/features/storefront/lib/format'
+import { parseMapArea } from '@/features/storefront/lib/map-area'
 import { ListingCard } from './ListingCard'
 
 const typeLabels: Record<string, string> = { house: 'Houses', condo: 'Condos', townhome: 'Townhomes', multi_family: 'Multi-family', land: 'Land', commercial: 'Commercial' }
@@ -36,6 +37,7 @@ function activeFilters(params: ListingSearchParams): Array<[string, string]> {
     ...(params.baths ? [[`${params.baths}+ baths`, without('baths')] as [string, string]] : []),
     ...(params.minPrice ? [[`From ${money(params.minPrice)}`, without('minPrice')] as [string, string]] : []),
     ...(params.maxPrice ? [[`Up to ${money(params.maxPrice)}`, without('maxPrice')] as [string, string]] : []),
+    ...(params.bounds ? [['Map area', without('bounds')] as [string, string]] : []),
   ]
 }
 
@@ -63,7 +65,7 @@ export default async function ListingsPage({ searchParams }: Props) {
     <>
       <StorefrontNav settings={settings} search={<ListingSearchForm key={JSON.stringify(params)} params={params} marketCity={settings.city} action="/listings" countLabel={countLabel} />} />
       <main className="sf-results">
-        <SearchSplit pins={listingPins(listings, listing => formatPriceShort(listing))}>
+        <SearchSplit pins={listingPins(listings, listing => formatPriceShort(listing))} area={parseMapArea(params.bounds)} searchable sheetLabel={countLabel || resultsHeading(params.type, settings.city)} footer={<StorefrontFooter settings={settings} />}>
         <header className="sf-results-head sf-results-head--bar">
           <div>
             <h1>{resultsHeading(params.type, settings.city)}</h1>

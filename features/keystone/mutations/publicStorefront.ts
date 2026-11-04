@@ -31,6 +31,20 @@ export type PublicListingFilters = {
   bedrooms?: number | null
   bathrooms?: number | null
   sort?: string | null
+  west?: number | null
+  south?: number | null
+  east?: number | null
+  north?: number | null
+}
+
+/** The searched map rectangle, all four edges or none. */
+function boundedArea(filters: PublicListingFilters) {
+  const edges = [filters.west, filters.south, filters.east, filters.north]
+  if (edges.every(edge => edge == null)) return null
+  if (!edges.every(edge => typeof edge === 'number' && Number.isFinite(edge))) throw new Error('A map area needs west, south, east and north.')
+  const [west, south, east, north] = edges as number[]
+  if (west < -180 || east > 180 || south < -90 || north > 90 || west >= east || south >= north) throw new Error('The map area is not valid.')
+  return { west, south, east, north }
 }
 
 const PUBLIC_LISTING_SORTS: Record<string, Array<Record<string, 'asc' | 'desc'>>> = {
@@ -90,6 +104,11 @@ function buildPublicListingWhere(brokerageSlug: string, filters: PublicListingFi
     })
   }
   if (city) and.push({ city: { contains: city, mode: 'insensitive' } })
+  const area = boundedArea(filters)
+  if (area) {
+    and.push({ latitude: { gte: String(area.south), lte: String(area.north) } })
+    and.push({ longitude: { gte: String(area.west), lte: String(area.east) } })
+  }
   if (filters.listingType) where.listingType = { equals: filters.listingType }
   if (propertyType) where.propertyType = { equals: propertyType }
   if (filters.bedrooms != null) {

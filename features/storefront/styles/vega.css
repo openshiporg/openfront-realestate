@@ -249,6 +249,60 @@
     .sf-split[data-variant="detail"] .sf-split__main { padding: 0.875rem 2.25rem 2.5rem 3rem; }
   }
 
+  /* ---------- Results sheet ----------
+   * Below 64rem the results split is one screen: the map fills it and the results ride over it in a
+   * sheet that rests at a peek, half or the whole height (ResultsSheet). From 64rem the sheet is just
+   * the right-hand column and its bar and footer copy are hidden. */
+  .sf-sheet__body { display: grid; align-content: start; gap: inherit; min-width: 0; }
+  .sf-sheet__bar, .sf-sheet__footer { display: none; }
+  @media (max-width: 63.99rem) {
+    .sf-split[data-variant="results"] { height: calc(100svh - var(--sf-head) - var(--sf-tabbar) - env(safe-area-inset-bottom)); min-height: 22rem; overflow: hidden; isolation: isolate; }
+    .sf-split[data-variant="results"] .sf-split__map { position: absolute; inset: 0; height: auto; }
+    .sf-split[data-variant="results"] .sf-map__controls { top: 0.75rem; bottom: auto; left: 0.75rem; }
+    .sf-sheet.sf-split__main { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; gap: 0; padding: 0; border-radius: 1.5rem 1.5rem 0 0; background: var(--sf-paper); box-shadow: 0 -1px 0 var(--sf-line), 0 -14px 34px -18px oklch(20% 0.02 160 / 0.45); transform: translate3d(0, var(--sf-sheet-drag, var(--sf-sheet-y, 50%)), 0); transition: transform 380ms cubic-bezier(0.32, 0.72, 0, 1); will-change: transform; }
+    .sf-sheet[data-dragging] { transition: none; }
+    .sf-sheet__bar { display: grid; flex: none; padding: 0 1rem 0.5rem; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+    .sf-sheet[data-dragging] .sf-sheet__bar { cursor: grabbing; }
+    .sf-sheet__handle { display: grid; place-items: center; justify-self: center; width: 4rem; height: 1.75rem; padding: 0; border: 0; background: none; cursor: inherit; touch-action: none; }
+    .sf-sheet__grip { width: 2.5rem; height: 0.3125rem; border-radius: 999px; background: var(--sf-line-strong); }
+    .sf-sheet__handle:focus-visible { outline: none; }
+    .sf-sheet__handle:focus-visible .sf-sheet__grip { box-shadow: 0 0 0 3px var(--sf-paper), 0 0 0 5px var(--sf-green); }
+    .sf-sheet__head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 2.75rem; }
+    .sf-sheet__head strong { font-family: var(--sf-serif); font-weight: 500; font-size: 1.1875rem; line-height: 1.1; }
+    .sf-sheet__switch { display: inline-flex; align-items: center; gap: 0.375rem; min-height: 2.75rem; padding: 0 1rem; border: 0; border-radius: 999px; background: var(--sf-ink); color: var(--sf-paper); font: inherit; font-weight: 600; font-size: 0.875rem; cursor: pointer; }
+    .sf-sheet__switch svg.lucide { width: 1rem; height: 1rem; }
+    .sf-sheet__body { flex: 1; min-height: 0; gap: 1rem; padding: 0.25rem 1rem 1.5rem; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+    .sf-sheet:not([data-snap="full"]) .sf-sheet__body { overflow-y: hidden; }
+    .sf-sheet__footer { display: block; margin: 1rem -1rem -1.5rem; }
+    .sf-sheet__footer .sf-footer { padding-bottom: 1.5rem; }
+    .storefront-root:has(.sf-split[data-variant="results"]) > .sf-footer, .storefront-root:has(.sf-split[data-variant="results"]) main ~ .sf-footer { display: none; }
+    .sf-sheet .sf-results-head h1 { font-size: 1.375rem; }
+    .sf-sheet .sf-results-head p { display: none; }
+    .sf-sheet .sf-card__media { aspect-ratio: 16 / 10; }
+    .sf-sheet .sf-rows { gap: 1rem; }
+  }
+  @media (max-width: 63.99rem) and (prefers-reduced-motion: reduce) { .sf-sheet.sf-split__main { transition: none; } }
+  @media (min-width: 40rem) and (max-width: 63.99rem) {
+    .sf-sheet .sf-rows { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sf-sheet .sf-card--row { grid-template-columns: minmax(0, 1fr); }
+    .sf-sheet .sf-card--row .sf-card__media { aspect-ratio: 16 / 10; min-height: 0; border-radius: var(--sf-radius) var(--sf-radius) 0 0; }
+  }
+
+  /* Detail: where the home is, below 64rem. */
+  .sf-location__map { position: relative; height: 15rem; margin-top: 0.75rem; border-radius: var(--sf-radius-lg); overflow: hidden; border: 1px solid var(--sf-line); }
+  .sf-location__map .sf-map__controls { top: auto; bottom: 0.75rem; left: 0.75rem; }
+
+  /* Cards and pins share a highlight. */
+  .sf-card[data-highlight] { box-shadow: 0 0 0 2px var(--sf-green), 0 16px 34px -14px oklch(20% 0.01 160 / 0.36); }
+
+  /* "Search this area" appears once the shopper moves the map. */
+  .sf-map__search { position: absolute; top: 0.75rem; left: 50%; z-index: 3; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; padding: 0 1.125rem; border: 0; border-radius: 999px; background: var(--sf-paper); color: var(--sf-ink); font: inherit; font-weight: 600; font-size: 0.875rem; white-space: nowrap; box-shadow: var(--sf-shadow); cursor: pointer; animation: sf-rise 220ms var(--sf-ease); }
+  .sf-map__search:hover { color: var(--sf-green); }
+  .sf-map__search svg.lucide { width: 1rem; height: 1rem; }
+  @keyframes sf-rise { from { opacity: 0; transform: translate(-50%, -0.5rem); } }
+  @media (prefers-reduced-motion: reduce) { .sf-map__search { animation: none; } }
+  .sf-map .maplibregl-ctrl-top-right .maplibregl-ctrl-attrib { margin: 0.75rem; }
+
   .sf-map { position: relative; width: 100%; height: 100%; overflow: hidden; background: #f4f6f1; }
   .sf-map__canvas, .sf-map__canvas.maplibregl-map { position: absolute; inset: 0; width: 100%; height: 100%; }
   .sf-map__note { position: absolute; left: 1rem; bottom: 1rem; padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: var(--sf-paper); color: var(--sf-muted); font-size: 0.875rem; box-shadow: var(--sf-shadow); }
@@ -273,6 +327,14 @@
   .sf-pin::after { content: ""; position: absolute; left: 50%; bottom: var(--sf-pin-lift, 0px); width: 0.875rem; height: 0.75rem; transform: translateX(-50%); background: var(--sf-green); clip-path: polygon(0 0, 100% 0, 50% 100%); }
   .sf-pin:hover, .sf-pin[data-active] { transform: scale(1.14); }
   .sf-pin[data-active] .sf-pin__label { box-shadow: 0 0 0 3px var(--sf-paper), 0 0 0 5px var(--sf-green); }
+  .sf-pin[hidden] { display: none; }
+  .sf-pin--cluster .sf-pin__label { background: var(--sf-paper); color: var(--sf-green); box-shadow: 0 0 0 1.5px var(--sf-green); }
+  .sf-pin--cluster .sf-pin__label b { font-weight: 700; }
+  .sf-pin--cluster .sf-pin__label span { font-weight: 600; color: var(--sf-ink-2); }
+  .sf-pin--cluster[data-active] .sf-pin__label { background: var(--sf-green); color: var(--sf-green-ink); }
+  .sf-pin--cluster[data-active] .sf-pin__label span { color: inherit; }
+  /* A full finger-sized target around the small label. */
+  .sf-pin { min-width: 2.75rem; min-height: 2.75rem; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
   .sf-pin:focus-visible { outline: none; }
   .sf-pin:focus-visible .sf-pin__label { box-shadow: 0 0 0 3px var(--sf-paper), 0 0 0 5px var(--sf-verified); }
   .sf-split[data-variant="detail"] .sf-pin__label { border-radius: 0.375rem; font-size: 1rem; padding: 0.375rem 0.625rem; }

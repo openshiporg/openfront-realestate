@@ -12,6 +12,7 @@ export type ListingPageParams = {
   baths?: string
   sort?: string
   skip?: string
+  bounds?: string
 }
 
 export const LISTING_SORTS = [
@@ -21,7 +22,7 @@ export const LISTING_SORTS = [
   ['price_desc', 'Price: high to low'],
 ] as const
 
-const SEARCH_FILTER_KEYS = ['q', 'city', 'type', 'propertyType', 'minPrice', 'maxPrice', 'beds', 'baths', 'sort'] as const
+const SEARCH_FILTER_KEYS = ['q', 'city', 'type', 'propertyType', 'minPrice', 'maxPrice', 'beds', 'baths', 'sort', 'bounds'] as const
 
 export function parseListingSkip(value?: string) {
   if (!value || !/^\d+$/.test(value)) return 0
