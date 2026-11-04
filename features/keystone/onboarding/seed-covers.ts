@@ -7,8 +7,8 @@ import type { SeedContext, SeedTarget } from './seed-runtime'
 
 export type CoverPhoto = { key: string; photo: string; title: string; altText: string }
 
-/** Starter cover photos ship with the source, outside /public, and are uploaded to image storage on setup. */
-export const COVER_PHOTO_DIR = path.join(process.cwd(), 'features/platform/onboarding/photos')
+/** Starter cover photos live in public/ (so they ship in the deployed build) and are uploaded to image storage on setup. */
+export const COVER_PHOTO_DIR = path.join(process.cwd(), 'public/images/real-estate/covers')
 
 const MIME: Record<string, string> = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' }
 
@@ -48,7 +48,7 @@ export async function applySeedCovers(
     if (!property?.id) { result.missing.push(cover.key); continue }
     const existing = await media.findMany({ where: { property: { id: { equals: property.id } }, isHero: { equals: true } }, take: 1, query: 'id' })
     if (existing[0]?.id) { result.skipped += 1; continue }
-    const file = path.join(process.cwd(), 'features/platform/onboarding/photos', path.basename(cover.photo))
+    const file = path.join(COVER_PHOTO_DIR, path.basename(cover.photo))
     if (!existsSync(file)) { result.missing.push(cover.key); continue }
     try {
       await media.createOne({

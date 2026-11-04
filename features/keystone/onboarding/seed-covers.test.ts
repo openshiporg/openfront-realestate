@@ -20,7 +20,7 @@ function fakeContext({ heroFor = new Set<string>(), failUpload = false } = {}) {
   return { context: { query } as SeedContext, created }
 }
 
-test('every seeded listing has a cover photo in the repo, outside /public', () => {
+test('every seeded listing has a cover photo under public/images/real-estate/covers', () => {
   const slugs = seed.sections.properties.items.map(item => item.data.slug)
   assert.deepEqual(seed.imagePack.properties.map(item => item.key).sort(), [...slugs].sort())
   for (const cover of seed.imagePack.properties) {
@@ -28,6 +28,21 @@ test('every seeded listing has a cover photo in the repo, outside /public', () =
     assert.ok(!existsSync(path.join(process.cwd(), 'public/images/real-estate/photos', cover.photo)), `${cover.photo} is still in /public`)
   }
   for (const item of seed.sections.properties.items) assert.equal((item.data as any).primaryImageUrl, undefined)
+})
+
+test('setup uploads all four covers from public/ with real file paths', async () => {
+  const { context, created } = fakeContext()
+  const uploaded: string[] = []
+  const keys = new Set(seed.imagePack.properties.map(item => item.key))
+  const result = await applySeedCovers(context, seed.imagePack.properties, keys, target, { upload: file => { uploaded.push(file); return { file } } })
+  assert.equal(result.created, 4)
+  assert.deepEqual(result.missing, [])
+  assert.equal(created.length, 4)
+  for (const file of uploaded) {
+    assert.ok(existsSync(file), file)
+    assert.equal(path.dirname(file), COVER_PHOTO_DIR)
+    assert.ok(file.includes(path.join('public', 'images', 'real-estate', 'covers')))
+  }
 })
 
 test('setup uploads one cover per chosen listing as the hero photo', async () => {

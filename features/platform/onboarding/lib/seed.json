@@ -994,7 +994,7 @@
     }
   },
   "imagePack": {
-    "description": "Starter photos. Listing covers are uploaded to image storage during setup from features/platform/onboarding/photos; agent and neighborhood images are public paths.",
+    "description": "Starter photos. Listing covers are uploaded to image storage during setup from public/images/real-estate/covers; agent and neighborhood images are public paths.",
     "properties": [
       {
         "key": "riverfront-loft-austin",
