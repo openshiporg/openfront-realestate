@@ -7,6 +7,9 @@ import { deleteSavedSearch, getSavedHomes, getSavedPropertyIds, getSavedSearches
 import { listingPageHref } from '../lib/data/listingPagination'
 import { storefrontTitle } from '../lib/metadata'
 import { ListingCard } from './ListingCard'
+import { ListingsMap } from '../components/ListingsMap'
+import { listingPins } from '../lib/map-pins'
+import { formatPrice, formatPriceShort } from '../lib/format'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: await storefrontTitle('Saved homes') }
@@ -36,11 +39,16 @@ export default async function AccountSavedPage() {
 
     <section className="sf-account__section" aria-labelledby="saved-homes">
       <h2 id="saved-homes" className="sr-only">Homes</h2>
-      {homes.error ? <p className="sf-message" role="alert">{homes.error}</p> : homes.items.length ? (
+      {homes.error ? <p className="sf-message" role="alert">{homes.error}</p> : homes.items.length ? (<>
+        {listingPins(homes.items, listing => formatPriceShort(listing)).length ? (
+          <div className="sf-saved-map">
+            <ListingsMap pins={listingPins(homes.items, listing => formatPriceShort(listing), { fullPrice: formatPrice, savedIds })} signedIn />
+          </div>
+        ) : null}
         <div className="sf-modules" style={{ '--sf-count': homes.items.length } as CSSProperties}>
           {homes.items.map(listing => <ListingCard key={listing.id} listing={listing} save={{ signedIn: true, savedIds }} />)}
         </div>
-      ) : (
+      </>) : (
         <div className="sf-state">
           <h3>No saved homes yet</h3>
           <p>Use the heart on any home to keep it here.</p>

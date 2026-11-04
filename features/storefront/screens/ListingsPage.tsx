@@ -13,7 +13,7 @@ import { getStorefrontListingPageHref, getStorefrontListings, hasListingFilters,
 import { getSavedPropertyIds } from '@/features/storefront/lib/data/saved'
 import { STOREFRONT_LISTING_PAGE_SIZE } from '@/features/storefront/lib/data/listingPagination'
 import { getBrokerageSettings } from '@/features/storefront/lib/data/settings'
-import { formatPriceShort, resultCountLabel, resultsHeading } from '@/features/storefront/lib/format'
+import { formatPrice, formatPriceShort, resultCountLabel, resultsHeading } from '@/features/storefront/lib/format'
 import { parseMapArea } from '@/features/storefront/lib/map-area'
 import { ListingCard } from './ListingCard'
 
@@ -65,7 +65,7 @@ export default async function ListingsPage({ searchParams }: Props) {
     <>
       <StorefrontNav settings={settings} search={<ListingSearchForm key={JSON.stringify(params)} params={params} marketCity={settings.city} action="/listings" countLabel={countLabel} />} />
       <main className="sf-results">
-        <SearchSplit pins={listingPins(listings, listing => formatPriceShort(listing))} area={parseMapArea(params.bounds)} searchable sheetLabel={countLabel || resultsHeading(params.type, settings.city)} footer={<StorefrontFooter settings={settings} />}>
+        <SearchSplit pins={listingPins(listings, listing => formatPriceShort(listing), { fullPrice: formatPrice, savedIds: save.savedIds })} area={parseMapArea(params.bounds)} searchable signedIn={save.signedIn} sheetLabel={countLabel || resultsHeading(params.type, settings.city)} footer={<StorefrontFooter settings={settings} />}>
         <header className="sf-results-head sf-results-head--bar">
           <div>
             <h1>{resultsHeading(params.type, settings.city)}</h1>

@@ -140,7 +140,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
   const listingTimeZone = stateTimeZone(listing.state)
 
   const nearbyListings = [listing, ...nearby.listings.filter(item => item.id !== listing.id)]
-  const pins = listingPins(nearbyListings, item => formatPriceShort(item))
+  const pins = listingPins(nearbyListings, item => formatPriceShort(item), { fullPrice: formatPrice, savedIds })
   const hoaMonthly = Number(listing.hoaFee) > 0 ? Number(listing.hoaFee) : 0
   const price = Number(listing.price)
   const forSale = listing.listingType !== 'rent' && price > 0
@@ -157,7 +157,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
     <>
       <StorefrontNav settings={settings} />
       <main className="sf-detail-page">
-        <SearchSplit pins={pins} activeId={listing.id} variant="detail" overlay={<CompactSearch marketCity={settings.city} type={listing.listingType === 'rent' ? 'rent' : 'sale'} />}>
+        <SearchSplit pins={pins} activeId={listing.id} variant="detail" signedIn={Boolean(customer)} overlay={<CompactSearch marketCity={settings.city} type={listing.listingType === 'rent' ? 'rent' : 'sale'} />}>
           <nav className="sf-crumbs" aria-label="Breadcrumb">
             <Link href={listing.listingType === 'rent' ? '/listings?type=rent' : '/listings?type=sale'}><ArrowLeft aria-hidden />{resultsHeading(listing.listingType === 'rent' ? 'rent' : 'sale', settings.city)}</Link>
             {location ? <Link href={`/listings?q=${encodeURIComponent(location)}`}>{location}</Link> : null}
@@ -251,7 +251,7 @@ export default async function ListingDetailPage({ params }: ListingDetailProps) 
                 </section>
               ) : null}
 
-              <LocationMap pins={pins} activeId={listing.id} place={placeLine.join(' · ')} />
+              <LocationMap pins={pins} activeId={listing.id} place={placeLine.join(' · ')} signedIn={Boolean(customer)} />
 
               <section className="sf-prose">
                 <h2>Details</h2>

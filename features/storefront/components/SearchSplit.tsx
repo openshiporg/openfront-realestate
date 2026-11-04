@@ -8,7 +8,7 @@ import type { MapArea } from '../lib/map-area'
  * On a phone or tablet the map fills the screen and the results ride over it in a draggable sheet,
  * which carries the footer at its foot. The detail variant keeps its map beside the home on desktop.
  */
-export function SearchSplit({ pins, activeId, children, variant = 'results', overlay, sheetLabel, footer, area = null, searchable = false }: {
+export function SearchSplit({ pins, activeId, children, variant = 'results', overlay, sheetLabel, footer, area = null, searchable = false, signedIn = false }: {
   pins: MapPin[]
   activeId?: string
   children: ReactNode
@@ -20,11 +20,13 @@ export function SearchSplit({ pins, activeId, children, variant = 'results', ove
   footer?: ReactNode
   area?: MapArea | null
   searchable?: boolean
+  /** The map's preview hearts save in place when the shopper is signed in. */
+  signedIn?: boolean
 }) {
   return (
     <div className="sf-split" data-variant={variant}>
       <div className="sf-split__map">
-        <ListingsMap pins={pins} activeId={activeId} area={area} searchable={searchable} />
+        <ListingsMap pins={pins} activeId={activeId} area={area} searchable={searchable} signedIn={signedIn} />
         {overlay ? <div className="sf-split__overlay">{overlay}</div> : null}
       </div>
       {variant === 'results'

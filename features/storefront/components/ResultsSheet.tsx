@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { List, Map as MapIcon } from 'lucide-react'
 import { releaseSnap, rubberBand, snapOffsets, stepSnap, type Snap } from '../lib/sheet-snaps'
-import { listingCard, reducedMotion, SHOW_LISTING_EVENT, type ShowListingDetail } from '../lib/map-events'
+import { currentEntry, historyEntry, listingCard, PHONE, readSheet, reducedMotion, SHEET_PEEK, SHEET_SNAP_EVENT, SHORT_LANDSCAPE, SHOW_LISTING_EVENT, writeSheet, type SheetSnapDetail, type ShowListingDetail } from '../lib/map-events'
 
-const PHONE = '(max-width: 63.99rem)'
 // Enough of the sheet to read its count and the top of the first home.
-const PEEK = 148
+const PEEK = SHEET_PEEK
 // A finger has to travel this far before the sheet decides it is being dragged.
 const SLOP = 6
 
@@ -31,15 +30,19 @@ export function ResultsSheet({ children, footer, label }: { children: ReactNode;
   const offsets = snapOffsets(height, PEEK)
 
   useEffect(() => {
+    // A phone on its side is too short for a sheet: the results sit beside the map instead.
     const query = window.matchMedia(PHONE)
-    const sync = () => setLive(query.matches)
+    const side = window.matchMedia(SHORT_LANDSCAPE)
+    const sync = () => setLive(query.matches && !side.matches)
     sync()
     query.addEventListener('change', sync)
+    side.addEventListener('change', sync)
     const element = sheet.current
     const observer = new ResizeObserver(() => setHeight(element?.offsetHeight || 0))
     if (element) observer.observe(element)
     return () => {
       query.removeEventListener('change', sync)
+      side.removeEventListener('change', sync)
       observer.disconnect()
     }
   }, [])
@@ -56,20 +59,55 @@ export function ResultsSheet({ children, footer, label }: { children: ReactNode;
     }
   }, [])
 
-  // A chosen pin brings its card to the top of the list, with the sheet at least half way up.
+  // Back returns the sheet to the stop and list position the shopper left; both are kept per history entry.
+  const restored = useRef(false)
+  useEffect(() => {
+    if (!live || !height || restored.current) return
+    restored.current = true
+    const saved = readSheet(currentEntry())
+    if (!saved) return
+    setSnap(saved.snap)
+    requestAnimationFrame(() => body.current?.scrollTo({ top: saved.scroll }))
+  }, [live, height])
+  useEffect(() => {
+    if (!live || !restored.current) return
+    const scroller = body.current
+    let timer = 0
+    const keep = () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => writeSheet(historyEntry(), { snap, scroll: scroller?.scrollTop || 0 }), 120)
+    }
+    keep()
+    scroller?.addEventListener('scroll', keep, { passive: true })
+    return () => {
+      window.clearTimeout(timer)
+      scroller?.removeEventListener('scroll', keep)
+    }
+  }, [live, snap, height])
+
+  // The map moves the sheet, e.g. down to its peek while a home's preview is open over the map.
+  useEffect(() => {
+    if (!live) return
+    const onSnap = (event: Event) => setSnap((event as CustomEvent<SheetSnapDetail>).detail.snap)
+    window.addEventListener(SHEET_SNAP_EVENT, onSnap)
+    return () => window.removeEventListener(SHEET_SNAP_EVENT, onSnap)
+  }, [live])
+
+  // A chosen pin brings its card to the top of the list; unless the map keeps the sheet where it put
+  // it, the sheet comes at least half way up.
   useEffect(() => {
     if (!live) return
     const show = (event: Event) => {
-      const { id } = (event as CustomEvent<ShowListingDetail>).detail
+      const { id, keepSnap } = (event as CustomEvent<ShowListingDetail>).detail
       const card = listingCard(id)
       const scroller = body.current
       if (!card || !scroller || !scroller.contains(card)) return
       event.preventDefault()
-      setSnap(current => current === 'full' ? 'full' : 'half')
+      if (!keepSnap) setSnap(current => current === 'full' ? 'full' : 'half')
       const top = card.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 12
       scroller.scrollTo({ top, behavior: reducedMotion() ? 'auto' : 'smooth' })
       card.setAttribute('data-highlight', '')
-      card.querySelector<HTMLElement>('.sf-card__title a')?.focus({ preventScroll: true })
+      if (!keepSnap) card.querySelector<HTMLElement>('.sf-card__title a')?.focus({ preventScroll: true })
     }
     window.addEventListener(SHOW_LISTING_EVENT, show)
     return () => window.removeEventListener(SHOW_LISTING_EVENT, show)

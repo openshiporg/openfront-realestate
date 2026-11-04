@@ -58,3 +58,43 @@ test('keyboard steps stop at the ends and drags resist past them', () => {
   assert.ok(rubberBand(-100, 0, 500) > -100 && rubberBand(-100, 0, 500) < 0)
   assert.ok(rubberBand(600, 0, 500) < 600)
 })
+
+test('fitting keeps pins and pills off the edges and clear of the sheet', async () => {
+  const { fitPadding } = await import('./map-view')
+  const map = { top: 0, bottom: 700, left: 0, right: 402, width: 402, height: 700 }
+  const plain = fitPadding(map, {}, 132)
+  assert.ok(plain.left >= 66 && plain.right >= 66, 'half the widest pill on each side')
+  assert.ok(plain.top >= 56, 'a pin hangs above its point')
+  const sheet = fitPadding(map, { below: 350 }, 132)
+  assert.ok(sheet.bottom >= 378, 'the half sheet is kept clear')
+  // A sheet that leaves no usable band falls back to the plain frame instead of a sliver.
+  assert.deepEqual(fitPadding(map, { below: 640 }, 132), plain)
+  // Side room never eats more than about a fifth of a narrow map.
+  assert.ok(fitPadding({ ...map, width: 200, right: 200 }, {}, 300).left <= 44)
+})
+
+test('new results keep the shopper\'s view only while some homes are still in it', async () => {
+  const { keepView } = await import('./map-view')
+  assert.equal(keepView(true, 3), true)
+  assert.equal(keepView(true, 0), false)
+  assert.equal(keepView(false, 5), false)
+})
+
+test('a chosen home only moves the map when it is outside the clear part', async () => {
+  const { inClearArea } = await import('./map-view')
+  const size = { width: 402, height: 700 }
+  assert.equal(inClearArea({ x: 200, y: 200 }, size, 300), true)
+  assert.equal(inClearArea({ x: 200, y: 600 }, size, 300), false, 'under the preview and sheet')
+  assert.equal(inClearArea({ x: 10, y: 200 }, size, 300), false, 'at the edge')
+})
+
+test('map pins carry what the preview card shows', async () => {
+  const { listingPins, pinFacts } = await import('./map-pins')
+  const [pin] = listingPins([{ id: '1', slug: 'a', title: 'Hill Estate', latitude: 30, longitude: -97, price: '1450000', listingType: 'sale', addressLine1: '8801 Mesa Ridge Dr', city: 'Austin', state: 'TX', bedrooms: 5, bathrooms: '4.5', squareFeet: 4210, imagePath: '/a.jpg' }], () => '$1.45M', { fullPrice: () => '$1,450,000', savedIds: { 1: 's1' } })
+  assert.equal(pin.address, '8801 Mesa Ridge Dr')
+  assert.equal(pin.facts, '5 bd · 4.5 ba · 4,210 sqft')
+  assert.equal(pin.priceText, '$1,450,000')
+  assert.equal(pin.savedId, 's1')
+  assert.equal(pinFacts({ id: '2', slug: 'b', title: 'Lot', propertyType: 'land', bedrooms: 3, lotSizeSquareFeet: 9000 }), '9,000 sqft lot')
+  assert.equal(listingPins([{ id: '3', slug: 'c', title: 'No spot', latitude: null, longitude: null }], () => '').length, 0)
+})

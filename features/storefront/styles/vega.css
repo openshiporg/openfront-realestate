@@ -282,11 +282,25 @@
     .sf-sheet .sf-rows { gap: 1rem; }
   }
   @media (max-width: 63.99rem) and (prefers-reduced-motion: reduce) { .sf-sheet.sf-split__main { transition: none; } }
+  /* A phone on its side is too short for a sheet over the map: the map takes the left, the list the right. */
+  @media (max-width: 63.99rem) and (orientation: landscape) and (max-height: 32rem) {
+    .sf-split[data-variant="results"] { min-height: 12rem; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+    .sf-split[data-variant="results"] .sf-split__map { position: relative; inset: auto; grid-area: 1 / 1; height: 100%; }
+    .sf-sheet.sf-split__main { position: relative; inset: auto; grid-area: 1 / 2; transform: none; border-radius: 0; box-shadow: -1px 0 0 var(--sf-line); transition: none; }
+    .sf-sheet__bar { display: none; }
+    .sf-sheet:not([data-snap="full"]) .sf-sheet__body, .sf-sheet__body { overflow-y: auto; }
+    .sf-split[data-variant="results"] .sf-preview { bottom: 0.75rem; }
+    .sf-sheet .sf-rows { grid-template-columns: minmax(0, 1fr); }
+  }
   @media (min-width: 40rem) and (max-width: 63.99rem) {
     .sf-sheet .sf-rows { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .sf-sheet .sf-card--row { grid-template-columns: minmax(0, 1fr); }
     .sf-sheet .sf-card--row .sf-card__media { aspect-ratio: 16 / 10; min-height: 0; border-radius: var(--sf-radius) var(--sf-radius) 0 0; }
   }
+
+  /* Saved homes: where they are, above the cards. */
+  .sf-saved-map { position: relative; height: clamp(15rem, 38svh, 24rem); margin-bottom: 1.25rem; border-radius: var(--sf-radius-lg); overflow: hidden; border: 1px solid var(--sf-line); }
+  .sf-saved-map .sf-preview { bottom: 0.75rem; }
 
   /* Detail: where the home is, below 64rem. */
   .sf-location__map { position: relative; height: 15rem; margin-top: 0.75rem; border-radius: var(--sf-radius-lg); overflow: hidden; border: 1px solid var(--sf-line); }
@@ -313,10 +327,56 @@
   .sf-map__controls button:hover { background: var(--sf-paper-3); }
   .sf-map__controls svg.lucide { width: 1.25rem; height: 1.25rem; stroke-width: 2; }
   .sf-split[data-variant="detail"] .sf-map__controls { right: auto; left: 1.75rem; bottom: 2.5rem; }
+  .sf-map__controls button[aria-busy="true"] svg { animation: sf-spin 900ms linear infinite; }
+  .sf-map__controls button[data-on] { color: var(--sf-verified, #2563eb); }
+  @keyframes sf-spin { to { transform: rotate(360deg); } }
   @media (max-width: 63.99rem) {
     .sf-map__controls { right: auto; left: 0.75rem; bottom: 1rem; }
-    .sf-map__controls button:not(:last-child) { display: none; }
-    .sf-map__controls { border-radius: 999px; }
+    /* Fingers pinch to zoom, so a phone keeps only "near me" and "show all". */
+    .sf-map__controls .sf-map__zoom { display: none; }
+    .sf-map__controls { border-radius: 1.375rem; }
+  }
+
+  /* While the first tiles load: a soft street-grid wash and a quiet note, under the pins. */
+  .sf-map[data-loading] .sf-map__canvas { background: repeating-linear-gradient(90deg, transparent 0 46px, oklch(92% 0.006 150) 46px 48px), repeating-linear-gradient(0deg, transparent 0 46px, oklch(92% 0.006 150) 46px 48px), #f4f6f1; }
+  .sf-map__loading { position: absolute; left: 50%; top: 40%; z-index: 1; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 0.5rem; margin: 0; padding: 0.5rem 0.875rem; border-radius: 999px; background: var(--sf-paper); color: var(--sf-muted); font-size: 0.875rem; font-weight: 600; box-shadow: var(--sf-shadow); pointer-events: none; }
+  .sf-map__spinner { width: 0.875rem; height: 0.875rem; border-radius: 50%; border: 2px solid var(--sf-line-strong); border-top-color: var(--sf-green); animation: sf-spin 800ms linear infinite; }
+  .sf-map__note { z-index: 3; max-width: calc(100% - 2rem); }
+  .sf-split[data-variant="results"] .sf-map__note { top: 4rem; bottom: auto; }
+
+  /* You are here. */
+  .sf-you { display: block; width: 1.125rem; height: 1.125rem; border-radius: 50%; background: #2563eb; box-shadow: 0 0 0 3px #fff, 0 0 0 9px oklch(60% 0.18 260 / 0.18), 0 2px 6px oklch(20% 0.02 260 / 0.4); }
+
+  /* A saved home's pin carries a small heart before its price. */
+  .sf-pin__heart { display: none; width: 0.8125rem; height: 0.8125rem; margin: -0.125rem 0.25rem 0 -0.0625rem; vertical-align: middle; fill: currentColor; }
+  .sf-pin[data-saved] .sf-pin__heart { display: inline-block; }
+  .sf-pin[data-selected] .sf-pin__label { background: var(--sf-ink); color: var(--sf-paper); }
+  .sf-pin[data-selected]::before, .sf-pin[data-selected]::after { background: var(--sf-ink); }
+
+  /* The chosen home over the map: photo, price, address and facts, its heart and a close button. */
+  .sf-preview { position: absolute; z-index: 4; left: 50%; bottom: 1.5rem; width: min(26rem, calc(100% - 1.5rem)); transform: translateX(-50%); display: grid; border-radius: var(--sf-radius-lg); background: var(--sf-paper); box-shadow: 0 18px 40px -14px oklch(20% 0.02 160 / 0.45), 0 0 0 1px var(--sf-line); overflow: hidden; animation: sf-preview-in 220ms var(--sf-ease); }
+  @keyframes sf-preview-in { from { opacity: 0; transform: translate(-50%, 0.75rem); } }
+  .sf-preview__link { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); min-height: 7.5rem; color: inherit; text-decoration: none; }
+  .sf-preview__photo { position: relative; display: block; background: var(--sf-paper-3); }
+  .sf-preview__photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .sf-preview__text { display: grid; align-content: center; gap: 0.125rem; padding: 0.75rem 3rem 0.75rem 0.875rem; min-width: 0; }
+  .sf-preview__price { font-family: var(--sf-serif); font-weight: 500; font-size: 1.25rem; line-height: 1.15; }
+  .sf-preview__address { font-weight: 600; font-size: 0.9375rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sf-preview__facts, .sf-preview__place { color: var(--sf-muted); font-size: 0.8125rem; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sf-preview__link:hover .sf-preview__address { color: var(--sf-green); }
+  .sf-preview__link:focus-visible { outline: 2px solid var(--sf-green); outline-offset: -2px; border-radius: var(--sf-radius-lg); }
+  .sf-preview__save { position: absolute; right: 0.375rem; bottom: 0.375rem; }
+  .sf-preview__save .sf-save, a.sf-preview__save { width: 2.75rem; height: 2.75rem; box-shadow: none; background: transparent; }
+  .sf-preview__close { position: absolute; top: 0.375rem; right: 0.375rem; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--sf-ink-2); cursor: pointer; }
+  .sf-preview__close:hover { background: var(--sf-paper-3); }
+  .sf-preview__close svg.lucide, .sf-preview__save svg.lucide { width: 1.25rem; height: 1.25rem; }
+  .sf-map[data-previewing] .sf-map__controls { visibility: hidden; }
+  @media (prefers-reduced-motion: reduce) { .sf-preview { animation: none; } }
+  @media (max-width: 63.99rem) {
+    /* Over the phone results map the card sits just above the lowered sheet. */
+    .sf-split[data-variant="results"] .sf-preview { bottom: calc(var(--sf-sheet-peek, 148px) + 0.75rem); }
+    .sf-location__map .sf-preview { bottom: 0.75rem; }
+    .sf-location__map .sf-preview__link { grid-template-columns: 6rem minmax(0, 1fr); min-height: 6rem; }
   }
 
   /* Price pins: a deep green marker with its price; the hovered or current home lifts. */
@@ -506,12 +566,19 @@
   .sf-gallery__lead { aspect-ratio: 16 / 10; }
   .sf-gallery__lead img, .sf-gallery__side img { width: 100%; height: 100%; object-fit: cover; transition: transform 500ms var(--sf-ease); }
   .sf-gallery__lead:hover img, .sf-gallery__side button:hover img { transform: scale(1.02); }
+  /* Phone: every photo in one strip that a finger swipes through, one photo per stop. */
+  .sf-gallery__strip { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; gap: 0.5rem; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: var(--sf-radius-lg); touch-action: pan-x pan-y; }
+  .sf-gallery__strip::-webkit-scrollbar { display: none; }
+  .sf-gallery__strip > .sf-gallery__lead { scroll-snap-align: start; scroll-snap-stop: always; }
+  .sf-gallery__count { position: absolute; left: 1rem; bottom: 1rem; display: inline-flex; align-items: center; min-height: 2rem; padding: 0 0.75rem; border-radius: 999px; background: oklch(18% 0.01 160 / 0.72); color: #fff; font-weight: 600; font-size: 0.8125rem; pointer-events: none; backdrop-filter: blur(6px); }
   .sf-gallery__side { display: none; }
   .sf-gallery__all { position: absolute; right: 1rem; bottom: 1rem; display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 1.125rem; border: 1px solid oklch(100% 0 0 / 0.5); border-radius: 999px; background: oklch(18% 0.01 160 / 0.72); color: #fff; font-weight: 600; font-size: 0.9375rem; cursor: pointer; backdrop-filter: blur(6px); }
   .sf-gallery__all:hover { background: oklch(18% 0.01 160 / 0.85); }
   @media (min-width: 40rem) {
     .sf-gallery[data-count="3"] { grid-template-columns: minmax(0, 3.15fr) minmax(0, 1fr); }
     .sf-gallery[data-count="2"] { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+    .sf-gallery__strip { display: block; overflow: hidden; height: 100%; }
+    .sf-gallery__strip > [data-rest], .sf-gallery__count { display: none; }
     .sf-gallery__side { display: grid; gap: 0.5rem; }
     .sf-gallery[data-count="3"] .sf-gallery__all { right: calc(24% + 1.25rem); }
     .sf-gallery[data-count="2"] .sf-gallery__all { right: calc(33.3% + 1.25rem); }
@@ -521,17 +588,24 @@
     .sf-gallery__side button { height: 100%; min-height: 0; }
   }
 
-  .sf-viewer { width: min(72rem, 100vw - 2rem); max-height: calc(100svh - 2rem); padding: 0; border: 0; border-radius: var(--sf-radius-lg); background: #0d100f; color: #fff; overflow: hidden; }
+  /* The photo viewer: centred on a wide screen, the whole screen on a phone. Photos swipe, arrows step. */
+  .sf-viewer { inset: 0; margin: auto; width: min(72rem, calc(100vw - 2rem)); max-width: none; height: min(48rem, calc(100svh - 2rem)); max-height: none; padding: 0; border: 0; border-radius: var(--sf-radius-lg); background: #0d100f; color: #fff; overflow: hidden; }
   .sf-viewer::backdrop { background: oklch(10% 0.01 160 / 0.82); }
-  .sf-viewer__frame { position: relative; }
-  .sf-viewer figure { display: grid; }
-  .sf-viewer img { width: 100%; max-height: calc(100svh - 6rem); object-fit: contain; background: #0d100f; }
-  .sf-viewer figcaption { display: flex; justify-content: space-between; gap: 1rem; padding: 0.75rem 1rem; font-size: 0.9375rem; color: oklch(88% 0.005 160); }
+  .sf-viewer__frame { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; width: 100%; height: 100%; }
+  .sf-viewer__strip { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; min-height: 0; overflow-x: auto; overscroll-behavior: contain; scroll-snap-type: x mandatory; scrollbar-width: none; touch-action: pan-x pinch-zoom; }
+  .sf-viewer__strip::-webkit-scrollbar { display: none; }
+  .sf-viewer__slide { display: grid; place-items: center; margin: 0; min-width: 0; min-height: 0; scroll-snap-align: center; scroll-snap-stop: always; }
+  .sf-viewer__slide img { width: 100%; height: 100%; object-fit: contain; background: #0d100f; }
+  .sf-viewer__caption { display: flex; justify-content: space-between; gap: 1rem; margin: 0; padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)); font-size: 0.9375rem; color: oklch(88% 0.005 160); }
   .sf-viewer__close, .sf-viewer__step { position: absolute; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border: 0; border-radius: 999px; background: oklch(100% 0 0 / 0.9); color: var(--sf-ink); cursor: pointer; }
-  .sf-viewer__close { top: 0.75rem; right: 0.75rem; }
+  .sf-viewer__close { top: calc(0.75rem + env(safe-area-inset-top)); right: 0.75rem; }
   .sf-viewer__step { top: calc(50% - 2.25rem); }
   .sf-viewer__step--prev { left: 0.75rem; }
   .sf-viewer__step--next { right: 0.75rem; }
+  @media (max-width: 39.99rem) {
+    .sf-viewer { width: 100vw; height: 100dvh; border-radius: 0; }
+    .sf-viewer__step { display: none; }
+  }
 
   .sf-detail-head { display: grid; gap: 1.5rem; padding-top: 0.5rem; }
   .sf-detail-head__main { display: grid; align-content: start; gap: 0.375rem; min-width: 0; }

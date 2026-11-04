@@ -67,14 +67,14 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
   const neighborhoods = groupStorefrontNeighborhoods(inventory, settings.city).slice(0, 6)
   const agents = listingAgents(inventory)
   const sections = { neighborhoods: neighborhoods.length > 0, advisors: agents.length > 0 }
-  const pins = listingPins(rows, listing => formatPriceShort(listing))
+  const pins = listingPins(rows, listing => formatPriceShort(listing), { fullPrice: formatPrice, savedIds: save.savedIds })
   const area = settings.city ? ` in ${settings.city}` : ''
 
   return (
     <>
       <StorefrontNav settings={settings} sections={sections} search={<ListingSearchForm key={JSON.stringify(params)} params={params} marketCity={settings.city} action="/listings" countLabel={countLabel} />} />
       <main className="sf-home">
-        <SearchSplit pins={pins} searchable sheetLabel={countLabel || resultsHeading(params.type, settings.city)} footer={<StorefrontFooter settings={settings} sections={sections} />}>
+        <SearchSplit pins={pins} searchable signedIn={save.signedIn} sheetLabel={countLabel || resultsHeading(params.type, settings.city)} footer={<StorefrontFooter settings={settings} sections={sections} />}>
           <h1 className="sr-only">{resultsHeading(params.type, settings.city)}</h1>
           <section id="homes" aria-label="Homes">
             {error ? (
