@@ -371,6 +371,8 @@
   .sf-preview__close:hover { background: var(--sf-paper-3); }
   .sf-preview__close svg.lucide, .sf-preview__save svg.lucide { width: 1.25rem; height: 1.25rem; }
   .sf-map[data-previewing] .sf-map__controls { visibility: hidden; }
+  /* On a short landscape map the chosen pin can end up under "Search this area"; the card has the floor. */
+  @media (max-height: 32rem) { .sf-map[data-previewing] .sf-map__search { visibility: hidden; } }
   @media (prefers-reduced-motion: reduce) { .sf-preview { animation: none; } }
   @media (max-width: 63.99rem) {
     /* Over the phone results map the card sits just above the lowered sheet. */
