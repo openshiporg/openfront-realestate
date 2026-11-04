@@ -35,9 +35,9 @@ export function ListingGallery({ photos, title, plaque }: { photos: GalleryPhoto
   useEffect(() => {
     const list = viewer.current
     if (index === null || !list) return
-    if (slideAt(list) === index) return
     const opening = !list.dataset.shown
     list.dataset.shown = '1'
+    if (slideAt(list) === index) return
     list.scrollTo({ left: index * list.clientWidth, behavior: opening ? 'auto' : 'smooth' })
   }, [index])
 

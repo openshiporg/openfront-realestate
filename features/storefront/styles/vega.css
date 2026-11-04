@@ -284,9 +284,9 @@
   @media (max-width: 63.99rem) and (prefers-reduced-motion: reduce) { .sf-sheet.sf-split__main { transition: none; } }
   /* A phone on its side is too short for a sheet over the map: the map takes the left, the list the right. */
   @media (max-width: 63.99rem) and (orientation: landscape) and (max-height: 32rem) {
-    .sf-split[data-variant="results"] { min-height: 12rem; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+    .sf-split[data-variant="results"] { min-height: 12rem; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: minmax(0, 100%); }
     .sf-split[data-variant="results"] .sf-split__map { position: relative; inset: auto; grid-area: 1 / 1; height: 100%; }
-    .sf-sheet.sf-split__main { position: relative; inset: auto; grid-area: 1 / 2; transform: none; border-radius: 0; box-shadow: -1px 0 0 var(--sf-line); transition: none; }
+    .sf-sheet.sf-split__main { position: relative; inset: auto; grid-area: 1 / 2; min-height: 0; height: 100%; transform: none; border-radius: 0; box-shadow: -1px 0 0 var(--sf-line); transition: none; }
     .sf-sheet__bar { display: none; }
     .sf-sheet:not([data-snap="full"]) .sf-sheet__body, .sf-sheet__body { overflow-y: auto; }
     .sf-split[data-variant="results"] .sf-preview { bottom: 0.75rem; }
