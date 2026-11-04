@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useActionState, useEffect, useOptimistic, useRef, useState } from 'react'
+import { useActionState, useEffect, useOptimistic, useState } from 'react'
 import { Heart } from 'lucide-react'
 import { toggleSavedHome, type SaveHomeState } from '../lib/data/saved'
 import { announceSaved, SAVED_EVENT, type SavedDetail } from '../lib/map-events'
@@ -37,15 +37,15 @@ export function SaveHomeButton({ propertyId, title, slug, savedId, signedIn, cla
 }
 
 function SignedInSaveButton({ propertyId, title, listingPath, className, savedId }: { propertyId: string; title: string; listingPath: string; className: string; savedId: string | null }) {
-  const [state, action, pending] = useActionState(toggleSavedHome, { savedId, message: '' } satisfies SaveHomeState)
+  // The answer is announced as soon as it lands, before the page's refreshed saved homes remount this
+  // button, so every other heart and the home's pin follow at once.
+  const [state, action, pending] = useActionState(async (previous: SaveHomeState, form: FormData) => {
+    const next = await toggleSavedHome(previous, form)
+    if (next.savedId !== previous.savedId) announceSaved(propertyId, next.savedId)
+    return next
+  }, { savedId, message: '' } satisfies SaveHomeState)
   // The heart flips on click; the server answer then confirms or reverts it.
   const [saved, setSaved] = useOptimistic(Boolean(state.savedId))
-  const announced = useRef(state.savedId)
-  useEffect(() => {
-    if (announced.current === state.savedId) return
-    announced.current = state.savedId
-    announceSaved(propertyId, state.savedId)
-  }, [propertyId, state.savedId])
   return (
     <form action={formData => { setSaved(!saved); action(formData) }} className={className}>
       <input type="hidden" name="propertyId" value={propertyId} />

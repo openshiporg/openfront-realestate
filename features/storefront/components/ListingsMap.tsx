@@ -358,8 +358,10 @@ export function ListingsMap({ pins, activeId, area = null, searchable = false, s
   const savedIdOf = useCallback((pin: MapPin) => pin.id in saved ? saved[pin.id] : pin.savedId || null, [saved])
 
   useEffect(() => {
-    markers.current.forEach(({ pin, element }) => element.toggleAttribute('data-saved', Boolean(savedIdOf(pin))))
-  }, [savedIdOf, key, ready])
+    // The newest pins carry the server's saved homes; a placed marker may still hold an older copy.
+    const latest = new Map(pins.map(pin => [pin.id, pin]))
+    markers.current.forEach(({ pin, element }) => element.toggleAttribute('data-saved', Boolean(savedIdOf(latest.get(pin.id) || pin))))
+  }, [savedIdOf, pins, key, ready])
 
   // Cards anywhere on the page lift their pin while hovered or focused.
   useEffect(() => {
