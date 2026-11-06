@@ -81,6 +81,11 @@ export function auditableInput(inputData: unknown): unknown {
   return out
 }
 
+/** The event's request payload: the audited input when it is an object, otherwise just the record id. */
+function auditRequest(audited: unknown, id: string): Record<string, unknown> {
+  return audited && typeof audited === 'object' && !Array.isArray(audited) ? audited as Record<string, unknown> : { id }
+}
+
 export function createTenantOwnedHooks(config: HookConfig) {
   return {
     async resolveInput({ operation, inputData, resolvedData, context }: any) {
@@ -177,7 +182,7 @@ export function createTenantOwnedHooks(config: HookConfig) {
         aggregateType,
         aggregateId: record.id,
         actorId,
-        request: auditableInput(inputData) || { id: record.id },
+        request: auditRequest(auditableInput(inputData), record.id),
         before: normalizeMoneyRecord(config.listKey, originalItem || null),
         after: normalizeMoneyRecord(config.listKey, item || null),
       })
