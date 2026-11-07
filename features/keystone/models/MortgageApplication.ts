@@ -3,6 +3,7 @@ import { checkbox, decimal, integer, json, relationship, select, text, timestamp
 
 import { canCreateForActiveDeal, permissions, rules } from '../access';
 import { createTenantOwnedHooks } from '../lib/tenantOwnedHooks';
+import { MORTGAGE_TRANSITIONS, guardStatusField } from '../lib/closingRecordState';
 import { money } from '../lib/money'
 import { trackingFields } from './trackingFields';
 
@@ -12,7 +13,7 @@ export const MortgageApplication = list({
     filter: { query: rules.canReadDealChildren, update: rules.canReadDealChildren },
     item: { create: canCreateForActiveDeal },
   },
-  hooks: createTenantOwnedHooks({ listKey: 'MortgageApplication', parents: { deal: 'Deal', lead: 'Lead' }, required: ['deal', 'lead'], coherentWith: { field: 'deal', listKey: 'Deal', matches: { lead: 'lead' } }, deriveOnly: true, protectDelete: true }),
+  hooks: guardStatusField(createTenantOwnedHooks({ listKey: 'MortgageApplication', parents: { deal: 'Deal', lead: 'Lead' }, required: ['deal', 'lead'], coherentWith: { field: 'deal', listKey: 'Deal', matches: { lead: 'lead' } }, deriveOnly: true, protectDelete: true }), MORTGAGE_TRANSITIONS, 'financing application', { approved: 'decisionAt', denied: 'decisionAt' }),
   ui: {
     hideDelete: true,
     hideCreate: args => !permissions.canManageBrokerageDeals(args), listView: { initialColumns: ['applicationNumber', 'deal', 'lenderName', 'status'] } },

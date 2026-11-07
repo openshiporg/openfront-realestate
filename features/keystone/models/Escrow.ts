@@ -3,6 +3,7 @@ import { checkbox, integer, json, relationship, select, text, timestamp } from '
 
 import { canCreateForActiveDeal, permissions, rules } from '../access';
 import { createTenantOwnedHooks } from '../lib/tenantOwnedHooks';
+import { ESCROW_TRANSITIONS, guardStatusField } from '../lib/closingRecordState';
 import { money } from '../lib/money'
 import { trackingFields } from './trackingFields';
 
@@ -12,7 +13,7 @@ export const Escrow = list({
     filter: { query: rules.canReadDealChildren, update: rules.canReadDealChildren },
     item: { create: canCreateForActiveDeal },
   },
-  hooks: createTenantOwnedHooks({ listKey: 'Escrow', parents: { deal: 'Deal', property: 'Property' }, required: ['deal', 'property'], coherentWith: { field: 'deal', listKey: 'Deal', matches: { property: 'property' } }, deriveOnly: true, protectDelete: true }),
+  hooks: guardStatusField(createTenantOwnedHooks({ listKey: 'Escrow', parents: { deal: 'Deal', property: 'Property' }, required: ['deal', 'property'], coherentWith: { field: 'deal', listKey: 'Deal', matches: { property: 'property' } }, deriveOnly: true, protectDelete: true }), ESCROW_TRANSITIONS, 'escrow', { closed: 'closedAt' }),
   ui: {
     hideDelete: true,
     hideCreate: args => !permissions.canManageBrokerageDeals(args), listView: { initialColumns: ['escrowNumber', 'deal', 'status', 'scheduledCloseAt'] } },

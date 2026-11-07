@@ -1,5 +1,6 @@
 'use client'
 
+import { ESCROW_TRANSITIONS, MORTGAGE_TRANSITIONS, TITLE_ORDER_TRANSITIONS, nextStatuses } from '../../../keystone/lib/closingRecordState'
 import { ActionButton, Choice, Field, FormDrawer, RecordForm, Toggle } from '../../components/RecordForm'
 import { addCommission, addDealDocument, addEscrow, addInspection, addMortgage, addTitleOrder, createDeal, setClosingRecordStatus } from '../actions/dealRecords'
 import type { DealOptions } from '../lib/dealWorkspace'
@@ -133,5 +134,7 @@ export function DocumentDrawer(props: Parents) {
 
 /** Status pills for escrow, title and financing records, which have no transition command. */
 export function ClosingStatusTrack({ kind, recordId, dealId, current, options }: { kind: 'escrow' | 'title' | 'mortgage'; recordId: string; dealId: string; current: string; options: Array<[string, string]> }) {
-  return <>{options.filter(([value]) => value !== current).map(([value, label]) => <ActionButton key={value} action={setClosingRecordStatus} fields={{ kind, recordId, dealId, status: value }} label={label} />)}</>
+  const map = kind === 'escrow' ? ESCROW_TRANSITIONS : kind === 'title' ? TITLE_ORDER_TRANSITIONS : MORTGAGE_TRANSITIONS
+  const next = nextStatuses(map, current)
+  return <>{options.filter(([value]) => next.includes(value)).map(([value, label]) => <ActionButton key={value} action={setClosingRecordStatus} fields={{ kind, recordId, dealId, status: value }} label={label} />)}</>
 }

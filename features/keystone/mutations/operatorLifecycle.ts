@@ -325,6 +325,13 @@ async function transitionInContext(context: Context, domain: Domain, data: Trans
   if (domain === 'showing' && item.lead?.id && nextLeadStatus !== null && nextLeadStatus !== item.lead.status) {
     await sudo.query.Lead.updateOne({ where: { id: item.lead.id }, data: { status: nextLeadStatus }, query: 'id' })
   }
+  if (domain === 'deal' && next === 'closed_lost') {
+    // A lost deal must not leave live closing records or an accepted offer behind.
+    const openEscrows = await sudo.query.Escrow.findMany({ where: { deal: { id: { equals: id } }, status: { in: ['opened', 'pending'] } }, query: 'id' })
+    for (const escrow of openEscrows) await sudo.query.Escrow.updateOne({ where: { id: escrow.id }, data: { status: 'cancelled' }, query: 'id' })
+    const liveOffers = await sudo.query.Offer.findMany({ where: { deal: { id: { equals: id } }, status: { in: ['draft', 'submitted', 'countered'] } }, query: 'id status' })
+    for (const offer of liveOffers) await sudo.query.Offer.updateOne({ where: { id: offer.id }, data: { status: 'withdrawn' }, query: 'id' })
+  }
   if (domain === 'offer' && next === 'accepted' && item.deal?.id) {
     await sudo.query.Deal.updateOne({ where: { id: item.deal.id }, data: { offerAmount: item.amount }, query: 'id' })
   }

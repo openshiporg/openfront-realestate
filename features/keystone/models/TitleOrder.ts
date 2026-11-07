@@ -3,6 +3,7 @@ import { checkbox, decimal, integer, json, relationship, select, text, timestamp
 
 import { canCreateForActiveDeal, permissions, rules } from '../access';
 import { createTenantOwnedHooks } from '../lib/tenantOwnedHooks';
+import { TITLE_ORDER_TRANSITIONS, guardStatusField } from '../lib/closingRecordState';
 import { trackingFields } from './trackingFields';
 
 export const TitleOrder = list({
@@ -11,7 +12,7 @@ export const TitleOrder = list({
     filter: { query: rules.canReadDealChildren, update: rules.canReadDealChildren },
     item: { create: canCreateForActiveDeal },
   },
-  hooks: createTenantOwnedHooks({ listKey: 'TitleOrder', parents: { deal: 'Deal', property: 'Property' }, required: ['deal', 'property'], coherentWith: { field: 'deal', listKey: 'Deal', matches: { property: 'property' } }, deriveOnly: true, protectDelete: true }),
+  hooks: guardStatusField(createTenantOwnedHooks({ listKey: 'TitleOrder', parents: { deal: 'Deal', property: 'Property' }, required: ['deal', 'property'], coherentWith: { field: 'deal', listKey: 'Deal', matches: { property: 'property' } }, deriveOnly: true, protectDelete: true }), TITLE_ORDER_TRANSITIONS, 'title order', { clear: 'clearedAt' }),
   ui: {
     hideDelete: true,
     hideCreate: args => !permissions.canManageBrokerageDeals(args), listView: { initialColumns: ['orderNumber', 'deal', 'titleCompany', 'status'] } },
