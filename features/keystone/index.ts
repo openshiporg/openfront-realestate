@@ -10,6 +10,7 @@ import { permissions } from './access';
 import { preserveLegacyMoneyColumns } from './lib/money';
 import { s3ForcePathStyle } from './lib/s3-storage';
 import { pooledDatabaseUrl } from './database-url';
+import { throwKeystonePrismaErrors } from './lib/keystonePrismaErrors';
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -122,6 +123,8 @@ export default withAuth(
     db: {
       provider: "postgresql",
       url: pooledDatabaseUrl(databaseURL),
+      // Keystone returns failed queries as values; this makes them throw so transactions roll back.
+      extendPrismaClient: throwKeystonePrismaErrors,
       extendPrismaSchema: schema => preserveLegacyMoneyColumns(enforceRequiredBrokerageRelations(schema)),
     },
     lists: models,
