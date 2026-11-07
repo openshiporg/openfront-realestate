@@ -3,6 +3,7 @@ import { decimal, relationship, select, text, timestamp } from "@keystone-6/core
 
 import { canCreateForActiveDeal, permissions, rules } from "../access";
 import { createTenantOwnedHooks } from '../lib/tenantOwnedHooks'
+import { withRecordInvariants, withDerivedCommissionNet, commissionSplit } from '../lib/recordInvariants'
 import { money } from '../lib/money'
 import { trackingFields } from "./trackingFields";
 
@@ -18,14 +19,14 @@ export const Commission = list({
     filter: { query: rules.canReadDeals },
     item: { create: canCreateForActiveDeal },
   },
-  hooks: createTenantOwnedHooks({
+  hooks: withDerivedCommissionNet(withRecordInvariants(createTenantOwnedHooks({
     listKey: 'Commission',
     parents: { deal: 'Deal', property: 'Property' },
     users: ['agent'],
     required: ['deal', 'property', 'agent'],
     coherentWith: { field: 'deal', listKey: 'Deal', matches: { property: 'property' } },
     protectDelete: true,
-  }),
+  }), [commissionSplit])),
   ui: {
     hideDelete: true,
     hideCreate: args => !permissions.canManageBrokerageDeals(args), listView: { initialColumns: ["title", "status", "grossCommission", "netCommission", "agent", "deal"] } },

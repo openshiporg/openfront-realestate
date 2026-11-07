@@ -5,6 +5,8 @@ import { isSignedIn, rules } from "../access";
 import { trackingFields } from "./trackingFields";
 
 export const SavedProperty = list({
+  // One row per pair; the generated index name matches migration 20261107120000.
+  db: { extendPrismaSchema: schema => schema.replace(/\n\}\s*$/, `\n  @@unique([userId, propertyId])\n}`) },
   access: {
     operation: {
       query: isSignedIn,

@@ -3,6 +3,7 @@ import { checkbox, integer, json, relationship, select, text, timestamp } from '
 
 import { canCreateForManagedProperty, permissions, rules } from '../access';
 import { createTenantOwnedHooks } from '../lib/tenantOwnedHooks';
+import { withRecordInvariants, moneyOrder } from '../lib/recordInvariants'
 import { money } from '../lib/money'
 import { trackingFields } from './trackingFields';
 
@@ -12,7 +13,11 @@ export const PropertyValuation = list({
     filter: { query: rules.canReadPropertyChildren, update: rules.canManagePropertyChildren },
     item: { create: canCreateForManagedProperty },
   },
-  hooks: createTenantOwnedHooks({ listKey: 'PropertyValuation', parents: { property: 'Property' }, users: ['performedBy'], required: ['property'], deriveOnly: true, protectDelete: true }),
+  hooks: withRecordInvariants(createTenantOwnedHooks({ listKey: 'PropertyValuation', parents: { property: 'Property' }, users: ['performedBy'], required: ['property'], deriveOnly: true, protectDelete: true }), [
+    moneyOrder('lowValue', 'estimatedValue', 'The low value cannot be more than the estimated value.'),
+    moneyOrder('estimatedValue', 'highValue', 'The estimated value cannot be more than the high value.'),
+    moneyOrder('lowValue', 'highValue', 'The low value cannot be more than the high value.'),
+  ]),
   ui: {
     hideDelete: true, listView: { initialColumns: ['valuationNumber', 'property', 'valuationType', 'estimatedValue'] } },
   fields: {

@@ -120,6 +120,7 @@ model BrokerageMembership {
   createdAt      DateTime                              @default(now())
   updatedAt      DateTime                              @default(now()) @updatedAt
 
+  @@unique([brokerageId, userId])
   @@index([brokerageId])
   @@index([userId])
 }
@@ -431,6 +432,7 @@ model SavedProperty {
   createdAt  DateTime                 @default(now())
   updatedAt  DateTime                 @default(now()) @updatedAt
 
+  @@unique([userId, propertyId])
   @@index([propertyId])
   @@index([userId])
 }

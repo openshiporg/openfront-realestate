@@ -3,6 +3,7 @@ import { checkbox, decimal, integer, json, relationship, select, text, timestamp
 
 import { canCreateForActiveProperty, permissions, rules } from '../access';
 import { createTenantOwnedHooks } from '../lib/tenantOwnedHooks';
+import { withRecordInvariants, timeOrder } from '../lib/recordInvariants'
 import { trackingFields } from './trackingFields';
 
 export const OpenHouse = list({
@@ -11,7 +12,7 @@ export const OpenHouse = list({
     filter: { query: rules.canReadPropertyChildren, update: rules.canReadPropertyChildren },
     item: { create: canCreateForActiveProperty },
   },
-  hooks: createTenantOwnedHooks({ listKey: 'OpenHouse', parents: { property: 'Property' }, users: ['hostAgent'], required: ['property'], deriveOnly: true, protectDelete: true }),
+  hooks: withRecordInvariants(createTenantOwnedHooks({ listKey: 'OpenHouse', parents: { property: 'Property' }, users: ['hostAgent'], required: ['property'], deriveOnly: true, protectDelete: true }), [timeOrder('startsAt', 'endsAt', 'The open house must end after it starts.')]),
   ui: {
     hideDelete: true, listView: { initialColumns: ['title', 'property', 'status', 'startsAt'] } },
   fields: {

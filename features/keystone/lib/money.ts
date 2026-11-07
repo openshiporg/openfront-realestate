@@ -13,7 +13,12 @@ function minorFilter(value: unknown): unknown {
   }
   return moneyToMinor(value)
 }
-type MoneyConfig = NonNullable<Parameters<typeof decimal<BaseListTypeInfo>>[0]> & { legacyText?: boolean }
+type MoneyConfig = NonNullable<Parameters<typeof decimal<BaseListTypeInfo>>[0]> & { legacyText?: boolean; allowNegative?: boolean }
+
+function moneyLabel(fieldKey: string) {
+  const words = fieldKey.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()
+  return words[0].toUpperCase() + words.slice(1)
+}
 const legacyColumns = new Map<string, Map<string, string>>()
 
 /** Retained, ignored historical columns make conversion additive. Only *Minor
@@ -66,9 +71,12 @@ export function money(config: MoneyConfig = {}): FieldTypeFunc<BaseListTypeInfo>
       dbField: storage.dbField,
       hooks: {
         ...base.hooks,
-        validate: typeof validate === 'function' ? args => {
-          if (args.operation === 'delete') return validate(args)
+        validate: typeof validate === 'function' || !config.allowNegative ? (args: any) => {
+          if (args.operation === 'delete') return typeof validate === 'function' ? validate(args) : undefined
           const value = args.resolvedData[meta.fieldKey]
+          // Money is never negative unless a field opts in; a database CHECK is the backstop.
+          if (!config.allowNegative && typeof value === 'bigint' && value < 0n) args.addValidationError(`${moneyLabel(meta.fieldKey)} cannot be negative.`)
+          if (typeof validate !== 'function') return
           return validate({ ...args, resolvedData: { ...args.resolvedData,
             [meta.fieldKey]: typeof value === 'bigint' ? minorToMoney(value) : value,
           } })

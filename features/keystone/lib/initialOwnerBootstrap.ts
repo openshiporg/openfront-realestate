@@ -51,6 +51,15 @@ export async function createInitialOwner(
       query: 'id name slug status isPrimary',
     })
     let brokerage = await exactlyOne(brokerageMatches, 'starter brokerage')
+    // Exactly one brokerage is primary (a partial unique index enforces it). With no users yet, the
+    // first owner's brokerage is the public one, so any placeholder primary is demoted first.
+    const otherPrimaries = await sudo.query.Brokerage.findMany({
+      where: { isPrimary: { equals: true }, slug: { not: { equals: BROKERAGE_SLUG } } },
+      query: 'id',
+    })
+    for (const other of otherPrimaries) {
+      await sudo.db.Brokerage.updateOne({ where: { id: String(other.id) }, data: { isPrimary: false } })
+    }
     if (brokerage) {
       brokerage = await sudo.db.Brokerage.updateOne({
         where: { id: brokerage.id },

@@ -5,6 +5,8 @@ import { isOperator, rules, validateRequiredToOneRelationship } from '../access'
 import { trackingFields } from './trackingFields'
 
 export const BrokerageMembership = list({
+  // One row per pair; the generated index name matches migration 20261107120000.
+  db: { extendPrismaSchema: schema => schema.replace(/\n\}\s*$/, `\n  @@unique([brokerageId, userId])\n}`) },
   access: {
     operation: {
       query: isOperator,

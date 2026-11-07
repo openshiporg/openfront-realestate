@@ -3,6 +3,7 @@ import { integer, json, relationship, select, text, timestamp, virtual } from "@
 
 import { permissions, rules } from "../access";
 import { createTenantOwnedHooks } from '../lib/tenantOwnedHooks'
+import { withRecordInvariants, moneyOrder } from '../lib/recordInvariants'
 import { money } from '../lib/money'
 import { trackingFields } from "./trackingFields";
 
@@ -16,14 +17,14 @@ export const Offer = list({
     },
     filter: { query: rules.canReadDeals },
   },
-  hooks: createTenantOwnedHooks({
+  hooks: withRecordInvariants(createTenantOwnedHooks({
     listKey: 'Offer',
     parents: { deal: 'Deal', property: 'Property', lead: 'Lead', parentOffer: 'Offer' },
     users: ['assignedAgent'],
     required: ['deal', 'property', 'lead'],
     coherentWith: { field: 'deal', listKey: 'Deal', matches: { property: 'property', lead: 'lead' } },
     protectDelete: true,
-  }),
+  }), [moneyOrder('earnestMoney', 'amount', 'Earnest money cannot be more than the offer amount.')]),
   ui: {
     hideDelete: true,
     hideCreate: true, listView: { initialColumns: ["offerNumber", "status", "amount", "property", "deal", "submittedAt"] } },

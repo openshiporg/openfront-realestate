@@ -22,6 +22,25 @@ function withMediaSource<T extends { validateInput?: (args: any) => any }>(hooks
   }
 }
 
+/** One hero per property: promoting a photo demotes the previous hero (a partial unique index backs this). */
+function withSingleHero<T extends { beforeOperation?: (args: any) => any }>(hooks: T): T {
+  return {
+    ...hooks,
+    async beforeOperation(args: any) {
+      await hooks.beforeOperation?.(args)
+      const { operation, resolvedData, item, inputData, context } = args
+      if ((operation !== 'create' && operation !== 'update') || resolvedData?.isHero !== true) return
+      const propertyId = item?.propertyId || inputData?.property?.connect?.id
+      if (!propertyId) return
+      const sudo = context.sudo()
+      const others = await sudo.db.PropertyMedia.findMany({
+        where: { property: { id: { equals: propertyId } }, isHero: { equals: true }, ...(item?.id ? { id: { not: { equals: item.id } } } : {}) },
+      })
+      for (const other of others) await sudo.db.PropertyMedia.updateOne({ where: { id: String(other.id) }, data: { isHero: false } })
+    },
+  }
+}
+
 export const PropertyMedia = list({
   access: {
     operation: {
@@ -33,7 +52,7 @@ export const PropertyMedia = list({
     filter: { query: rules.canReadPropertyChildren, update: rules.canManagePropertyChildren, delete: rules.canManagePropertyChildren },
     item: { create: canCreateForManagedProperty },
   },
-  hooks: withMediaSource(createTenantOwnedHooks({ listKey: 'PropertyMedia', parents: { property: 'Property' }, required: ['property'], deriveOnly: true })),
+  hooks: withSingleHero(withMediaSource(createTenantOwnedHooks({ listKey: 'PropertyMedia', parents: { property: 'Property' }, required: ['property'], deriveOnly: true }))),
   ui: { listView: { initialColumns: ["image", "title", "mediaType", "property", "sortOrder", "isHero"] } },
   fields: {
     title: text({ validation: { isRequired: true } }),

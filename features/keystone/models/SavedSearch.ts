@@ -3,6 +3,7 @@ import { checkbox, decimal, integer, relationship, text, timestamp } from "@keys
 
 import { isSignedIn, rules } from "../access";
 import { createTenantOwnedHooks } from '../lib/tenantOwnedHooks';
+import { withRecordInvariants, moneyOrder } from '../lib/recordInvariants'
 import { money } from '../lib/money'
 import { trackingFields } from "./trackingFields";
 
@@ -16,7 +17,7 @@ export const SavedSearch = list({
     },
     filter: { query: rules.canReadSavedSearches },
   },
-  hooks: createTenantOwnedHooks({ listKey: 'SavedSearch', users: ['user'], required: ['user'], allowCustomers: true }),
+  hooks: withRecordInvariants(createTenantOwnedHooks({ listKey: 'SavedSearch', users: ['user'], required: ['user'], allowCustomers: true }), [moneyOrder('minPrice', 'maxPrice', 'The minimum price cannot be more than the maximum price.')]),
   ui: {
     hideDelete: true,
     hideCreate: true, listView: { initialColumns: ["name", "user", "city", "minPrice", "maxPrice", "alertsEnabled"] } },

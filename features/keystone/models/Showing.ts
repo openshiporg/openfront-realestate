@@ -3,6 +3,7 @@ import { json, relationship, select, text, timestamp, virtual } from "@keystone-
 
 import { canCreateInActiveBrokerage, canMoveToActiveBrokerage, permissions, rules } from "../access";
 import { createTenantOwnedHooks } from '../lib/tenantOwnedHooks'
+import { withRecordInvariants, timeOrder } from '../lib/recordInvariants'
 import { trackingFields } from "./trackingFields";
 
 export const Showing = list({
@@ -19,13 +20,13 @@ export const Showing = list({
     },
     item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage },
   },
-  hooks: createTenantOwnedHooks({
+  hooks: withRecordInvariants(createTenantOwnedHooks({
     listKey: 'Showing',
     parents: { property: 'Property', lead: 'Lead' },
     users: ['assignedAgent'],
     required: ['property', 'lead'],
     protectDelete: true,
-  }),
+    }), [timeOrder('scheduledStart', 'scheduledEnd', 'The showing must end after it starts.')]),
   ui: {
     hideDelete: true,
     hideCreate: args => !permissions.canManageBrokerageShowings(args),

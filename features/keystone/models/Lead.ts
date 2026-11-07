@@ -3,6 +3,7 @@ import { relationship, select, text, timestamp, virtual } from "@keystone-6/core
 
 import { canCreateInActiveBrokerage, canMoveToActiveBrokerage, permissions, rules } from "../access";
 import { createTenantOwnedHooks } from '../lib/tenantOwnedHooks'
+import { withRecordInvariants, moneyOrder } from '../lib/recordInvariants'
 import { money } from '../lib/money'
 import { trackingFields } from "./trackingFields";
 
@@ -20,13 +21,13 @@ export const Lead = list({
     },
     item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage },
   },
-  hooks: createTenantOwnedHooks({
+  hooks: withRecordInvariants(createTenantOwnedHooks({
     listKey: 'Lead',
     parents: { property: 'Property' },
     users: ['assignedAgent'],
     teams: ['assignedTeam'],
     protectDelete: true,
-  }),
+  }), [moneyOrder('budgetMin', 'budgetMax', 'The minimum budget cannot be more than the maximum budget.')]),
   ui: {
     hideDelete: true,
     hideCreate: args => !permissions.canManageBrokerageTasks(args),
