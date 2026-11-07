@@ -52,7 +52,7 @@ export async function runCommand(query: string, variables: Record<string, unknow
 }
 
 function cleanError(error: string) {
-  const message = String(error || '').replace(/^.*?:\s*/, '').split('\n')[0].trim()
+  const message = String(error || '').split('\n').map(line => line.trim()).filter(Boolean).join(' ')
   return message && message.length < 200 ? message : 'Could not save. Please try again.'
 }
 
