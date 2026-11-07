@@ -9,6 +9,7 @@ import { installInitialOwnerResolver } from './lib/initialOwnerBootstrap';
 import { permissions } from './access';
 import { preserveLegacyMoneyColumns } from './lib/money';
 import { s3ForcePathStyle } from './lib/s3-storage';
+import { pooledDatabaseUrl } from './database-url';
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -120,7 +121,7 @@ export default withAuth(
   config({
     db: {
       provider: "postgresql",
-      url: databaseURL,
+      url: pooledDatabaseUrl(databaseURL),
       extendPrismaSchema: schema => preserveLegacyMoneyColumns(enforceRequiredBrokerageRelations(schema)),
     },
     lists: models,
