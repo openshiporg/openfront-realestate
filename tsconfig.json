@@ -36,7 +36,9 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": [
+   "exclude": [
+    "mcp-ui/runtime",
+    "mcp-ui/vendor",
     "node_modules"
   ]
 }
