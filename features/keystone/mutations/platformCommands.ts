@@ -7,6 +7,7 @@ import { requireListingAuthority, requireRepresentationAuthority } from '../lib/
 import { runControlledEvidenceCommand } from './controlledEvidenceCommand'
 
 import { commandText as clean } from '../../lib/date-time'
+import { moneyToMinor } from '../../lib/money'
 function actorId(context: Context) { return (context.session as any)?.itemId as string | undefined }
 function role(context: Context) { return (context.session as any)?.data?.role || {} }
 function validKey(value: string) { return Boolean(value && value.length <= 120) }
@@ -30,6 +31,7 @@ export async function createOfferCommand(_root: unknown, { data }: { data: any }
   const dealId = clean(data.dealId), amount = clean(data.amount), earnestMoney = clean(data.earnestMoney), financingType = clean(data.financingType) || 'conventional', contingencies = clean(data.contingencies), responseDueAt = clean(data.responseDueAt), key = clean(data.idempotencyKey)
   if (!dealId || !validMoney(amount) || !['cash', 'conventional', 'fha', 'va', 'other'].includes(financingType) || contingencies.length > 10_000 || (responseDueAt && !Number.isFinite(new Date(responseDueAt).getTime())) || !validKey(key)) return { ok: false, message: 'Deal, valid amount, and bounded idempotency key are required.', itemId: null, replayed: false }
   if (earnestMoney && !validMoney(earnestMoney)) return { ok: false, message: 'Earnest money must be a valid amount.', itemId: null, replayed: false }
+  if (earnestMoney && moneyToMinor(earnestMoney) > moneyToMinor(amount)) return { ok: false, message: 'Earnest money cannot be more than the offer amount.', itemId: null, replayed: false }
   const request = { dealId, amount, earnestMoney, financingType, contingencies, responseDueAt }
   return runCommand(context, {
     eventKey: `command:deal:${dealId}:create-offer:${key}`, lockKey: `aggregate:deal:${dealId}`, permission: 'canManageDeals', request,

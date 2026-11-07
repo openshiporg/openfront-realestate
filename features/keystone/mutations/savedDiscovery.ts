@@ -3,6 +3,7 @@ import type { Context } from '.keystone/types'
 import { activeBrokerageIds } from '../access'
 import { freshOperatorCommandContext } from '../lib/commandContext'
 import { lockSavedDiscoveryIdentity } from '../lib/savedDiscoveryIdentity'
+import { moneyToMinor } from '../../lib/money'
 
 type SavedPropertyStatus = 'saved' | 'interested' | 'hidden'
 type SavePropertyInput = { propertyId: string; status?: SavedPropertyStatus | null; notes?: string | null }
@@ -218,6 +219,8 @@ export async function saveSearchForCurrentUser(
   const name = clean(data.name)
   if (!name) return { ok: false, message: 'Name the search before saving it.', itemId: null }
   if (!discoveryBrokerageId(context.session)) return { ok: false, message: 'Sign in to save searches.', itemId: null }
+  const minPrice = clean(data.minPrice), maxPrice = clean(data.maxPrice)
+  if (minPrice && maxPrice && /^\d+(\.\d{1,2})?$/.test(minPrice) && /^\d+(\.\d{1,2})?$/.test(maxPrice) && moneyToMinor(minPrice) > moneyToMinor(maxPrice)) return { ok: false, message: 'The minimum price cannot be more than the maximum price.', itemId: null }
 
   return withSavedDiscoveryLock(context, 'search', name, async (scoped, lockedUserId, brokerageId) => {
     if (lockedUserId !== currentUserId) return unauthenticated()
