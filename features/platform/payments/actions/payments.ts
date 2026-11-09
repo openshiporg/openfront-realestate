@@ -50,7 +50,7 @@ export async function requestPayment(_state: RecordResult, form: FormData): Prom
   if (!/^\d{1,5}(?:\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) return { ok: false, message: 'Enter an amount in dollars, such as 1500 or 1500.00.' }
   const response = await keystoneClient<{ result: { ok: boolean; message: string; url: string | null; itemId: string | null } }>(
     'mutation RequestPayment($data: RequestPaymentCommandInput!) { result: requestPaymentCommand(data: $data) { ok message url itemId } }',
-    { data: { leadId, ...(dealId ? { dealId } : {}), purpose, amountMinor: Math.round(Number(amount) * 100), idempotencyKey: text(form, 'idempotencyKey') || crypto.randomUUID(), sendEmail: form.get('sendEmail') === 'true' } },
+    { data: { leadId, ...(dealId ? { dealId } : {}), purpose, amountMinor: Math.round(Number(amount) * 100), idempotencyKey: text(form, 'idempotencyKey') || crypto.randomUUID() } },
     { cache: 'no-store' })
   if (!response.success) return { ok: false, message: 'Could not request the payment. Please try again.' }
   const result = response.data.result

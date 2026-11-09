@@ -7256,7 +7256,6 @@ type Mutation {
   scheduleShowingForLeadCommand(data: ScheduleShowingForLeadInput!): OperatorCommandResult!
   addLeadActivityCommand(data: AddLeadActivityCommandInput!): OperatorCommandResult!
   resolveDuplicateLeadCommand(data: ResolveDuplicateLeadInput!): OperatorCommandResult!
-  replayDomainOutboxEvent(eventId: ID!): OperatorCommandResult!
   savePropertyForCurrentUser(data: SavePropertyForCurrentUserInput!): SavedDiscoveryResult!
   removeSavedPropertyForCurrentUser(data: SavedPropertyIdInput!): SavedDiscoveryResult!
   saveSearchForCurrentUser(data: SaveSearchForCurrentUserInput!): SavedDiscoveryResult!
@@ -7446,7 +7445,6 @@ type Query {
   customerSavedHomes(brokerageSlug: String!): [PublicRealEstateListing!]!
   publicRealEstateListings(brokerageSlug: String!, filters: PublicRealEstateListingFilters, take: Int = 24, skip: Int = 0): [PublicRealEstateListing!]!
   publicRealEstateListing(brokerageSlug: String!, slug: String!): PublicRealEstateListing
-  domainOutboxEventStatus(eventKey: String!): DomainOutboxEventStatus
   platformContacts(status: String = "all", q: String, take: Int = 50, after: String, before: String): PlatformContactWorkspace!
   platformLeadDetail(id: ID!, before: String): PlatformLeadDetail
   platformShowingRequestViewer: PlatformOperatorViewer
@@ -8053,20 +8051,6 @@ type PlatformSourceFeed {
   recordsImported: Int
 }
 
-type PlatformQueueItem {
-  id: ID!
-  eventKey: String!
-  eventType: String!
-  aggregateType: String!
-  aggregateId: String!
-  status: String!
-  attempts: Int
-  replayCount: Int
-  availableAt: String
-  occurredAt: String!
-  lastError: String
-}
-
 type PlatformDisclosure {
   id: ID!
   title: String!
@@ -8361,7 +8345,6 @@ type PlatformOperationsWorkspace {
   savedSearches: [PlatformSavedSearch!]!
   alerts: [PlatformSavedSearchAlert!]!
   feeds: [PlatformSourceFeed!]!
-  queue: [PlatformQueueItem!]!
   inspections: [PlatformInspection!]!
   openHouses: [PlatformOpenHouse!]!
   disclosures: [PlatformDisclosure!]!
@@ -8501,7 +8484,6 @@ input RequestPaymentCommandInput {
   amountMinor: Int!
   description: String
   idempotencyKey: String!
-  sendEmail: Boolean
 }
 
 type PaymentCommandResult {
@@ -9000,21 +8982,6 @@ input ResolveDuplicateLeadInput {
   duplicateLeadId: ID!
   note: String
   idempotencyKey: String!
-}
-
-type DomainOutboxEventStatus {
-  id: ID!
-  eventKey: String!
-  eventType: String!
-  aggregateType: String!
-  aggregateId: String!
-  status: String!
-  attempts: Int
-  replayCount: Int
-  availableAt: DateTime
-  occurredAt: DateTime!
-  dispatchedAt: DateTime
-  lastError: String
 }
 
 input SavePropertyForCurrentUserInput {

@@ -40,7 +40,6 @@ import {
   updateDealFinancialTermsCommand,
   updateDealNextStepCommand,
 } from './operatorCommands'
-import { domainOutboxEventStatus, replayDomainOutboxEvent } from './domainOutbox'
 import { platformContacts, platformListings, platformOperations, platformPeople, platformPipeline, platformReports, platformShowings } from './platformProjections'
 import { platformStorefrontSettings, updatePlatformStorefrontSettings } from './platformStorefrontSettings'
 import { registerRealEstateCustomer, customerShowingHistory, cancelCustomerShowing, customerInquiryHistory } from './customerAccount'
@@ -109,7 +108,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       type PlatformSavedSearchAlert { id: ID! status: String! cadence: String! lastSentAt: String sentCount: Int savedSearch: PlatformSearchRef user: PlatformPerson }
       type PlatformSearchRef { id: ID! name: String! }
       type PlatformSourceFeed { id: ID! name: String! provider: String feedType: String! status: String! lastImportedAt: String recordsImported: Int }
-      type PlatformQueueItem { id: ID! eventKey: String! eventType: String! aggregateType: String! aggregateId: String! status: String! attempts: Int replayCount: Int availableAt: String occurredAt: String! lastError: String }
       type PlatformDisclosure { id: ID! title: String! disclosureType: String! status: String! documentUrl: String sentAt: String acknowledgedAt: String deal: PlatformDealRef property: PlatformPropertyRef }
       type PlatformMortgageEvidence { id: ID! applicationNumber: String! lenderName: String status: String! loanAmount: String interestRate: String submittedAt: String decisionAt: String deal: PlatformDealRef lead: PlatformLeadRef }
       type PlatformTitleEvidence { id: ID! orderNumber: String! titleCompany: String status: String! orderedAt: String clearedAt: String exceptions: String deal: PlatformDealRef property: PlatformPropertyRef }
@@ -135,7 +133,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       type PlatformRetentionPolicy { id: ID! policyKey: String! retentionClass: String! jurisdictionCode: String! triggerType: String! retentionDays: Int! disposition: String! effectiveFrom: String! effectiveThrough: String }
       type PlatformTransactionFileEvent { id: ID! eventKey: String! eventType: String! triggerAt: String disposeAfter: String holdKey: String manifestKey: String manifestSha256: String documentSha256: String externalDeletionReference: String reason: String! occurredAt: String! deal: PlatformDealRef document: PlatformDocumentRef }
 
-      type PlatformOperationsWorkspace { offers: [PlatformOffer!]! transactions: [PlatformTransaction!]! commissions: [PlatformCommission!]! savedSearches: [PlatformSavedSearch!]! alerts: [PlatformSavedSearchAlert!]! feeds: [PlatformSourceFeed!]! queue: [PlatformQueueItem!]! inspections: [PlatformInspection!]! openHouses: [PlatformOpenHouse!]! disclosures: [PlatformDisclosure!]! mortgages: [PlatformMortgageEvidence!]! titleOrders: [PlatformTitleEvidence!]! escrows: [PlatformEscrowEvidence!]! comps: [PlatformMarketComp!]! valuations: [PlatformValuation!]! syndications: [PlatformSyndication!]! tasks: [PlatformAgentTask!]! listingEngagementAuthorities: [PlatformListingEngagementAuthority!]! listingPublicationAuthorities: [PlatformListingPublicationAuthority!]! practitionerLicenses: [PlatformPractitionerLicenseAuthority!]! representationAuthorities: [PlatformRepresentationAuthority!]! documentEvidenceEvents: [PlatformDocumentEvidenceEvent!]! commissionLedgerEntries: [PlatformCommissionLedgerEntry!]! retentionPolicies: [PlatformRetentionPolicy!]! transactionFileEvents: [PlatformTransactionFileEvent!]! }
+      type PlatformOperationsWorkspace { offers: [PlatformOffer!]! transactions: [PlatformTransaction!]! commissions: [PlatformCommission!]! savedSearches: [PlatformSavedSearch!]! alerts: [PlatformSavedSearchAlert!]! feeds: [PlatformSourceFeed!]!  inspections: [PlatformInspection!]! openHouses: [PlatformOpenHouse!]! disclosures: [PlatformDisclosure!]! mortgages: [PlatformMortgageEvidence!]! titleOrders: [PlatformTitleEvidence!]! escrows: [PlatformEscrowEvidence!]! comps: [PlatformMarketComp!]! valuations: [PlatformValuation!]! syndications: [PlatformSyndication!]! tasks: [PlatformAgentTask!]! listingEngagementAuthorities: [PlatformListingEngagementAuthority!]! listingPublicationAuthorities: [PlatformListingPublicationAuthority!]! practitionerLicenses: [PlatformPractitionerLicenseAuthority!]! representationAuthorities: [PlatformRepresentationAuthority!]! documentEvidenceEvents: [PlatformDocumentEvidenceEvent!]! commissionLedgerEntries: [PlatformCommissionLedgerEntry!]! retentionPolicies: [PlatformRetentionPolicy!]! transactionFileEvents: [PlatformTransactionFileEvent!]! }
 
       input PublicRealEstateListingFilters {
         q: String
@@ -256,7 +254,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         amountMinor: Int!
         description: String
         idempotencyKey: String!
-        sendEmail: Boolean
       }
 
       type PaymentCommandResult {
@@ -495,21 +492,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         idempotencyKey: String!
       }
 
-      type DomainOutboxEventStatus {
-        id: ID!
-        eventKey: String!
-        eventType: String!
-        aggregateType: String!
-        aggregateId: String!
-        status: String!
-        attempts: Int
-        replayCount: Int
-        availableAt: DateTime
-        occurredAt: DateTime!
-        dispatchedAt: DateTime
-        lastError: String
-      }
-
       input SavePropertyForCurrentUserInput {
         propertyId: ID!
         status: SavedPropertyStatusType
@@ -567,7 +549,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         customerSavedHomes(brokerageSlug: String!): [PublicRealEstateListing!]!
         publicRealEstateListings(brokerageSlug: String!, filters: PublicRealEstateListingFilters, take: Int = 24, skip: Int = 0): [PublicRealEstateListing!]!
         publicRealEstateListing(brokerageSlug: String!, slug: String!): PublicRealEstateListing
-        domainOutboxEventStatus(eventKey: String!): DomainOutboxEventStatus
         platformContacts(status: String = "all", q: String, take: Int = 50, after: String, before: String): PlatformContactWorkspace!
         platformLeadDetail(id: ID!, before: String): PlatformLeadDetail
         platformShowingRequestViewer: PlatformOperatorViewer
@@ -635,7 +616,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         scheduleShowingForLeadCommand(data: ScheduleShowingForLeadInput!): OperatorCommandResult!
         addLeadActivityCommand(data: AddLeadActivityCommandInput!): OperatorCommandResult!
         resolveDuplicateLeadCommand(data: ResolveDuplicateLeadInput!): OperatorCommandResult!
-        replayDomainOutboxEvent(eventId: ID!): OperatorCommandResult!
         savePropertyForCurrentUser(data: SavePropertyForCurrentUserInput!): SavedDiscoveryResult!
         removeSavedPropertyForCurrentUser(data: SavedPropertyIdInput!): SavedDiscoveryResult!
         saveSearchForCurrentUser(data: SaveSearchForCurrentUserInput!): SavedDiscoveryResult!
@@ -657,7 +637,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         customerSavedHomes,
         publicRealEstateListings,
         publicRealEstateListing,
-        domainOutboxEventStatus,
         platformContacts,
         platformLeadDetail,
         platformShowingRequestViewer,
@@ -724,7 +703,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         scheduleShowingForLeadCommand,
         addLeadActivityCommand,
         resolveDuplicateLeadCommand,
-        replayDomainOutboxEvent,
         savePropertyForCurrentUser,
         removeSavedPropertyForCurrentUser,
         saveSearchForCurrentUser,

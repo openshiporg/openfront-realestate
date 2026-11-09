@@ -6,7 +6,6 @@ import { newAccessToken, formatMinorUsd, nextPaymentState, applicationFeeFor, pu
 import { leadIdentityKey } from './leadCapture'
 import { runControlledEvidenceCommand } from './controlledEvidenceCommand'
 import { submitListingInquiry } from './submitListingInquiry'
-import { sendPaymentRequestEmail } from '../lib/mail'
 import { createPayment, getPaymentStatus, handleWebhook, refundPayment } from '../utils/paymentProviderAdapter'
 import { isPaymentProviderConfigured } from '../utils/paymentProviderConfig'
 import { commandText as clean } from '../../lib/date-time'
@@ -219,7 +218,7 @@ function staffCan(context: Context, brokerageId: string, permission: string, own
 }
 
 /** "Request payment" on a Lead or Deal: records a Payment at the staff-entered amount and returns a pay link. */
-export async function requestPaymentCommand(_root: unknown, { data }: { data: { leadId: string; dealId?: string | null; purpose: string; amountMinor: number; description?: string | null; idempotencyKey: string; sendEmail?: boolean | null } }, context: Context) {
+export async function requestPaymentCommand(_root: unknown, { data }: { data: { leadId: string; dealId?: string | null; purpose: string; amountMinor: number; description?: string | null; idempotencyKey: string | null } }, context: Context) {
   const leadId = clean(data.leadId), dealId = clean(data.dealId), purpose = clean(data.purpose) as PaymentPurpose, key = clean(data.idempotencyKey)
   const amountMinor = data.amountMinor
   if (!leadId || !key || key.length > 120 || !REQUESTABLE_PURPOSES.includes(purpose) || !Number.isSafeInteger(amountMinor) || amountMinor < 1 || amountMinor > MAX_REQUEST_MINOR) {
@@ -255,11 +254,6 @@ export async function requestPaymentCommand(_root: unknown, { data }: { data: { 
       return { result: outcome, event: { eventType: 'payment.requested', brokerageId: lead.brokerage.id, aggregateType: 'payment', aggregateId: payment.id, actorId: (scoped.session as any).itemId, action: 'request_payment', before: null, after: { ...outcome, paymentId: payment.id, purpose, amountMinor, currency: 'USD', leadId, dealId: dealId || null } } }
     },
   })
-  if (result.ok && !result.replayed && data.sendEmail && result.url) {
-    const lead: any = await context.sudo().query.Lead.findOne({ where: { id: leadId }, query: 'email brokerage { name }' })
-    const sent = lead?.email ? await sendPaymentRequestEmail(lead.email, { url: result.url, amountLabel: formatMinorUsd(amountMinor), description: purpose === 'rent' ? 'rent' : 'a holding deposit', brokerageName: lead.brokerage?.name || 'Your brokerage' }) : false
-    return { ...result, message: sent ? 'Payment requested and the link was emailed.' : 'Payment requested. Email is not set up, so share the link yourself.' }
-  }
   return result
 }
 
