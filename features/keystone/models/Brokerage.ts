@@ -55,7 +55,7 @@ export const Brokerage = list({
     paymentProviders: relationship({ ref: 'PaymentProvider.brokerage', many: true }),
     payments: relationship({ ref: 'Payment.brokerage', many: true }),
     auditEvents: relationship({ ref: 'DomainAuditEvent.brokerage', many: true }),
-    outboxEvents: relationship({ ref: 'DomainOutboxEvent.brokerage', many: true }),
+    commandReceipts: relationship({ ref: 'CommandReceipt.brokerage', many: true }),
     ...trackingFields,
   },
 })

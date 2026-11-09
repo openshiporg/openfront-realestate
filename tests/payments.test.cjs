@@ -124,7 +124,7 @@ function webhookHarness(payment) {
         updateOne: async ({ data }) => { updates.push(data); Object.assign(row, data); return { ...row }; },
       },
       LeadActivity: { createOne: async ({ data }) => { activities.push(data); return { id: 'a' }; } },
-      DomainOutboxEvent: { findOne: async () => null, createOne: async ({ data }) => { events.push(data); return { id: 'e' }; } },
+      CommandReceipt: { findOne: async () => null, createOne: async ({ data }) => { events.push(data); return { id: 'e' }; } },
     },
   };
   const context = { sudo: () => sudo, prisma: sudo.prisma, transaction: async fn => fn(context) };

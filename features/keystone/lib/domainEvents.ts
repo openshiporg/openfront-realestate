@@ -135,7 +135,7 @@ export async function enqueueDomainEvent(context: any, command: DomainEventInput
   const requestHash = domainPayloadHash(input.request)
   await sudo.prisma.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', `domain-event:${eventKey}`)
 
-  const existing = await sudo.query.DomainOutboxEvent.findOne({
+  const existing = await sudo.query.CommandReceipt.findOne({
     where: { eventKey },
     query: 'id eventKey requestHash payload',
   })
@@ -205,7 +205,7 @@ async function writeDomainEvent(sudo: any, input: ReturnType<typeof boundedDomai
     query: 'id',
   })
 
-  const event = await sudo.query.DomainOutboxEvent.createOne({
+  const event = await sudo.query.CommandReceipt.createOne({
     data: {
       eventKey,
       eventType: input.eventType,
@@ -215,10 +215,6 @@ async function writeDomainEvent(sudo: any, input: ReturnType<typeof boundedDomai
       requestHash,
       payloadHash,
       payload,
-      status: 'pending',
-      attempts: 0,
-      replayCount: 0,
-      availableAt: occurredAt,
       occurredAt,
     },
     query: 'id eventKey',

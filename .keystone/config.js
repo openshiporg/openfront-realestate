@@ -860,11 +860,11 @@ var DomainAuditEvent = (0, import_core.list)({
   }
 });
 
-// features/keystone/models/DomainOutboxEvent.ts
+// features/keystone/models/CommandReceipt.ts
 var import_core2 = require("@keystone-6/core");
 var import_access3 = require("@keystone-6/core/access");
 var import_fields3 = require("@keystone-6/core/fields");
-var DomainOutboxEvent = (0, import_core2.list)({
+var CommandReceipt = (0, import_core2.list)({
   access: {
     operation: { query: permissions.canViewReports, create: import_access3.denyAll, update: import_access3.denyAll, delete: import_access3.denyAll },
     filter: { query: rules.canAccessBrokerageRecords }
@@ -872,35 +872,18 @@ var DomainOutboxEvent = (0, import_core2.list)({
   ui: {
     hideCreate: true,
     hideDelete: true,
-    listView: { initialColumns: ["occurredAt", "eventType", "aggregateType", "aggregateId", "status", "attempts"] }
+    listView: { initialColumns: ["occurredAt", "eventType", "aggregateType", "aggregateId"] }
   },
   fields: {
     eventKey: (0, import_fields3.text)({ isIndexed: "unique", validation: { isRequired: true } }),
     eventType: (0, import_fields3.text)({ validation: { isRequired: true }, isIndexed: true }),
-    brokerage: (0, import_fields3.relationship)({ ref: "Brokerage.outboxEvents" }),
+    brokerage: (0, import_fields3.relationship)({ ref: "Brokerage.commandReceipts" }),
     aggregateType: (0, import_fields3.text)({ validation: { isRequired: true }, isIndexed: true }),
     aggregateId: (0, import_fields3.text)({ validation: { isRequired: true }, isIndexed: true }),
     requestHash: (0, import_fields3.text)({ validation: { isRequired: true } }),
     payloadHash: (0, import_fields3.text)({ validation: { isRequired: true } }),
     payload: (0, import_fields3.json)({ access: { create: import_access3.denyAll, update: import_access3.denyAll } }),
-    status: (0, import_fields3.select)({
-      type: "enum",
-      options: [
-        { label: "Pending", value: "pending" },
-        { label: "Processing", value: "processing" },
-        { label: "Dispatched", value: "dispatched" },
-        { label: "Failed", value: "failed" }
-      ],
-      defaultValue: "pending",
-      validation: { isRequired: true },
-      isIndexed: true
-    }),
-    attempts: (0, import_fields3.integer)({ defaultValue: 0, validation: { min: 0 } }),
-    replayCount: (0, import_fields3.integer)({ defaultValue: 0, validation: { min: 0 } }),
-    availableAt: (0, import_fields3.timestamp)({ defaultValue: { kind: "now" }, isIndexed: true }),
     occurredAt: (0, import_fields3.timestamp)({ validation: { isRequired: true }, isIndexed: true }),
-    dispatchedAt: (0, import_fields3.timestamp)(),
-    lastError: (0, import_fields3.text)({ ui: { displayMode: "textarea" } }),
     ...trackingFields
   }
 });
@@ -961,7 +944,7 @@ var Brokerage = (0, import_core3.list)({
     paymentProviders: (0, import_fields4.relationship)({ ref: "PaymentProvider.brokerage", many: true }),
     payments: (0, import_fields4.relationship)({ ref: "Payment.brokerage", many: true }),
     auditEvents: (0, import_fields4.relationship)({ ref: "DomainAuditEvent.brokerage", many: true }),
-    outboxEvents: (0, import_fields4.relationship)({ ref: "DomainOutboxEvent.brokerage", many: true }),
+    commandReceipts: (0, import_fields4.relationship)({ ref: "CommandReceipt.brokerage", many: true }),
     ...trackingFields
   }
 });
@@ -1130,7 +1113,7 @@ async function enqueueDomainEvent(context, command2) {
   const sudo = context.sudo();
   const requestHash = domainPayloadHash(input.request);
   await sudo.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `domain-event:${eventKey}`);
-  const existing = await sudo.query.DomainOutboxEvent.findOne({
+  const existing = await sudo.query.CommandReceipt.findOne({
     where: { eventKey },
     query: "id eventKey requestHash payload"
   });
@@ -1185,7 +1168,7 @@ async function writeDomainEvent(sudo, input, requestHash) {
     },
     query: "id"
   });
-  const event = await sudo.query.DomainOutboxEvent.createOne({
+  const event = await sudo.query.CommandReceipt.createOne({
     data: {
       eventKey,
       eventType: input.eventType,
@@ -1195,10 +1178,6 @@ async function writeDomainEvent(sudo, input, requestHash) {
       requestHash,
       payloadHash,
       payload,
-      status: "pending",
-      attempts: 0,
-      replayCount: 0,
-      availableAt: occurredAt,
       occurredAt
     },
     query: "id eventKey"
@@ -1474,8 +1453,8 @@ var DEFAULT_STOREFRONT_BRAND_HUE = 151;
 function normalizeStorefrontBrandHue(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return DEFAULT_STOREFRONT_BRAND_HUE;
-  const integer23 = Math.round(numeric);
-  return (integer23 % 360 + 360) % 360;
+  const integer22 = Math.round(numeric);
+  return (integer22 % 360 + 360) % 360;
 }
 
 // features/keystone/utils/storeLogo.ts
@@ -4309,7 +4288,7 @@ var PaymentWebhookReceipt = (0, import_core45.list)({
 // features/keystone/models/index.ts
 var models = {
   DomainAuditEvent,
-  DomainOutboxEvent,
+  CommandReceipt,
   Brokerage,
   BrokerageMembership,
   BrokerageSettings,
@@ -5219,9 +5198,9 @@ async function scheduledShowingReceipt(_root, { data }, context) {
     if (request.originalActorId !== void 0 && (request.originalActorId !== scoped.session?.itemId || request.originalBrokerageId !== activeBrokerageIds(scoped.session)[0])) return null;
     if (!await scopedSchedulingIdentity(scoped, leadId, propertyId, false)) return null;
     const eventKey = `command:lead:${leadId}:schedule-showing:${key}`;
-    const eventHeader = await scoped.sudo().query.DomainOutboxEvent.findOne({ where: { eventKey }, query: SHOWING_EVENT_HEADER_QUERY });
+    const eventHeader = await scoped.sudo().query.CommandReceipt.findOne({ where: { eventKey }, query: SHOWING_EVENT_HEADER_QUERY });
     if (!eventHeader || eventHeader.requestHash !== domainPayloadHash(request) || !await ownedShowingEventHeader(scoped, eventHeader, { eventKey, eventType: "showing.scheduled", purpose: "owned_receipt", leadId, propertyId })) return null;
-    const event = await scoped.sudo().query.DomainOutboxEvent.findOne({
+    const event = await scoped.sudo().query.CommandReceipt.findOne({
       where: { eventKey: `command:lead:${leadId}:schedule-showing:${key}` },
       query: "id requestHash payloadHash payload brokerage { id }"
     });
@@ -5462,7 +5441,7 @@ async function requestPropertyShowing(_root, { data }, context) {
     const eventKey = key ? `public-showing-intent:${brokerages[0].id}:${domainPayloadHash(key)}` : null;
     const requestReference = eventKey ? domainPayloadHash(eventKey) : null;
     if (eventKey) {
-      const existing = await context2.sudo().query.DomainOutboxEvent.findOne({ where: { eventKey }, query: "id requestHash brokerage { id }" });
+      const existing = await context2.sudo().query.CommandReceipt.findOne({ where: { eventKey }, query: "id requestHash brokerage { id }" });
       if (existing) {
         if (existing.brokerage?.id !== brokerages[0].id || existing.requestHash !== domainPayloadHash(request)) {
           return { ok: false, message: "This request key was already used with different details. Contact the brokerage about the original request.", leadId: null, showingId: null };
@@ -8471,17 +8450,17 @@ async function transitionInContext(context, domain, data) {
   };
   const eventKey = `command:${domain}:${id}:${commandKey}`;
   const sudo = context.sudo();
-  const supportsEvents = typeof sudo.prisma?.$executeRawUnsafe === "function" && typeof sudo.query?.DomainOutboxEvent?.findOne === "function" && typeof sudo.query?.DomainOutboxEvent?.createOne === "function" && typeof sudo.query?.DomainAuditEvent?.createOne === "function";
+  const supportsEvents = typeof sudo.prisma?.$executeRawUnsafe === "function" && typeof sudo.query?.CommandReceipt?.findOne === "function" && typeof sudo.query?.CommandReceipt?.createOne === "function" && typeof sudo.query?.DomainAuditEvent?.createOne === "function";
   if (!supportsEvents) return { ok: false, message: "Transitions are temporarily unavailable.", itemId: null, status: null, replayed: false };
   let showingReplay = null;
   const showingHeader = domain === "showing" ? await scopedShowingIdentity(context, id) : null;
   if (domain === "showing" && !showingHeader) return { ok: false, message: "Showing not found or access denied.", itemId: null, status: null, replayed: false };
   if (supportsEvents) {
     await sudo.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `aggregate:${domain}:${id}`);
-    const candidate = await sudo.query.DomainOutboxEvent.findOne({ where: { eventKey }, query: domain === "showing" ? SHOWING_EVENT_HEADER_QUERY : "id requestHash payload brokerage { id }" });
+    const candidate = await sudo.query.CommandReceipt.findOne({ where: { eventKey }, query: domain === "showing" ? SHOWING_EVENT_HEADER_QUERY : "id requestHash payload brokerage { id }" });
     if (candidate && domain === "showing" && !await ownedShowingEventHeader(context, candidate, { eventKey, eventType: "showing.status_changed", purpose: "showing" })) return { ok: false, message: "Showing not found or access denied.", itemId: null, status: null, replayed: false };
     if (candidate && domain === "showing" && candidate.requestHash !== domainPayloadHash(request)) return { ok: false, message: "This idempotency key was already used with different transition input.", itemId: null, status: null, replayed: false };
-    const existing = candidate && domain === "showing" ? await sudo.query.DomainOutboxEvent.findOne({ where: { eventKey }, query: "id requestHash payloadHash payload brokerage { id }" }) : candidate;
+    const existing = candidate && domain === "showing" ? await sudo.query.CommandReceipt.findOne({ where: { eventKey }, query: "id requestHash payloadHash payload brokerage { id }" }) : candidate;
     if (candidate && (!existing || existing.id !== candidate.id || existing.requestHash !== candidate.requestHash || domain === "showing" && !showingEventPayloadMatches(candidate, existing))) return { ok: false, message: "Showing not found or access denied.", itemId: null, status: null, replayed: false };
     if (existing) {
       if (!activeBrokerageIds(context.session).includes(existing.brokerage?.id)) {
@@ -9090,10 +9069,10 @@ async function runControlledEvidenceCommand(context, options) {
     await sudo.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", options.lockKey);
     await lockCommandAggregate(scoped, options.lockKey, evidenceBrokerageId(scoped));
     if (options.authorizeTarget && !await options.authorizeTarget(scoped)) return { ok: false, message: "Access denied.", itemId: null, replayed: false };
-    const candidate = await sudo.query.DomainOutboxEvent.findOne({ where: { eventKey: options.eventKey }, query: options.authorizeReplayHeader ? SHOWING_EVENT_HEADER_QUERY : "id requestHash payload brokerage { id }" });
+    const candidate = await sudo.query.CommandReceipt.findOne({ where: { eventKey: options.eventKey }, query: options.authorizeReplayHeader ? SHOWING_EVENT_HEADER_QUERY : "id requestHash payload brokerage { id }" });
     if (candidate && options.authorizeReplayHeader && !await options.authorizeReplayHeader(scoped, candidate)) return { ok: false, message: "Access denied.", itemId: null, replayed: false };
     if (candidate && options.authorizeReplayHeader && candidate.requestHash !== domainPayloadHash(options.request)) throw new Error("Domain command idempotency key was reused with different input");
-    const existing = candidate && options.authorizeReplayHeader ? await sudo.query.DomainOutboxEvent.findOne({ where: { eventKey: options.eventKey }, query: "id requestHash payloadHash payload brokerage { id }" }) : candidate;
+    const existing = candidate && options.authorizeReplayHeader ? await sudo.query.CommandReceipt.findOne({ where: { eventKey: options.eventKey }, query: "id requestHash payloadHash payload brokerage { id }" }) : candidate;
     if (candidate && (!existing || existing.id !== candidate.id || existing.requestHash !== candidate.requestHash || options.authorizeReplayHeader && !showingEventPayloadMatches(candidate, existing))) return { ok: false, message: "Access denied.", itemId: null, replayed: false };
     if (existing) {
       if (existing.brokerage?.id !== evidenceBrokerageId(scoped)) return { ok: false, message: "Access denied.", itemId: null, replayed: false };

@@ -62,9 +62,9 @@ export async function scheduledShowingReceipt(_root: unknown, { data }: { data: 
       || request.originalBrokerageId !== activeBrokerageIds(scoped.session)[0])) return null
     if (!await scopedSchedulingIdentity(scoped, leadId, propertyId, false)) return null
     const eventKey = `command:lead:${leadId}:schedule-showing:${key}`
-    const eventHeader = await scoped.sudo().query.DomainOutboxEvent.findOne({ where: { eventKey }, query: SHOWING_EVENT_HEADER_QUERY })
+    const eventHeader = await scoped.sudo().query.CommandReceipt.findOne({ where: { eventKey }, query: SHOWING_EVENT_HEADER_QUERY })
     if (!eventHeader || eventHeader.requestHash !== domainPayloadHash(request) || !await ownedShowingEventHeader(scoped, eventHeader, { eventKey, eventType: 'showing.scheduled', purpose: 'owned_receipt', leadId, propertyId })) return null
-    const event = await scoped.sudo().query.DomainOutboxEvent.findOne({
+    const event = await scoped.sudo().query.CommandReceipt.findOne({
       where: { eventKey: `command:lead:${leadId}:schedule-showing:${key}` },
       query: 'id requestHash payloadHash payload brokerage { id }',
     }) as any
