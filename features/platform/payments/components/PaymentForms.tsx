@@ -1,6 +1,6 @@
 'use client'
 
-import { Choice, Field, FormDrawer, RecordForm, ActionButton, Toggle } from '../../components/RecordForm'
+import { Choice, Field, FormDrawer, RecordForm, ActionButton } from '../../components/RecordForm'
 import { checkPaymentStatus, refundPaymentAction, requestPayment, savePaymentProvider } from '../actions/payments'
 
 export function ProviderDrawer({ label = 'Add provider' }: { label?: string }) {
@@ -28,7 +28,6 @@ export function RequestPaymentDrawer({ leadId, dealId, disabled }: { leadId: str
           {dealId ? <input type="hidden" name="dealId" value={dealId} /> : null}
           <Choice name="purpose" label="For" required wide options={[['holding_deposit', 'Holding deposit'], ['rent', 'Rent (bank transfer)']]} />
           <Field name="amount" label="Amount ($)" required inputMode="decimal" placeholder="1500.00" />
-          <Toggle name="sendEmail" label="Email the link to the payer" defaultChecked />
         </RecordForm>
       )}
     </FormDrawer>

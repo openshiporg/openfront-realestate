@@ -5,7 +5,7 @@ import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
 import { classifyCommissionTransitionFeedback } from '../lib/commissionTransitionFeedback'
 
 export type OperationsWorkspace = {
-  offers: any[]; transactions: any[]; commissions: any[]; savedSearches: any[]; alerts: any[]; feeds: any[]; queue: any[]
+  offers: any[]; transactions: any[]; commissions: any[]; savedSearches: any[]; alerts: any[]; feeds: any[]
   inspections: any[]; openHouses: any[]; disclosures: any[]; mortgages: any[]; titleOrders: any[]; escrows: any[]; comps: any[]; valuations: any[]; syndications: any[]; tasks: any[]
   listingEngagementAuthorities: any[]; listingPublicationAuthorities: any[]; practitionerLicenses: any[]; representationAuthorities: any[]; documentEvidenceEvents: any[]; commissionLedgerEntries: any[]; retentionPolicies: any[]; transactionFileEvents: any[]
 }
@@ -19,7 +19,6 @@ const OPERATIONS_QUERY = `
       savedSearches { id name city state propertyType minPrice maxPrice minBedrooms alertsEnabled lastNotifiedAt user { id name email } }
       alerts { id status cadence lastSentAt sentCount savedSearch { id name } user { id name email } }
       feeds { id name provider feedType status lastImportedAt recordsImported }
-      queue { id eventKey eventType aggregateType aggregateId status attempts replayCount availableAt occurredAt lastError }
       inspections { id title inspectionType status scheduledAt completedAt inspectorName estimatedCost summary findings property { id title } deal { id title } }
       openHouses { id title status startsAt endsAt attendeeCount notes property { id title } hostAgent { id name } }
       disclosures { id title disclosureType status documentUrl sentAt acknowledgedAt deal { id title } property { id title } }
@@ -44,7 +43,7 @@ const OPERATIONS_QUERY = `
 
 export async function getPlatformOperations(): Promise<{ workspace: OperationsWorkspace; error: string | null }> {
   const response = await keystoneClient<any>(OPERATIONS_QUERY, {}, { cache: 'no-store' })
-  return response.success ? { workspace: response.data.platformOperations, error: null } : { workspace: { offers: [], transactions: [], commissions: [], savedSearches: [], alerts: [], feeds: [], queue: [], inspections: [], openHouses: [], disclosures: [], mortgages: [], titleOrders: [], escrows: [], comps: [], valuations: [], syndications: [], tasks: [], listingEngagementAuthorities: [], listingPublicationAuthorities: [], practitionerLicenses: [], representationAuthorities: [], documentEvidenceEvents: [], commissionLedgerEntries: [], retentionPolicies: [], transactionFileEvents: [] }, error: response.error }
+  return response.success ? { workspace: response.data.platformOperations, error: null } : { workspace: { offers: [], transactions: [], commissions: [], savedSearches: [], alerts: [], feeds: [], inspections: [], openHouses: [], disclosures: [], mortgages: [], titleOrders: [], escrows: [], comps: [], valuations: [], syndications: [], tasks: [], listingEngagementAuthorities: [], listingPublicationAuthorities: [], practitionerLicenses: [], representationAuthorities: [], documentEvidenceEvents: [], commissionLedgerEntries: [], retentionPolicies: [], transactionFileEvents: [] }, error: response.error }
 }
 
 type State = { ok: boolean; message: string; uncertain?: boolean }

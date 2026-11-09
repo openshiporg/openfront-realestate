@@ -177,14 +177,6 @@ function attentionRows(workspace: OperationsWorkspace, now: number, sectionHref:
     })
   }
 
-  for (const item of workspace.queue) {
-    if (item.status !== 'failed') continue
-    rows.push({
-      key: `job:${item.id}`, kind: 'Import job', title: humanize(item.eventType), context: item.lastError || '', due: item.availableAt || null, overdue: false,
-      tone: 'rose', state: 'Failed', action: goTo('imports', 'Review'), rank: 4,
-    })
-  }
-
   const time = (value: string | null) => value ? new Date(value).getTime() : Number.POSITIVE_INFINITY
   return rows.sort((a, b) => a.rank - b.rank || time(a.due) - time(b.due))
 }
@@ -613,18 +605,6 @@ function ImportsSection({ workspace }: { workspace: OperationsWorkspace }) {
               <Actions><ImportDrawer sourceFeedId={feed.id} feedName={feed.name} /></Actions>
             </Row>
           )) : <NoRows colSpan={5}>No import feeds</NoRows>}
-        </DataTable>
-      </Section>
-      <Section title="Jobs">
-        <DataTable label="Import jobs" className={wide} head={[{ label: 'Job' }, { label: 'Status' }, { label: 'Attempts', className: 'text-right' }, { label: 'Scheduled' }]}>
-          {workspace.queue.length ? workspace.queue.map((item) => (
-            <Row key={item.id}>
-              <Td className="font-medium text-foreground">{humanize(item.eventType)}</Td>
-              <Td><Status value={item.status} />{item.lastError ? <p className="mt-0.5 max-w-[18rem] text-xs text-destructive">{item.lastError}</p> : null}</Td>
-              <Td className="text-right tabular-nums">{item.attempts || 0}</Td>
-              <Td className="whitespace-nowrap tabular-nums"><ViewerTime value={item.availableAt} style="datetime" /></Td>
-            </Row>
-          )) : <NoRows colSpan={4}>No jobs</NoRows>}
         </DataTable>
       </Section>
     </div>

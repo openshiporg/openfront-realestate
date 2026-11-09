@@ -82,7 +82,6 @@ export async function requestPropertyShowing(
   }
   const brokerages = await context.sudo().query.Brokerage.findMany({ where: { slug: { equals: brokerageSlug }, status: { equals: 'active' } }, take: 1, query: 'id' })
   if (!brokerages[0]) return { ok: false, message: 'This listing is unavailable.', leadId: null, showingId: null }
-  let receipt: import('../lib/showingRequestEmail').ShowingReceipt | null = null
   const outcome = await context.transaction(async transactionContext => {
   const context = transactionContext
   await lockBrokerageCommand(context, brokerages[0].id)
@@ -248,11 +247,6 @@ export async function requestPropertyShowing(
       aggregateType: 'showing', aggregateId: showing.id, action: 'request_receipt', request,
       after: { requestReference, receiptState: 'received' },
     })
-    receipt = {
-      showingId: String(showing.id), brokerageId: String(property.brokerage.id), brokerageName: '', to: email.toLowerCase(),
-      propertyTitle: property.title, address: [property.addressLine1, property.city, property.state].filter(Boolean).join(', '),
-      requestedStart: requestedStart.toISOString(), timeZone: listingTimeZone, showingType, listingUrl: `/listings/${property.slug}`,
-    }
     return {
       ok: true,
       ...(eventKey ? { requestReference } : {}),
@@ -261,20 +255,5 @@ export async function requestPropertyShowing(
       showingId: null,
     }
   }, { timeout: 30_000 })
-  // After the commit, never inside it: a mail failure must not touch the request.
-  if (receipt && outcome?.ok) {
-    try {
-      const pending = receipt as import('../lib/showingRequestEmail').ShowingReceipt
-      const sudo = context.sudo()
-      const [{ deliverShowingRequestEmail }, { publicBaseUrl }, brokerage] = await Promise.all([
-        import('../lib/showingRequestEmail'),
-        import('./payments'),
-        sudo.query.Brokerage.findOne({ where: { id: pending.brokerageId }, query: 'name' }),
-      ])
-      await deliverShowingRequestEmail(sudo, { ...pending, brokerageName: brokerage?.name || 'Your brokerage', listingUrl: `${publicBaseUrl(context)}${pending.listingUrl}` })
-    } catch (error) {
-      console.error('Showing request email not sent:', error instanceof Error ? error.message : 'Unknown error')
-    }
-  }
   return outcome
 }

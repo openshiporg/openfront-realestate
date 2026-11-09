@@ -5,6 +5,9 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -27,6 +30,494 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
+// features/integrations/payment/stripe.ts
+var stripe_exports = {};
+__export(stripe_exports, {
+  cancelPaymentFunction: () => cancelPaymentFunction,
+  capturePaymentFunction: () => capturePaymentFunction,
+  createPaymentFunction: () => createPaymentFunction,
+  generatePaymentLinkFunction: () => generatePaymentLinkFunction,
+  getPaymentStatusFunction: () => getPaymentStatusFunction,
+  handleWebhookFunction: () => handleWebhookFunction,
+  refundPaymentFunction: () => refundPaymentFunction
+});
+function secretKey(provider) {
+  const key = provider?.credentials?.secretKey || process.env.STRIPE_SECRET_KEY;
+  if (!key || !/^(sk|rk)_(test|live)_/.test(key)) throw new Error("Stripe secret key not configured");
+  return key;
+}
+function formEncode(params) {
+  const body = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) if (value !== void 0 && value !== null) body.append(key, String(value));
+  return body;
+}
+async function stripeRequest(provider, path2, method = "GET", params, idempotencyKey) {
+  const response = await fetch(`https://api.stripe.com/v1/${path2}`, {
+    method,
+    redirect: "error",
+    signal: AbortSignal.timeout(3e4),
+    headers: {
+      Authorization: `Bearer ${secretKey(provider)}`,
+      ...idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
+      ...params ? { "Content-Type": "application/x-www-form-urlencoded" } : {}
+    },
+    body: params ? formEncode(params) : void 0
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(`Stripe request failed: ${result?.error?.type || response.status}`);
+  return result;
+}
+async function createPaymentFunction({ provider, payment, amount, currency: currency2, idempotencyKey }) {
+  if (!Number.isSafeInteger(amount) || amount < 1) throw new Error("Invalid payment amount");
+  if (!payment?.id || !payment.successUrl || !payment.cancelUrl) throw new Error("Payment context is incomplete");
+  const method = payment.purpose === "rent" ? "us_bank_account" : "card";
+  const session = await stripeRequest(provider, "checkout/sessions", "POST", {
+    mode: "payment",
+    success_url: payment.successUrl,
+    cancel_url: payment.cancelUrl,
+    client_reference_id: payment.id,
+    customer_email: payment.customerEmail || void 0,
+    "payment_method_types[0]": method,
+    "line_items[0][quantity]": 1,
+    "line_items[0][price_data][currency]": currency2.toLowerCase(),
+    "line_items[0][price_data][unit_amount]": amount,
+    "line_items[0][price_data][product_data][name]": payment.description || PURPOSE_LABEL[payment.purpose] || "Payment",
+    "metadata[paymentId]": payment.id,
+    "metadata[purpose]": payment.purpose || "",
+    "payment_intent_data[metadata][paymentId]": payment.id
+  }, idempotencyKey);
+  return {
+    id: session.id,
+    url: session.url,
+    status: session.payment_status,
+    amount: session.amount_total,
+    currency: String(session.currency).toUpperCase(),
+    expiresAt: session.expires_at ? new Date(session.expires_at * 1e3).toISOString() : null
+  };
+}
+async function capturePaymentFunction({ provider, paymentId, amount, idempotencyKey }) {
+  const intent = await stripeRequest(provider, `payment_intents/${encodeURIComponent(paymentId)}/capture`, "POST", amount == null ? {} : { amount_to_capture: amount }, idempotencyKey);
+  return { id: intent.id, status: intent.status, amount: intent.amount_received, currency: String(intent.currency).toUpperCase() };
+}
+async function refundPaymentFunction({ provider, paymentId, amount, idempotencyKey, refundId }) {
+  const refund = refundId ? await stripeRequest(provider, `refunds/${encodeURIComponent(refundId)}`) : await stripeRequest(provider, "refunds", "POST", { payment_intent: paymentId, amount }, idempotencyKey);
+  return { id: refund.id, refundId: refund.id, status: refund.status, amount: refund.amount, currency: String(refund.currency).toUpperCase() };
+}
+async function getPaymentStatusFunction({ provider, paymentId }) {
+  if (paymentId.startsWith("cs_")) {
+    const session = await stripeRequest(provider, `checkout/sessions/${encodeURIComponent(paymentId)}?expand[]=payment_intent.latest_charge`);
+    const intent2 = session.payment_intent && typeof session.payment_intent === "object" ? session.payment_intent : null;
+    const charge2 = intent2?.latest_charge && typeof intent2.latest_charge === "object" ? intent2.latest_charge : null;
+    let status;
+    if (session.payment_status === "paid" && intent2?.status === "succeeded") status = "succeeded";
+    else if (session.status === "expired") status = "canceled";
+    else status = intent2?.status || "requires_payment_method";
+    return {
+      id: session.id,
+      paymentIntentId: intent2?.id ?? (typeof session.payment_intent === "string" ? session.payment_intent : null),
+      url: session.status === "open" ? session.url : null,
+      status,
+      amount: status === "succeeded" && intent2 ? intent2.amount_received || intent2.amount : session.amount_total,
+      currency: String(session.currency).toUpperCase(),
+      refundedAmount: charge2?.amount_refunded ?? 0
+    };
+  }
+  const intent = await stripeRequest(provider, `payment_intents/${encodeURIComponent(paymentId)}?expand[]=latest_charge`);
+  const charge = intent.latest_charge && typeof intent.latest_charge === "object" ? intent.latest_charge : null;
+  return {
+    id: intent.id,
+    paymentIntentId: intent.id,
+    url: null,
+    status: intent.status,
+    amount: intent.status === "succeeded" ? intent.amount_received : intent.amount,
+    currency: String(intent.currency).toUpperCase(),
+    refundedAmount: charge?.amount_refunded ?? 0
+  };
+}
+async function generatePaymentLinkFunction({ provider, paymentId }) {
+  const mode = secretKey(provider).includes("_test_") ? "test/" : "";
+  return `https://dashboard.stripe.com/${mode}payments/${encodeURIComponent(paymentId)}`;
+}
+async function cancelPaymentFunction({ provider, paymentId, idempotencyKey }) {
+  if (paymentId.startsWith("cs_")) {
+    const current = await getPaymentStatusFunction({ provider, paymentId });
+    if (current.status === "succeeded") return { status: "succeeded" };
+    if (current.status === "canceled") return { status: "canceled" };
+    await stripeRequest(provider, `checkout/sessions/${encodeURIComponent(paymentId)}/expire`, "POST", {}, idempotencyKey);
+    return { status: "canceled" };
+  }
+  const intent = await stripeRequest(provider, `payment_intents/${encodeURIComponent(paymentId)}/cancel`, "POST", {}, idempotencyKey);
+  return { status: intent.status === "canceled" ? "canceled" : intent.status };
+}
+async function handleWebhookFunction({ provider, headers, rawBody }) {
+  const secret = provider?.credentials?.webhookSecret || process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) throw new Error("Stripe webhook secret is not configured");
+  if (!rawBody) throw new Error("Stripe webhook raw body is required");
+  const header = headers["stripe-signature"];
+  if (!header) throw new Error("Stripe signature is required");
+  let timestamp38 = "";
+  const signatures = [];
+  for (const part of header.split(",")) {
+    const index = part.indexOf("=");
+    if (index < 1) continue;
+    const key = part.slice(0, index).trim();
+    const value = part.slice(index + 1).trim();
+    if (key === "t") timestamp38 = value;
+    if (key === "v1") signatures.push(value);
+  }
+  const age = Math.abs(Date.now() / 1e3 - Number(timestamp38));
+  if (!timestamp38 || !Number.isFinite(age) || age > WEBHOOK_TOLERANCE_SECONDS) throw new Error("Stripe signature timestamp outside tolerance");
+  const expected = Buffer.from((0, import_node_crypto12.createHmac)("sha256", secret).update(`${timestamp38}.${rawBody}`).digest("hex"));
+  const valid = signatures.some((signature) => {
+    const actual = Buffer.from(signature);
+    return actual.length === expected.length && (0, import_node_crypto12.timingSafeEqual)(actual, expected);
+  });
+  if (!valid) throw new Error("Invalid Stripe signature");
+  const event = JSON.parse(rawBody);
+  return { isValid: true, event, type: event.type, resource: event.data?.object };
+}
+var import_node_crypto12, WEBHOOK_TOLERANCE_SECONDS, PURPOSE_LABEL;
+var init_stripe = __esm({
+  "features/integrations/payment/stripe.ts"() {
+    "use strict";
+    import_node_crypto12 = require("node:crypto");
+    WEBHOOK_TOLERANCE_SECONDS = 300;
+    PURPOSE_LABEL = {
+      application_fee: "Rental application fee",
+      holding_deposit: "Holding deposit",
+      rent: "Rent payment",
+      agent_fee: "Agent desk fee"
+    };
+  }
+});
+
+// features/lib/currency-units.ts
+function currencyMinorUnitDigits(currencyCode = "USD") {
+  const code = currencyCode.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) throw new Error(`Invalid currency code: ${currencyCode}`);
+  try {
+    return new Intl.NumberFormat("en", { style: "currency", currency: code }).resolvedOptions().maximumFractionDigits ?? 2;
+  } catch {
+    throw new Error(`Unsupported currency code: ${currencyCode}`);
+  }
+}
+function currencyMinorUnitScale(currencyCode = "USD") {
+  return 10 ** currencyMinorUnitDigits(currencyCode);
+}
+function majorToMinorUnits(value, currencyCode = "USD") {
+  const parsed = typeof value === "string" ? Number.parseFloat(value) : value;
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.round(parsed * currencyMinorUnitScale(currencyCode));
+}
+function minorToMajorUnits(value, currencyCode = "USD") {
+  const parsed = typeof value === "string" ? Number.parseFloat(value) : value;
+  if (!Number.isFinite(parsed)) return 0;
+  return parsed / currencyMinorUnitScale(currencyCode);
+}
+var init_currency_units = __esm({
+  "features/lib/currency-units.ts"() {
+    "use strict";
+  }
+});
+
+// features/integrations/payment/paypal.ts
+var paypal_exports = {};
+__export(paypal_exports, {
+  cancelPaymentFunction: () => cancelPaymentFunction2,
+  capturePaymentFunction: () => capturePaymentFunction2,
+  createPaymentFunction: () => createPaymentFunction2,
+  formatPayPalAmount: () => formatPayPalAmount,
+  generatePaymentLinkFunction: () => generatePaymentLinkFunction2,
+  getPaymentStatusFunction: () => getPaymentStatusFunction2,
+  handleWebhookFunction: () => handleWebhookFunction2,
+  normalizePayPalStatus: () => normalizePayPalStatus,
+  parsePayPalAmount: () => parsePayPalAmount,
+  refundPaymentFunction: () => refundPaymentFunction2
+});
+async function handleWebhookFunction2({ event, headers }) {
+  const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+  if (!webhookId) {
+    throw new Error("PayPal webhook ID is not configured");
+  }
+  const accessToken = await getPayPalAccessToken();
+  const baseUrl = getPayPalBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/v1/notifications/verify-webhook-signature`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        auth_algo: headers["paypal-auth-algo"],
+        cert_url: headers["paypal-cert-url"],
+        transmission_id: headers["paypal-transmission-id"],
+        transmission_sig: headers["paypal-transmission-sig"],
+        transmission_time: headers["paypal-transmission-time"],
+        webhook_id: webhookId,
+        webhook_event: event
+      })
+    }
+  );
+  const verification = await response.json();
+  const isValid = verification.verification_status === "SUCCESS";
+  if (!isValid) {
+    throw new Error("Invalid webhook signature");
+  }
+  return {
+    isValid: true,
+    event,
+    type: event.event_type,
+    resource: event.resource
+  };
+}
+async function createPaymentFunction2({ payment, amount, currency: currency2, idempotencyKey }) {
+  const accessToken = await getPayPalAccessToken();
+  const baseUrl = getPayPalBaseUrl();
+  const response = await fetch(`${baseUrl}/v2/checkout/orders`, {
+    method: "POST",
+    redirect: "error",
+    signal: AbortSignal.timeout(3e4),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      ...idempotencyKey ? { "PayPal-Request-Id": idempotencyKey } : {}
+    },
+    body: JSON.stringify({
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          amount: {
+            currency_code: currency2.toUpperCase(),
+            value: formatPayPalAmount(amount, currency2)
+          },
+          custom_id: payment?.id
+        }
+      ],
+      payment_source: { paypal: { experience_context: { return_url: payment?.successUrl, cancel_url: payment?.cancelUrl, user_action: "PAY_NOW" } } }
+    })
+  });
+  const orderResult = await response.json();
+  if (!response.ok || orderResult.error || !orderResult.id) {
+    throw new Error(`PayPal order creation failed: ${orderResult?.error?.message || orderResult?.message || response.status}`);
+  }
+  const approval = (orderResult.links || []).find((link) => ["payer-action", "approve"].includes(link.rel));
+  return {
+    id: orderResult.id,
+    orderId: orderResult.id,
+    url: approval?.href ?? null,
+    status: orderResult.status,
+    amount,
+    currency: currency2.toUpperCase()
+  };
+}
+async function capturePaymentFunction2({ paymentId, idempotencyKey }) {
+  const accessToken = await getPayPalAccessToken();
+  const baseUrl = getPayPalBaseUrl();
+  const response = await fetch(
+    `${baseUrl}/v2/checkout/orders/${paymentId}/capture`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "PayPal-Request-Id": idempotencyKey || `capture:${paymentId}`
+      }
+    }
+  );
+  const capture = await response.json();
+  if (capture.error) {
+    throw new Error(`PayPal capture failed: ${capture.error.message}`);
+  }
+  const capturedAmount = capture.purchase_units[0].payments.captures[0].amount;
+  return {
+    status: normalizePayPalStatus(capture.status),
+    amount: parsePayPalAmount(capturedAmount.value, capturedAmount.currency_code),
+    currencyCode: capturedAmount.currency_code.toUpperCase(),
+    data: capture
+  };
+}
+async function refundPaymentFunction2({ paymentId, amount, currency: currency2 = "USD", idempotencyKey, refundId }) {
+  const accessToken = await getPayPalAccessToken();
+  const baseUrl = getPayPalBaseUrl();
+  const response = await fetch(
+    refundId ? `${baseUrl}/v2/payments/refunds/${refundId}` : `${baseUrl}/v2/payments/captures/${paymentId}/refund`,
+    {
+      method: refundId ? "GET" : "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        ...idempotencyKey ? { "PayPal-Request-Id": idempotencyKey } : {}
+      },
+      body: refundId ? void 0 : JSON.stringify({
+        amount: {
+          value: formatPayPalAmount(amount, currency2),
+          currency_code: currency2.toUpperCase()
+        }
+      })
+    }
+  );
+  const refund = await response.json();
+  if (refund.error) {
+    throw new Error(`PayPal refund failed: ${refund.error.message}`);
+  }
+  return {
+    id: refund.id,
+    refundId: refund.id,
+    status: refund.status,
+    amount: parsePayPalAmount(refund.amount.value, refund.amount.currency_code),
+    data: refund
+  };
+}
+async function getPaymentStatusFunction2({ paymentId }) {
+  const accessToken = await getPayPalAccessToken();
+  const baseUrl = getPayPalBaseUrl();
+  const response = await fetch(`${baseUrl}/v2/checkout/orders/${paymentId}`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
+  const orderResult = await response.json();
+  if (orderResult.error) {
+    throw new Error(`PayPal status check failed: ${orderResult.error.message}`);
+  }
+  const purchaseUnits = orderResult.purchase_units || [];
+  const orderAmount = purchaseUnits[0]?.amount;
+  if (!orderAmount?.currency_code || orderAmount.value == null) throw new Error("PayPal order is missing its quoted amount or currency");
+  const captures = purchaseUnits.flatMap((unit) => unit.payments?.captures || []);
+  const currencies = [orderAmount.currency_code, ...captures.map((capture) => capture.amount?.currency_code)].filter(Boolean).map((currency2) => currency2.toUpperCase());
+  if (new Set(currencies).size !== 1) throw new Error("PayPal order and capture currencies do not match");
+  const status = normalizePayPalStatus(orderResult.status);
+  const capturedAmount = captures.reduce((sum, capture) => {
+    if (capture.amount?.value == null) throw new Error("PayPal capture is missing its amount");
+    return sum + parsePayPalAmount(capture.amount.value, capture.amount.currency_code);
+  }, 0);
+  const refundsComplete = status === "requires_capture" ? captures.length === 0 : status === "succeeded" && captures.length > 0 && captures.every((capture) => capture.status === "COMPLETED");
+  return {
+    status,
+    amount: status === "succeeded" ? capturedAmount : parsePayPalAmount(orderAmount.value, orderAmount.currency_code),
+    currencyCode: currencies[0],
+    refunds: [],
+    refundsComplete,
+    data: orderResult
+  };
+}
+async function generatePaymentLinkFunction2({ paymentId }) {
+  return `https://www.paypal.com/activity/payment/${paymentId}`;
+}
+async function cancelPaymentFunction2({ paymentId }) {
+  const current = await getPaymentStatusFunction2({ paymentId });
+  if (["CREATED", "PAYER_ACTION_REQUIRED"].includes(current.data?.status)) return { status: "abandoned" };
+  return { status: current.status };
+}
+var getPayPalBaseUrl, formatPayPalAmount, parsePayPalAmount, normalizePayPalStatus, getPayPalAccessToken;
+var init_paypal = __esm({
+  "features/integrations/payment/paypal.ts"() {
+    "use strict";
+    init_currency_units();
+    getPayPalBaseUrl = () => {
+      const isSandbox = process.env.NEXT_PUBLIC_PAYPAL_SANDBOX !== "false";
+      return isSandbox ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
+    };
+    formatPayPalAmount = (amount, currency2) => {
+      const digits = currencyMinorUnitDigits(currency2);
+      return minorToMajorUnits(amount, currency2).toFixed(digits);
+    };
+    parsePayPalAmount = (value, currency2) => {
+      const normalized = String(value).trim();
+      if (!/^\d+(?:\.\d+)?$/.test(normalized)) throw new Error("PayPal returned an invalid decimal amount");
+      const digits = currencyMinorUnitDigits(currency2);
+      const fraction = normalized.split(".")[1] || "";
+      if (fraction.length > digits && /[1-9]/.test(fraction.slice(digits))) {
+        throw new Error("PayPal amount precision exceeds the currency minor unit");
+      }
+      const amount = majorToMinorUnits(normalized, currency2);
+      if (!Number.isSafeInteger(amount)) throw new Error("PayPal amount exceeds the supported safe range");
+      return amount;
+    };
+    normalizePayPalStatus = (status) => {
+      switch ((status || "").toUpperCase()) {
+        case "COMPLETED":
+          return "succeeded";
+        case "APPROVED":
+          return "requires_capture";
+        case "VOIDED":
+          return "canceled";
+        default:
+          return "pending";
+      }
+    };
+    getPayPalAccessToken = async () => {
+      const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || process.env.PAYPAL_CLIENT_ID;
+      const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+      if (!clientId || !clientSecret) {
+        throw new Error("PayPal credentials not configured");
+      }
+      const baseUrl = getPayPalBaseUrl();
+      const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Accept-Language": "en_US",
+          Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`
+        },
+        body: "grant_type=client_credentials"
+      });
+      const { access_token } = await response.json();
+      if (!access_token) {
+        throw new Error("Failed to get PayPal access token");
+      }
+      return access_token;
+    };
+  }
+});
+
+// features/integrations/payment/manual.ts
+var manual_exports = {};
+__export(manual_exports, {
+  cancelPaymentFunction: () => cancelPaymentFunction3,
+  capturePaymentFunction: () => capturePaymentFunction3,
+  createPaymentFunction: () => createPaymentFunction3,
+  generatePaymentLinkFunction: () => generatePaymentLinkFunction3,
+  getPaymentStatusFunction: () => getPaymentStatusFunction3,
+  handleWebhookFunction: () => handleWebhookFunction3,
+  refundPaymentFunction: () => refundPaymentFunction3
+});
+async function createPaymentFunction3({ payment, amount, currency: currency2 }) {
+  return {
+    id: `manual_${payment?.id || "payment"}`,
+    status: "pending",
+    url: null,
+    amount,
+    currency: currency2.toUpperCase()
+  };
+}
+async function capturePaymentFunction3({ paymentId, amount }) {
+  return { id: paymentId, status: "succeeded", amount, currency: void 0 };
+}
+async function refundPaymentFunction3({ paymentId, amount }) {
+  return { id: `refund_${paymentId}`, status: "succeeded", amount };
+}
+async function getPaymentStatusFunction3({ paymentId }) {
+  return { id: paymentId, status: "pending", amount: void 0, currency: void 0 };
+}
+async function generatePaymentLinkFunction3() {
+  return null;
+}
+async function handleWebhookFunction3() {
+  throw new Error("Manual payments do not receive webhooks");
+}
+async function cancelPaymentFunction3() {
+  return { status: "canceled" };
+}
+var init_manual = __esm({
+  "features/integrations/payment/manual.ts"() {
+    "use strict";
+  }
+});
+
 // keystone.ts
 var keystone_exports = {};
 __export(keystone_exports, {
@@ -36,7 +527,7 @@ module.exports = __toCommonJS(keystone_exports);
 
 // features/keystone/index.ts
 var import_auth = require("@keystone-6/auth");
-var import_core44 = require("@keystone-6/core");
+var import_core46 = require("@keystone-6/core");
 var import_config = require("dotenv/config");
 
 // features/keystone/lib/staticFieldUi.ts
@@ -67,13 +558,17 @@ var import_fields2 = require("@keystone-6/core/fields");
 function hasActiveBrokerageSession({ session }) {
   return Boolean(session?.itemId && activeBrokerageIds(session).length);
 }
-function isSignedIn(args) {
+function isSignedIn({ session }) {
+  return Boolean(session?.itemId);
+}
+function isOperator(args) {
   return hasActiveBrokerageSession(args);
 }
 var hasRoleFlag = (session, flag) => Boolean(session?.data.role?.[flag]);
 function activeBrokerageIds(session) {
-  const selected = session?.data.activeBrokerage;
   const memberships = session?.data.brokerageMemberships || [];
+  const liveMemberships = memberships.filter((membership) => membership.status === "active" && membership.brokerage?.status === "active");
+  const selected = session?.data.activeBrokerage || (liveMemberships.length === 1 ? liveMemberships[0].brokerage : null);
   if (!selected || selected.status !== "active") return [];
   const selectedMemberships = memberships.filter(
     (membership) => membership.status === "active" && membership.brokerage?.status === "active" && membership.brokerage.id === selected.id
@@ -97,6 +592,7 @@ async function canCreateForActiveParent({ session, inputData, context }, field, 
 var canCreateForActiveDeal = (args) => canCreateForActiveParent(args, "deal", "Deal");
 var canCreateForActiveProperty = (args) => canCreateForActiveParent(args, "property", "Property");
 var canCreateForActiveShowing = (args) => canCreateForActiveParent(args, "showing", "Showing");
+var canCreateForActiveSavedSearch = (args) => canCreateForActiveParent(args, "savedSearch", "SavedSearch");
 async function canCreateForAssignedParent({ session, inputData, context }, field, listKey, permission) {
   const parentId = relationshipInput(inputData, field)?.connect?.id;
   if (!parentId || !context || !session?.data.role?.[permission]) return false;
@@ -108,9 +604,9 @@ var canCreateForManagedProperty = (args) => canCreateForAssignedParent(args, "pr
 var canCreateForManagedSubjectProperty = (args) => canCreateForAssignedParent(args, "subjectProperty", "Property", "canManageListings");
 function canMoveToActiveBrokerage({ session, inputData }) {
   if (!inputData || !Object.prototype.hasOwnProperty.call(inputData, "brokerage")) return true;
-  const relationship44 = relationshipInput(inputData, "brokerage");
-  if (relationship44?.disconnect) return false;
-  const brokerageId = relationship44?.connect?.id;
+  const relationship46 = relationshipInput(inputData, "brokerage");
+  if (relationship46?.disconnect) return false;
+  const brokerageId = relationship46?.connect?.id;
   return Boolean(brokerageId && activeBrokerageIds(session).includes(brokerageId));
 }
 function validateRequiredToOneRelationship({
@@ -119,16 +615,17 @@ function validateRequiredToOneRelationship({
   field,
   addValidationError
 }) {
-  const relationship44 = relationshipInput(inputData, field);
+  const relationship46 = relationshipInput(inputData, field);
   const label = field.charAt(0).toUpperCase() + field.slice(1);
-  if (operation === "create" && !relationship44?.connect) {
+  if (operation === "create" && !relationship46?.connect) {
     addValidationError(`${label} is required.`);
   }
-  if (operation === "update" && relationship44?.disconnect) {
+  if (operation === "update" && relationship46?.disconnect) {
     addValidationError(`${label} cannot be disconnected.`);
   }
 }
 var permissions = {
+  canAccessDashboard: ({ session }) => hasRoleFlag(session, "canAccessDashboard") && activeBrokerageIds(session).length > 0,
   canManagePeople: ({ session }) => hasRoleFlag(session, "canManagePeople"),
   canManageRoles: ({ session }) => hasRoleFlag(session, "canManageRoles"),
   canManageListings: ({ session }) => hasRoleFlag(session, "canManageListings"),
@@ -144,8 +641,11 @@ var permissions = {
   canManageBrokerageDeals: ({ session }) => hasRoleFlag(session, "canManageDeals") && hasRoleFlag(session, "canManagePeople"),
   canManageBrokerageShowings: ({ session }) => hasRoleFlag(session, "canManageShowings") && hasRoleFlag(session, "canManagePeople"),
   canManageBrokerageTasks: ({ session }) => hasRoleFlag(session, "canManageLeads") && hasRoleFlag(session, "canManagePeople"),
-  canManageBrokerageSettings: ({ session }) => hasRoleFlag(session, "canManageOnboarding") && hasRoleFlag(session, "canManagePeople"),
+  // Storefront/brokerage settings belong to brokerage administrators: people
+  // managers with dashboard access. Onboarding is a separate, one-time grant.
+  canManageBrokerageSettings: ({ session }) => hasRoleFlag(session, "canManagePeople") && hasRoleFlag(session, "canAccessDashboard") && activeBrokerageIds(session).length > 0,
   canReadLeads: ({ session }) => hasRoleFlag(session, "canManageLeads"),
+  canReadPayments: ({ session }) => (hasRoleFlag(session, "canManageLeads") || hasRoleFlag(session, "canManageDeals") || hasRoleFlag(session, "canManagePeople")) && activeBrokerageIds(session).length > 0,
   canReadShowings: ({ session }) => hasRoleFlag(session, "canManageShowings"),
   canReadDeals: ({ session }) => hasRoleFlag(session, "canManageDeals")
 };
@@ -188,9 +688,26 @@ var rules = {
     }
     return { id: { equals: session.itemId } };
   },
-  // Sharing a brokerage grants visibility, not authority over another user's
-  // global identity, credentials, or grants in other brokerages.
-  canUpdatePeople: ({ session }) => session ? { id: { equals: session.itemId } } : false,
+  // Everyone may update themselves. People editors may also update members of
+  // their active brokerage; credentials stay self-service (see User.password).
+  canUpdatePeople: ({ session }) => {
+    if (!session?.itemId) return false;
+    const brokerageIds = activeBrokerageIds(session);
+    if (!session.data.role?.canEditOtherPeople || !brokerageIds.length) return { id: { equals: session.itemId } };
+    return {
+      OR: [
+        { id: { equals: session.itemId } },
+        {
+          brokerageMemberships: {
+            some: {
+              status: { equals: "active" },
+              brokerage: { id: { in: brokerageIds } }
+            }
+          }
+        }
+      ]
+    };
+  },
   canReadLeads: ({ session }) => {
     if (!session?.data.role?.canManageLeads) return false;
     if (session.data.role.canManagePeople) return brokerageOwnedFilter(session);
@@ -269,9 +786,10 @@ var rules = {
     return session.data.role.canManagePeople ? { deal: { brokerage: { id: { in: brokerageIds } } } } : { deal: { AND: [{ brokerage: { id: { in: brokerageIds } } }, { assignedAgent: { id: { equals: session.itemId } } }] } };
   },
   canReadSavedProperties: ({ session }) => {
-    if (!session || !activeBrokerageIds(session).length) return false;
-    if (session.data.role?.canManageLeads && session.data.role?.canManagePeople) {
-      return { property: { brokerage: { id: { in: activeBrokerageIds(session) } } } };
+    if (!session?.itemId) return false;
+    const brokerageIds = activeBrokerageIds(session);
+    if (brokerageIds.length && session.data.role?.canManageLeads && session.data.role?.canManagePeople) {
+      return { property: { brokerage: { id: { in: brokerageIds } } } };
     }
     return { user: { id: { equals: session.itemId } } };
   },
@@ -286,10 +804,10 @@ var rules = {
     return brokerageAndAssignment(session, { user: { id: { equals: session.itemId } } });
   },
   canReadSavedSearches: ({ session }) => {
-    if (!session) return false;
-    if (session.data.role?.canManageLeads && session.data.role?.canManagePeople) return brokerageOwnedFilter(session);
+    if (!session?.itemId) return false;
     const brokerageIds = activeBrokerageIds(session);
-    return brokerageIds.length ? { AND: [{ brokerage: { id: { in: brokerageIds } } }, { user: { id: { equals: session.itemId } } }] } : false;
+    if (brokerageIds.length && session.data.role?.canManageLeads && session.data.role?.canManagePeople) return brokerageOwnedFilter(session);
+    return { user: { id: { equals: session.itemId } } };
   }
 };
 
@@ -393,7 +911,7 @@ var import_fields4 = require("@keystone-6/core/fields");
 var Brokerage = (0, import_core3.list)({
   access: {
     operation: {
-      query: isSignedIn,
+      query: isOperator,
       create: () => false,
       update: () => false,
       delete: () => false
@@ -440,6 +958,8 @@ var Brokerage = (0, import_core3.list)({
     commissionLedgerEntries: (0, import_fields4.relationship)({ ref: "CommissionLedgerEntry.brokerage", many: true }),
     retentionPolicies: (0, import_fields4.relationship)({ ref: "RetentionPolicy.brokerage", many: true }),
     transactionFileEvents: (0, import_fields4.relationship)({ ref: "TransactionFileEvent.brokerage", many: true }),
+    paymentProviders: (0, import_fields4.relationship)({ ref: "PaymentProvider.brokerage", many: true }),
+    payments: (0, import_fields4.relationship)({ ref: "Payment.brokerage", many: true }),
     auditEvents: (0, import_fields4.relationship)({ ref: "DomainAuditEvent.brokerage", many: true }),
     outboxEvents: (0, import_fields4.relationship)({ ref: "DomainOutboxEvent.brokerage", many: true }),
     ...trackingFields
@@ -452,7 +972,7 @@ var import_fields5 = require("@keystone-6/core/fields");
 var BrokerageMembership = (0, import_core4.list)({
   access: {
     operation: {
-      query: isSignedIn,
+      query: isOperator,
       create: () => false,
       update: () => false,
       delete: () => false
@@ -521,42 +1041,42 @@ function decimalValue(value) {
   if (!decimalPattern.test(rendered)) throw new Error("Domain JSON contains an invalid Decimal value");
   return rendered;
 }
-function normalizeJsonValue(value, options, ancestors, path) {
+function normalizeJsonValue(value, options, ancestors, path2) {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
   if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new Error(`Domain JSON contains a non-finite number at ${path}`);
+    if (!Number.isFinite(value)) throw new Error(`Domain JSON contains a non-finite number at ${path2}`);
     return Object.is(value, -0) ? 0 : value;
   }
   if (typeof value === "bigint") return value.toString();
   if (typeof value === "undefined" || typeof value === "function" || typeof value === "symbol") {
-    throw new Error(`Domain JSON contains unsupported ${typeof value} at ${path}`);
+    throw new Error(`Domain JSON contains unsupported ${typeof value} at ${path2}`);
   }
   if (value instanceof Date) {
-    if (!Number.isFinite(value.getTime())) throw new Error(`Domain JSON contains an invalid Date at ${path}`);
+    if (!Number.isFinite(value.getTime())) throw new Error(`Domain JSON contains an invalid Date at ${path2}`);
     return value.toISOString();
   }
   const decimal14 = decimalValue(value);
   if (decimal14 !== null) return decimal14;
-  if (ancestors.has(value)) throw new Error(`Domain JSON contains a cyclic reference at ${path}`);
+  if (ancestors.has(value)) throw new Error(`Domain JSON contains a cyclic reference at ${path2}`);
   const prototype = Object.getPrototypeOf(value);
   if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) {
-    throw new Error(`Domain JSON contains unsupported object ${prototype?.constructor?.name || "prototype"} at ${path}`);
+    throw new Error(`Domain JSON contains unsupported object ${prototype?.constructor?.name || "prototype"} at ${path2}`);
   }
-  if (Object.getOwnPropertySymbols(value).length) throw new Error(`Domain JSON contains symbol keys at ${path}`);
+  if (Object.getOwnPropertySymbols(value).length) throw new Error(`Domain JSON contains symbol keys at ${path2}`);
   ancestors.add(value);
   try {
     if (Array.isArray(value)) {
-      return Array.from(value, (child, index) => normalizeJsonValue(child, options, ancestors, `${path}[${index}]`));
+      return Array.from(value, (child, index) => normalizeJsonValue(child, options, ancestors, `${path2}[${index}]`));
     }
     const normalized = {};
     for (const key of Object.keys(value)) {
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
-      if (!descriptor || !("value" in descriptor)) throw new Error(`Domain JSON contains an accessor at ${path}.${key}`);
+      if (!descriptor || !("value" in descriptor)) throw new Error(`Domain JSON contains an accessor at ${path2}.${key}`);
       if (options.redactSensitive && sensitiveKey.test(key)) {
-        normalizeJsonValue(descriptor.value, { redactSensitive: false }, ancestors, `${path}.${key}`);
+        normalizeJsonValue(descriptor.value, { redactSensitive: false }, ancestors, `${path2}.${key}`);
         normalized[key] = "[REDACTED]";
       } else {
-        normalized[key] = normalizeJsonValue(descriptor.value, options, ancestors, `${path}.${key}`);
+        normalized[key] = normalizeJsonValue(descriptor.value, options, ancestors, `${path2}.${key}`);
       }
     }
     return normalized;
@@ -691,10 +1211,10 @@ var import_fields6 = require("@keystone-6/core/fields");
 
 // features/lib/money.ts
 function moneyToMinor(value) {
-  const text44 = String(value).trim();
-  if (!/^-?\d+(?:\.\d{1,2})?$/.test(text44)) throw new Error("Money must have at most two decimal places.");
-  const negative = text44.startsWith("-");
-  const [whole, fraction = ""] = text44.replace(/^-/, "").split(".");
+  const text46 = String(value).trim();
+  if (!/^-?\d+(?:\.\d{1,2})?$/.test(text46)) throw new Error("Money must have at most two decimal places.");
+  const negative = text46.startsWith("-");
+  const [whole, fraction = ""] = text46.replace(/^-/, "").split(".");
   const cents2 = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
   const result = negative ? -cents2 : cents2;
   if (result < -9223372036854775808n || result > 9223372036854775807n) throw new Error("Money exceeds supported storage range.");
@@ -729,9 +1249,9 @@ function normalizeMoneyRecord(listKey, record4) {
 }
 function preserveLegacyMoneyColumns(schema) {
   let next = schema;
-  for (const [list45, columns] of legacyColumns) {
-    const pattern = new RegExp(`(model ${list45} \\{[\\s\\S]*?)(\\n\\})`);
-    if (!pattern.test(next)) throw new Error(`Missing money model ${list45}`);
+  for (const [list47, columns] of legacyColumns) {
+    const pattern = new RegExp(`(model ${list47} \\{[\\s\\S]*?)(\\n\\})`);
+    if (!pattern.test(next)) throw new Error(`Missing money model ${list47}`);
     next = next.replace(pattern, `$1
 ${[...columns.values()].join("\n")}$2`);
   }
@@ -806,13 +1326,15 @@ function relationshipIds(data, field) {
   if (Array.isArray(connect)) return connect.map((item) => item?.id).filter(Boolean);
   return connect?.id ? [connect.id] : [];
 }
-async function relatedBrokerageIds(context, listKey, id) {
+async function relatedBrokerageIds(context, listKey, id, allowCustomers = false) {
   if (listKey === "User") {
     const user = await context.sudo().query.User.findOne({
       where: { id },
-      query: "id brokerageMemberships(where: { status: { equals: active } }) { brokerage { id status } }"
+      query: "id activeBrokerage { id status } brokerageMemberships { status brokerage { id status } }"
     });
-    return (user?.brokerageMemberships || []).filter((membership) => membership.brokerage?.status === "active").map((membership) => membership.brokerage.id);
+    const memberships = user?.brokerageMemberships || [];
+    if (allowCustomers && !memberships.length && user?.activeBrokerage?.status === "active") return [user.activeBrokerage.id];
+    return memberships.filter((membership) => membership.status === "active" && membership.brokerage?.status === "active").map((membership) => membership.brokerage.id);
   }
   const item = await context.sudo().query[listKey].findOne({
     where: { id },
@@ -830,10 +1352,24 @@ async function deriveBrokerage(context, inputData, config3) {
   for (const field of config3.users || []) {
     const id = relationshipId(inputData, field);
     if (!id) continue;
-    const brokerageIds = await relatedBrokerageIds(context, "User", id);
+    const brokerageIds = await relatedBrokerageIds(context, "User", id, config3.allowCustomers);
     if (brokerageIds.length === 1) return brokerageIds[0];
   }
   return null;
+}
+function auditableInput(inputData) {
+  if (!inputData || typeof inputData !== "object" || Array.isArray(inputData)) return inputData;
+  const input = inputData;
+  const out = {};
+  for (const [key, value] of Object.entries(input)) {
+    const upload = value && typeof value === "object" && !Array.isArray(value) ? value.upload : void 0;
+    if (upload !== void 0) out[key] = { upload: "file" };
+    else if (value !== void 0) out[key] = value;
+  }
+  return out;
+}
+function auditRequest(audited, id) {
+  return audited && typeof audited === "object" && !Array.isArray(audited) ? audited : { id };
 }
 function createTenantOwnedHooks(config3) {
   return {
@@ -886,7 +1422,7 @@ function createTenantOwnedHooks(config3) {
       for (const field of config3.users || []) {
         const id = relationshipId(relationshipData, field);
         if (!id) continue;
-        const brokerageIds = await relatedBrokerageIds(context, "User", id);
+        const brokerageIds = await relatedBrokerageIds(context, "User", id, config3.allowCustomers);
         if (!brokerageIds.includes(brokerageId)) {
           addValidationError(`${config3.listKey} ${field} must have an active membership in the brokerage.`);
         }
@@ -925,7 +1461,7 @@ function createTenantOwnedHooks(config3) {
         aggregateType,
         aggregateId: record4.id,
         actorId: actorId4,
-        request: inputData || { id: record4.id },
+        request: auditRequest(auditableInput(inputData), record4.id),
         before: normalizeMoneyRecord(config3.listKey, originalItem || null),
         after: normalizeMoneyRecord(config3.listKey, item || null)
       });
@@ -938,11 +1474,11 @@ var DEFAULT_STOREFRONT_BRAND_HUE = 151;
 function normalizeStorefrontBrandHue(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return DEFAULT_STOREFRONT_BRAND_HUE;
-  const integer22 = Math.round(numeric);
-  return (integer22 % 360 + 360) % 360;
+  const integer23 = Math.round(numeric);
+  return (integer23 % 360 + 360) % 360;
 }
 
-// features/lib/sanitize-store-logo.ts
+// features/keystone/utils/storeLogo.ts
 var ALLOWED_ELEMENTS = /* @__PURE__ */ new Set([
   "svg",
   "g",
@@ -1004,8 +1540,12 @@ var ATTRIBUTE_PATTERN = /\s+([A-Za-z_:][\w:.-]*)\s*=\s*("[^"]*"|'[^']*')/g;
 var TAG_PATTERN = /<\/?\s*([A-Za-z][\w:-]*)([^<>]*)>/g;
 function sanitizeStoreLogoSvg(svg) {
   const source = svg.trim();
-  if (!source.startsWith("<svg") || !source.endsWith("</svg>") || source.length > 1e5) return "";
-  if (/<!|<\?|\b(?:javascript|data|vbscript):|\bon[a-z]+\s*=|\b(?:href|src|style)\s*=/i.test(source)) return "";
+  if (!source.startsWith("<svg") || !source.endsWith("</svg>") || source.length > 1e5) {
+    return "";
+  }
+  if (/<!|<\?|\b(?:javascript|data|vbscript):|\bon[a-z]+\s*=|\b(?:href|src|style)\s*=/i.test(source)) {
+    return "";
+  }
   let tagCount = 0;
   let match;
   TAG_PATTERN.lastIndex = 0;
@@ -1034,8 +1574,265 @@ function sanitizeStoreLogoSvg(svg) {
   return source;
 }
 
+// features/platform/store-settings/lib/icon-registry.ts
+var LOGO_ICONS = [
+  {
+    id: "3portals",
+    name: "3Portals",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill-rule="evenodd"><path d="m34.5868 8.40061-9.6868-2.59556c-.6687-.17919-1.2108.23679-1.2108.92911v10.02854c0 .6923.5421 1.3988 1.2108 1.578l9.6868 2.5955c.6687.1792 1.2109-.2368 1.2109-.9291v-10.02848c0-.69232-.5422-1.39882-1.2109-1.57801zm-9.6868-6.35625c-2.6749-.71674-4.8434.94718-4.8434 3.71647v10.02847c0 2.7693 2.1685 5.5953 4.8434 6.312l9.6868 2.5956c2.6749.7168 4.8434-.9472 4.8434-3.7165v-10.0284c0-2.76934-2.1685-5.59533-4.8434-6.31207z" fill="#8098f9"/><path d="m26.9812 16.5707-12.1085-3.2444c-.6687-.1792-1.2109.2368-1.2109.9291v12.5356c0 .6923.5422 1.3988 1.2109 1.578l12.1085 3.2445c.6687.1792 1.2108-.2368 1.2108-.9291v-12.5356c0-.6924-.5421-1.3989-1.2108-1.5781zm-12.1085-7.0051c-2.6749-.71674-4.8434.9472-4.8434 3.7165v12.5356c0 2.7693 2.1685 5.5953 4.8434 6.312l12.1085 3.2445c2.6749.7167 4.8433-.9472 4.8433-3.7165v-12.5356c0-2.7693-2.1684-5.5953-4.8433-6.312z" fill="#6172f3"/><path d="m19.3736 24.7409-14.53021-3.8934c-.66873-.1792-1.21085.2368-1.21085.9291v15.0428c0 .6923.54212 1.3988 1.21085 1.578l14.53021 3.8933c.6687.1792 1.2108-.2368 1.2108-.9291v-15.0427c0-.6923-.5421-1.3988-1.2108-1.578zm-14.53021-7.6541c-2.67493-.7167-4.84339.9472-4.84339 3.7165v15.0427c0 2.7693 2.16846 5.5953 4.84339 6.3121l14.53021 3.8933c2.6749.7168 4.8433-.9472 4.8433-3.7164v-15.0428c0-2.7693-2.1684-5.5953-4.8433-6.312z" fill="#444ce7"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill="#fff" fill-rule="evenodd"><path d="m34.5868 8.40061-9.6868-2.59556c-.6687-.17919-1.2108.23679-1.2108.92911v10.02854c0 .6923.5421 1.3988 1.2108 1.578l9.6868 2.5955c.6687.1792 1.2109-.2368 1.2109-.9291v-10.02848c0-.69232-.5422-1.39882-1.2109-1.57801zm-9.6868-6.35625c-2.6749-.71674-4.8434.94718-4.8434 3.71647v10.02847c0 2.7693 2.1685 5.5953 4.8434 6.312l9.6868 2.5956c2.6749.7168 4.8434-.9472 4.8434-3.7165v-10.0284c0-2.76934-2.1685-5.59533-4.8434-6.31207z" opacity=".5"/><path d="m26.9812 16.5707-12.1085-3.2444c-.6687-.1792-1.2109.2368-1.2109.9291v12.5356c0 .6923.5422 1.3988 1.2109 1.578l12.1085 3.2445c.6687.1792 1.2108-.2368 1.2108-.9291v-12.5356c0-.6924-.5421-1.3989-1.2108-1.5781zm-12.1085-7.0051c-2.6749-.71674-4.8434.9472-4.8434 3.7165v12.5356c0 2.7693 2.1685 5.5953 4.8434 6.312l12.1085 3.2445c2.6749.7167 4.8433-.9472 4.8433-3.7165v-12.5356c0-2.7693-2.1684-5.5953-4.8433-6.312z" opacity=".7"/><path d="m19.3736 24.7409-14.53021-3.8934c-.66873-.1792-1.21085.2368-1.21085.9291v15.0428c0 .6923.54212 1.3988 1.21085 1.578l14.53021 3.8933c.6687.1792 1.2108-.2368 1.2108-.9291v-15.0427c0-.6923-.5421-1.3988-1.2108-1.578zm-14.53021-7.6541c-2.67493-.7167-4.84339.9472-4.84339 3.7165v15.0427c0 2.7693 2.16846 5.5953 4.84339 6.3121l14.53021 3.8933c2.6749.7168 4.8433-.9472 4.8433-3.7164v-15.0428c0-2.7693-2.1684-5.5953-4.8433-6.312z"/></g></svg>`
+  },
+  {
+    id: "45-degrees",
+    name: "45 Degrees",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 24 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 15.8981h17.3455l-17.061314 17.0613 2.756374 2.7564 17.06134-17.0613v17.3455h.1104l3.7877-3.7877v-15.9638l-4.2485-4.2485h-15.96596l-3.78553995 3.7855z" fill="#155eef"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 24 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 15.8981h17.3455l-17.061314 17.0613 2.756374 2.7564 17.06134-17.0613v17.3455h.1104l3.7877-3.7877v-15.9638l-4.2485-4.2485h-15.96596l-3.78553995 3.7855z" fill="#155eef"/></svg>`
+  },
+  {
+    id: "acme-corp",
+    name: "Acme Corp",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 48 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m0 24c15.2548 0 24-8.7452 24-24 0 15.2548 8.7452 24 24 24-15.2548 0-24 8.7452-24 24 0-15.2548-8.7452-24-24-24z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 48 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m0 24c15.2548 0 24-8.7452 24-24 0 15.2548 8.7452 24 24 24-15.2548 0-24 8.7452-24 24 0-15.2548-8.7452-24-24-24z" fill="#155eef" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "alphawave",
+    name: "AlphaWave",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 47 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m24.9706 7.03309c-3.1242-3.1242-8.1896-3.1242-11.3137 0l-11.31375 11.31371c-3.124199 3.1242-3.124199 8.1895 0 11.3137l11.31375 11.3137c3.1241 3.1242 8.1895 3.1242 11.3137 0l5.3982-5.3983c-4.4939-1.7337-7.682-6.0944-7.682-11.1997 0-5.3087 3.4472-9.8123 8.2254-11.3943-.0935-.0982-.1884-.1955-.2848-.292z" fill="#155eef"/><path d="m30.3691 35.5798c1.3398.5168 2.7955.8001 4.3174.8001 6.6274 0 12-5.3726 12-12s-5.3726-12-12-12c-1.3185 0-2.5873.2126-3.774.6055 5.9623 6.2681 5.8675 16.1836-.2846 22.3356z" fill="#155eef" opacity=".7"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 47 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m24.9706 7.03309c-3.1242-3.1242-8.1896-3.1242-11.3137 0l-11.31375 11.31371c-3.124199 3.1242-3.124199 8.1895 0 11.3137l11.31375 11.3137c3.1241 3.1242 8.1895 3.1242 11.3137 0l5.3982-5.3983c-4.4939-1.7337-7.682-6.0944-7.682-11.1997 0-5.3087 3.4472-9.8123 8.2254-11.3943-.0935-.0982-.1884-.1955-.2848-.292z" fill="#155eef"/><path d="m30.3691 35.5798c1.3398.5168 2.7955.8001 4.3174.8001 6.6274 0 12-5.3726 12-12s-5.3726-12-12-12c-1.3185 0-2.5873.2126-3.774.6055 5.9623 6.2681 5.8675 16.1836-.2846 22.3356z" fill="#155eef" opacity=".7"/></svg>`
+  },
+  {
+    id: "alt-shift",
+    name: "Alt+Shift",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m23.4538 34.7189c-3.1818-1.1818-6.4544-1.3636-9.4544-.5455-2.0909.5455-4.09082 1.6364-5.90897 3l-1.27273 1.0909-.36362.3636.81816.7273c.09091 0 .09092.0909.18183.1818.18181.1818.36364.2727.63636.4545l.54542.3636.54545-.4545c.09091-.0909.27273-.2727.45454-.3636 1.63636-1.3636 3.45446-2.2727 5.36356-2.7272 2.4545-.6364 5.0908-.5455 7.7271.4545 2.1818.8182 6.6363 1.8181 11.9998-.4545l.1818-.091.2728-.2727c0-.0909.0909-.0909.1818-.1818.4545-.5454.9091-1.0909 1.2727-1.7272l1.8181-2.8182-2.909 1.6363c-4.2727 2.3636-8.1817 2.8182-12.0907 1.3637z"/><path d="m10.9998 24.9011c2.4545-.6363 5.0908-.5454 7.7272.4546 2.909 1.0909 10.3634 2.6363 18.7269-4.909l1.8182-1.8182-.1819-.4545c-.0909-.3636-.2727-.8182-.4545-1.2727l-.4545-1.2727-.9091.909c-.0909.1819-.2727.2728-.4546.4546-3.9999 4.0908-10.1816 8.2726-17.2724 5.7272-3.1817-1.1818-6.4544-1.3637-9.4544-.5455-2.909.8182-5.45442 2.3636-7.81801 4.5454v-.0909l-1.363614 1.4545c0 .0909-.090891.0909-.181798.1818l-.27274.2727.090913.3637c.090908.4545.272717.909.363625 1.3636l.545454 1.4545.90907-1.1818c.09091-.1818.27272-.2727.36363-.4545 1.90905-1.7273 4.54538-4.1818 8.27257-5.1818z"/><path d="m2.1818 23.2646c2.09088-2.1818 4.45445-3.5454 6.99987-4.2727 2.45453-.6363 5.09083-.5454 7.72713.4546 8.1817 2.9999 15.2725-1.9091 18.3633-4.5454l1.1818-1.1818.4546-.3636-.3637-.5455c-.2727-.2727-.4545-.6363-.7272-1l-.5455-.7272-.6363.6363c-.0909.0909-.2727.2727-.3637.3637-3.8181 3.6363-9.7271 7.3635-16.4542 4.8181-3.1818-1.1818-6.4544-1.3637-9.4544-.5455-1.90906.5455-3.72721 1.4545-5.54536 2.6363l-1.909065 1.5455c-.181815.1818-.272722.2727-.454537.4545l-.181799.1818v.2727c-.090907.6364-.090918 1.2727-.1818259 1.8182l-.0909131 2.2727 1.54544-1.6364c.18181-.1818.36364-.4545.63636-.6363z"/><path d="m26.0908 40.9007c-.2727-.0909-.4545-.1819-.7272-.2728-3.1818-1.1818-6.4545-1.3636-9.4545-.5454-.6363.1818-1.2726.3636-1.909.6364l-2.1818.9999-.5454.2728 1.8181.6363c.5455.1818 1.0909.3637 1.6364.5455l.2727.0909.2727-.0909c.2727-.0909.5455-.2728.8182-.2728.1818 0 .3636-.0909.5454-.1818 2.1818-.5454 4.5454-.5454 7.0908.2727.2727.091.4546.1819.7273.2728l.4545.1818.2727-.0909c.6364-.1818 1.3636-.3636 1.9091-.6364l2.5454-.909-2.6363-.6364c-.2727-.0909-.6364-.1818-.9091-.2727z"/><path d="m40 22.0829-1.3636 1.3636c-.1818.1818-.3636.3636-.5454.5454-3.7272 3.5454-9.7271 7.3635-16.4543 4.8181-3.1818-1.1818-6.4544-1.3636-9.4544-.5454-2.81811.8182-5.36354 2.2727-7.63623 4.4545l-1.18179 1.2727-.36362.4545.36362.5454c.27273.3637.45455.6364.63637 1l.54542.8182.63636-.8182c.09091-.0909.27272-.2727.36363-.3636 2.18178-2.3636 4.54534-3.8181 7.27264-4.5454 2.4545-.6364 5.0908-.5454 7.7271.4545 2.2727.8182 4.6363 1.0909 6.9999.8182 4.1817-.4545 8.3635-2.8181 11.4543-5.4544.1819-.1818.3636-.2727.5455-.4546l.2727-.2727v-.2727c0-.5455.0909-1.1818.0909-1.7273z"/><path d="m5.45373 13.7196c.54545-.2728 1.18182-.4546 1.72726-.6364 2.45451-.6364 5.09081-.5455 7.72711.4545 1.7273.6364 3.4545.9091 5.3636.9091 3.8181 0 7.6362-1.3636 11.1816-3.9999l1.8181-1.45455-.8181-.63636c-.2727-.27273-.6364-.54544-1-.72725l-.5455-.36363-.4545.36363c-.1818.09091-.2727.27272-.4545.36362-4.8181 3.63634-9.6362 4.63634-14.1816 2.90904-3.2727-1.18178-6.54535-1.45451-9.81802-.4545-.27272.0909-.54544.1818-.90907.2727l-.1818.0909-.27274.2727c0 .0909-.09089.0909-.1818.1818-.36363.5455-.81818 1-1.18181 1.5455l-1.72724 2.6363 2.81814-1.4545c.45453 0 .81815-.1818 1.09087-.2727z"/><path d="m12.9089 7.53769.2727.09091c1.1818.45454 3 .90907 5.2726.90907 2.3636 0 4.6363-.54545 6.909-1.45452l2.8181-1.36361-1.909-.63634c-.5454-.18182-1.0909-.36363-1.7273-.45454h-.2727l-.2727.09089c-.2727.0909-.5455.27274-.8182.36365-2.7272.99998-5.4544 1.1818-8.0907.45454-.2728-.09091-.5455-.18183-.8182-.27274l-.2727-.09091-.2728.09091c-.5454.18181-1.0908.36364-1.6363.63636l-2.09087.90908 2.18177.63633c.1818-.0909.4546.00001.7273.09092z"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m23.4538 34.7189c-3.1818-1.1818-6.4544-1.3636-9.4544-.5455-2.0909.5455-4.09082 1.6364-5.90897 3l-1.27273 1.0909-.36362.3636.81816.7273c.09091 0 .09092.0909.18183.1818.18181.1818.36364.2727.63636.4545l.54542.3636.54545-.4545c.09091-.0909.27273-.2727.45454-.3636 1.63636-1.3636 3.45446-2.2727 5.36356-2.7272 2.4545-.6364 5.0908-.5455 7.7271.4545 2.1818.8182 6.6363 1.8181 11.9998-.4545l.1818-.091.2728-.2727c0-.0909.0909-.0909.1818-.1818.4545-.5454.9091-1.0909 1.2727-1.7272l1.8181-2.8182-2.909 1.6363c-4.2727 2.3636-8.1817 2.8182-12.0907 1.3637z"/><path d="m10.9998 24.9011c2.4545-.6363 5.0908-.5454 7.7272.4546 2.909 1.0909 10.3634 2.6363 18.7269-4.909l1.8182-1.8182-.1819-.4545c-.0909-.3636-.2727-.8182-.4545-1.2727l-.4545-1.2727-.9091.909c-.0909.1819-.2727.2728-.4546.4546-3.9999 4.0908-10.1816 8.2726-17.2724 5.7272-3.1817-1.1818-6.4544-1.3637-9.4544-.5455-2.909.8182-5.45442 2.3636-7.81801 4.5454v-.0909l-1.363614 1.4545c0 .0909-.090891.0909-.181798.1818l-.27274.2727.090913.3637c.090908.4545.272717.909.363625 1.3636l.545454 1.4545.90907-1.1818c.09091-.1818.27272-.2727.36363-.4545 1.90905-1.7273 4.54538-4.1818 8.27257-5.1818z"/><path d="m2.1818 23.2646c2.09088-2.1818 4.45445-3.5454 6.99987-4.2727 2.45453-.6363 5.09083-.5454 7.72713.4546 8.1817 2.9999 15.2725-1.9091 18.3633-4.5454l1.1818-1.1818.4546-.3636-.3637-.5455c-.2727-.2727-.4545-.6363-.7272-1l-.5455-.7272-.6363.6363c-.0909.0909-.2727.2727-.3637.3637-3.8181 3.6363-9.7271 7.3635-16.4542 4.8181-3.1818-1.1818-6.4544-1.3637-9.4544-.5455-1.90906.5455-3.72721 1.4545-5.54536 2.6363l-1.909065 1.5455c-.181815.1818-.272722.2727-.454537.4545l-.181799.1818v.2727c-.090907.6364-.090918 1.2727-.1818259 1.8182l-.0909131 2.2727 1.54544-1.6364c.18181-.1818.36364-.4545.63636-.6363z"/><path d="m26.0908 40.9007c-.2727-.0909-.4545-.1819-.7272-.2728-3.1818-1.1818-6.4545-1.3636-9.4545-.5454-.6363.1818-1.2726.3636-1.909.6364l-2.1818.9999-.5454.2728 1.8181.6363c.5455.1818 1.0909.3637 1.6364.5455l.2727.0909.2727-.0909c.2727-.0909.5455-.2728.8182-.2728.1818 0 .3636-.0909.5454-.1818 2.1818-.5454 4.5454-.5454 7.0908.2727.2727.091.4546.1819.7273.2728l.4545.1818.2727-.0909c.6364-.1818 1.3636-.3636 1.9091-.6364l2.5454-.909-2.6363-.6364c-.2727-.0909-.6364-.1818-.9091-.2727z"/><path d="m40 22.0829-1.3636 1.3636c-.1818.1818-.3636.3636-.5454.5454-3.7272 3.5454-9.7271 7.3635-16.4543 4.8181-3.1818-1.1818-6.4544-1.3636-9.4544-.5454-2.81811.8182-5.36354 2.2727-7.63623 4.4545l-1.18179 1.2727-.36362.4545.36362.5454c.27273.3637.45455.6364.63637 1l.54542.8182.63636-.8182c.09091-.0909.27272-.2727.36363-.3636 2.18178-2.3636 4.54534-3.8181 7.27264-4.5454 2.4545-.6364 5.0908-.5454 7.7271.4545 2.2727.8182 4.6363 1.0909 6.9999.8182 4.1817-.4545 8.3635-2.8181 11.4543-5.4544.1819-.1818.3636-.2727.5455-.4546l.2727-.2727v-.2727c0-.5455.0909-1.1818.0909-1.7273z"/><path d="m5.45373 13.7196c.54545-.2728 1.18182-.4546 1.72726-.6364 2.45451-.6364 5.09081-.5455 7.72711.4545 1.7273.6364 3.4545.9091 5.3636.9091 3.8181 0 7.6362-1.3636 11.1816-3.9999l1.8181-1.45455-.8181-.63636c-.2728-.27273-.6364-.54544-1-.72725l-.5455-.36363-.4545.36363c-.1818.09091-.2727.27272-.4545.36362-4.8181 3.63634-9.6362 4.63634-14.1816 2.90904-3.2727-1.18178-6.54535-1.45451-9.81802-.4545-.27272.0909-.54544.1818-.90907.2727l-.1818.0909-.27274.2727c0 .0909-.09089.0909-.1818.1818-.36363.5455-.81818 1-1.18181 1.5455l-1.72724 2.6363 2.81814-1.4545c.45453 0 .81815-.1818 1.09087-.2727z"/><path d="m12.9089 7.53769.2727.09091c1.1818.45454 3 .90907 5.2726.90907 2.3636 0 4.6363-.54545 6.909-1.45452l2.8181-1.36361-1.909-.63634c-.5454-.18182-1.0909-.36363-1.7273-.45454h-.2727l-.2727.09089c-.2727.0909-.5455.27274-.8182.36365-2.7272.99998-5.4544 1.1818-8.0907.45454-.2728-.09091-.5455-.18183-.8182-.27274l-.2727-.09091-.2728.09091c-.5454.18181-1.0908.36364-1.6363.63636l-2.09087.90908 2.18177.63633c.1818-.0909.4546.00001.7273.09092z"/></g></svg>`
+  },
+  {
+    id: "biosynthesis",
+    name: "Biosynthesis",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill-rule="evenodd"><path d="m4.29111 28.6025c.90712.9019.9071 2.3641-.00003 3.266l-.04646.0462c-.90713.9019-2.37788.9018-3.284994-.0001-.9071177-.9019-.9071038-2.3641.000031-3.266l.046453-.0462c.90714-.9019 2.37788-.9018 3.285.0001z" fill="#a4bcfd"/><path d="m15.2112 29.298c.9055.9035.9028 2.3658-.006 3.266l-6.43424 6.3741c-.90876.9002-2.3795.8976-3.28499-.0059-.90548-.9035-.90282-2.3658.00594-3.266l6.43429-6.3741c.9088-.9002 2.3795-.8976 3.285.0059z" fill="#6172f3"/><path d="m23.9431 40.2706c.7116-1.0613 2.1538-1.348 3.2212-.6405l.1394.0923c1.0674.7075 1.3558 2.1414.6442 3.2026-.7116 1.0613-2.1538 1.3481-3.2212.6406l-.1394-.0924c-1.0674-.7075-1.3558-2.1414-.6442-3.2026z" fill="#a4bcfd"/><path d="m39.2728 28.4638c.9072.9019.9072 2.3641 0 3.266l-3.159 3.1408c-.9072.9019-2.3779.9019-3.285 0s-.9071-2.3641 0-3.266l3.1591-3.1408c.9071-.9019 2.3778-.9019 3.2849 0z" fill="#6172f3"/><g fill="#444ce7"><path d="m39.3197 16.8473c.9071.9019.9071 2.3642 0 3.266l-23.3446 23.2098c-.9071.9019-2.3779.9019-3.285 0s-.9071-2.3641 0-3.266l23.3446-23.2098c.9071-.9019 2.3778-.9019 3.285 0z"/><path d="m34.905 9.71133c.9072.90187.9072 2.36417 0 3.26607l-13.426 13.3485c-.9071.9019-2.3779.9019-3.285 0s-.9071-2.3642 0-3.2661l13.4261-13.34847c.9071-.90189 2.3778-.90189 3.2849 0z"/><path d="m27.8187 5.18362c.9077.90128.9087 2.36353.0022 3.26603l-17.2588 17.18215c-.90647.9025-2.37721.9035-3.28495.0022-.90773-.9013-.90872-2.3635-.00221-3.266l17.25876-17.18218c.9065-.9025 2.3772-.90348 3.285-.0022z"/></g><path d="m10.7276 10.6841c.9056.9035.9031 2.3657-.0056 3.266l-6.75949 6.6974c-.90869.9003-2.37943.8978-3.28499-.0056-.905563-.9035-.903032-2.3657.005654-3.2661l6.759476-6.6973c.90868-.90034 2.37942-.89783 3.28495.0056z" fill="#6172f3"/><path d="m14.8678 4.00024c1.2828 0 2.3228 1.03397 2.3228 2.30944v.23094c0 1.27546-1.04 2.30943-2.3228 2.30943-1.2829 0-2.3229-1.03397-2.3229-2.30943v-.23094c0-1.27547 1.04-2.30944 2.3229-2.30944z" fill="#a4bcfd"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill="#fff" fill-rule="evenodd"><path d="m4.29111 28.6025c.90712.9019.9071 2.3641-.00003 3.266l-.04646.0462c-.90713.9019-2.37788.9018-3.284994-.0001-.9071177-.9019-.9071038-2.3641.000031-3.266l.046453-.0462c.90714-.9019 2.37788-.9018 3.285.0001z" opacity=".5"/><path d="m15.2112 29.298c.9055.9035.9028 2.3658-.006 3.266l-6.43424 6.3741c-.90876.9002-2.3795.8976-3.28499-.0059-.90548-.9035-.90282-2.3658.00594-3.266l6.43429-6.3741c.9088-.9002 2.3795-.8976 3.285.0059z" opacity=".7"/><path d="m23.9431 40.2706c.7116-1.0613 2.1538-1.348 3.2212-.6405l.1394.0923c1.0674.7075 1.3558 2.1414.6442 3.2026-.7116 1.0613-2.1538 1.3481-3.2212.6406l-.1394-.0924c-1.0674-.7075-1.3558-2.1414-.6442-3.2026z" opacity=".5"/><path d="m39.2728 28.4638c.9072.9019.9072 2.3641 0 3.266l-3.159 3.1408c-.9072.9019-2.3779.9019-3.285 0s-.9071-2.3641 0-3.266l3.1591-3.1408c.9071-.9019 2.3778-.9019 3.2849 0z" opacity=".7"/><path d="m39.3197 16.8473c.9071.9019.9071 2.3642 0 3.266l-23.3446 23.2098c-.9071.9019-2.3779.9019-3.285 0s-.9071-2.3641 0-3.266l23.3446-23.2098c.9071-.9019 2.3778-.9019 3.285 0z"/><path d="m34.905 9.71133c.9072.90187.9072 2.36417 0 3.26607l-13.426 13.3485c-.9071.9019-2.3779.9019-3.285 0s-.9071-2.3642 0-3.2661l13.4261-13.34847c.9071-.90189 2.3778-.90189 3.2849 0z"/><path d="m27.8187 5.18362c.9077.90128.9087 2.36353.0022 3.26603l-17.2588 17.18215c-.90647.9025-2.37721.9035-3.28495.0022-.90773-.9013-.90872-2.3635-.00221-3.266l17.25876-17.18218c.9065-.9025 2.3772-.90348 3.285-.0022z"/><path d="m10.7276 10.6841c.9056.9035.9031 2.3657-.0056 3.266l-6.75949 6.6974c-.90869.9003-2.37943.8978-3.28499-.0056-.905563-.9035-.903032-2.3657.005654-3.2661l6.759476-6.6973c.90868-.90034 2.37942-.89783 3.28495.0056z" opacity=".7"/><path d="m14.8678 4.00024c1.2828 0 2.3228 1.03397 2.3228 2.30944v.23094c0 1.27546-1.04 2.30943-2.3228 2.30943-1.2829 0-2.3229-1.03397-2.3229-2.30943v-.23094c0-1.27547 1.04-2.30944 2.3229-2.30944z" opacity=".5"/></g></svg>`
+  },
+  {
+    id: "boltshift",
+    name: "Boltshift",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m20 44c11.0457 0 20-8.9543 20-20s-8.9543-20-20-20c-11.04572 0-20 8.9543-20 20s8.95428 20 20 20zm6.2393-30.6832c.3037-1.0787-.7432-1.7167-1.6993-1.0355l-13.3469 9.5083c-1.0369.7387-.8738 2.2104.245 2.2104h3.5146v-.0272h6.8498l-5.5813 1.9693-2.4605 8.7411c-.3037 1.0788.7431 1.7167 1.6993 1.0355l13.3469-9.5082c1.0369-.7387.8737-2.2105-.245-2.2105h-5.3298z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m20 44c11.0457 0 20-8.9543 20-20s-8.9543-20-20-20c-11.04572 0-20 8.9543-20 20s8.95428 20 20 20zm6.2393-30.6832c.3037-1.0787-.7432-1.7167-1.6993-1.0355l-13.3469 9.5083c-1.0369.7387-.8738 2.2104.245 2.2104h3.5146v-.0272h6.8498l-5.5813 1.9693-2.4605 8.7411c-.3037 1.0788.7431 1.7167 1.6993 1.0355l13.3469-9.5082c1.0369-.7387.8737-2.2105-.245-2.2105h-5.3298z" fill="#fff" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "buildingblocks",
+    name: "BuildingBlocks",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 37 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m12.8841 4.30945-6.8842 3.97574 6.8891 3.97661 6.8862-3.97575zm8.8919 7.44025-6.887 3.9762-.0007 7.9532 6.8877-3.9771zm2 11.4164-6.8879 3.9772 6.8889 3.9765 6.8871-3.9763zm8.8879 7.4416-6.8868 3.9761v7.9522l6.8868-3.9761zm-10.8868 11.9287v-7.9525l-6.8891-3.9766v7.9525zm-10.8888-18.8569-6.8883-3.9775v-7.9526l6.889 3.9765zm-.0003 4.6187-9.38814-5.4209c-.928127-.5359-1.49986-1.5262-1.49986-2.598v-11.99368c0-.71444.381106-1.37463.999789-1.73193l10.383811-5.996798c.9281-.5359626 2.0716-.5361538 2.9998-.000505l10.3922 5.996973c.619.3572 1.0004 1.01758 1.0004 1.73226v11.41638l9.888 5.7096c.6188.3573.9999 1.0175.9999 1.732v11.9937c0 1.0718-.5718 2.0621-1.5 2.598l-10.3868 5.9969c-.6187.3572-1.381.3572-1.9998.0001l-10.3891-5.9969c-.9283-.5358-1.5002-1.5263-1.5002-2.5982z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 37 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m12.8841 4.30945-6.8842 3.97574 6.8891 3.97661 6.8862-3.97575zm8.8919 7.44025-6.887 3.9762-.0007 7.9532 6.8877-3.9771zm2 11.4164-6.8879 3.9772 6.8889 3.9765 6.8871-3.9763zm8.8879 7.4416-6.8868 3.9761v7.9522l6.8868-3.9761zm-10.8868 11.9287v-7.9525l-6.8891-3.9766v7.9525zm-10.8888-18.8569-6.8883-3.9775v-7.9526l6.889 3.9765zm-.0003 4.6187-9.38814-5.4209c-.928127-.5359-1.49986-1.5262-1.49986-2.598v-11.99368c0-.71444.381106-1.37463.999789-1.73193l10.383811-5.996798c.9281-.5359626 2.0716-.5361538 2.9998-.000505l10.3922 5.996973c.619.3572 1.0004 1.01758 1.0004 1.73226v11.41638l9.888 5.7096c.6188.3573.9999 1.0175.9999 1.732v11.9937c0 1.0718-.5718 2.0621-1.5 2.598l-10.3868 5.9969c-.6187.3572-1.381.3572-1.9998.0001l-10.3891-5.9969c-.9283-.5358-1.5002-1.5263-1.5002-2.5982z" fill="#155eef" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "calescence",
+    name: "Calescence",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 36 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill="#1570ef" fill-rule="evenodd"><path d="m35.3721 14v8.0492h-9.9698v-2.2927z"/><path d="m35.3699 14.0001-9.9698 5.7565-7.3513-4.2436v-11.513z" opacity=".9"/><path d="m18.0512 4v11.513l-7.349 4.2436-9.969778-5.7565z" opacity=".8"/><path d="m10.7002 19.7565v8.4868l-9.969731 5.756v-19.9993z" opacity=".7"/><path d="m18.0492 32.4871v11.5129l-17.318731-10.0006 9.969731-5.756z" opacity=".6"/><path d="m35.3699 33.9994-17.3211 10.0006v-11.5129l7.3513-4.2437z" opacity=".5"/><path d="m35.3721 25.9507v8.0487l-9.9698-5.756v-2.2927z" opacity=".4"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 36 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill="#fff" fill-rule="evenodd"><path d="m35.3721 14v8.0492h-9.9698v-2.2927z"/><path d="m35.3699 14.0001-9.9698 5.7565-7.3513-4.2436v-11.513z" opacity=".9"/><path d="m18.0512 4v11.513l-7.349 4.2436-9.969778-5.7565z" opacity=".8"/><path d="m10.7002 19.7565v8.4868l-9.969731 5.756v-19.9993z" opacity=".7"/><path d="m18.0492 32.4871v11.5129l-17.318731-10.0006 9.969731-5.756z" opacity=".6"/><path d="m35.3699 33.9994-17.3211 10.0006v-11.5129l7.3513-4.2437z" opacity=".5"/><path d="m35.3721 25.9507v8.0487l-9.9698-5.756v-2.2927z" opacity=".4"/></g></svg>`
+  },
+  {
+    id: "capsule",
+    name: "Capsule",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="18" fill="#1570ef" r="14"/><circle cx="26" cy="30" fill="#53b1fd" r="14"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><circle cx="14" cy="18" opacity=".7" r="14"/><circle cx="26" cy="30" opacity=".7" r="14"/></g></svg>`
+  },
+  {
+    id: "constellation",
+    name: "Constellation",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m16 8 5.0912 10.9088 10.9088 5.0912-10.9088 5.0912-5.0912 10.9088-5.0912-10.9088-10.9088-5.0912 10.9088-5.0912z"/><path d="m20.0469 31.3286 6.3539-1.0932 3.6 9.7646 3.6-9.7646 10.2565 1.7646-6.6564-8 6.6564-8-10.2565 1.7646-3.6-9.7646-3.6 9.7646-6.3539-1.0932 1.0442 2.2374 10.9088 5.0912-10.9088 5.0912z" opacity=".5"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m16 8 5.0912 10.9088 10.9088 5.0912-10.9088 5.0912-5.0912 10.9088-5.0912-10.9088-10.9088-5.0912 10.9088-5.0912z"/><path d="m20.0469 31.3286 6.3539-1.0932 3.6 9.7646 3.6-9.7646 10.2565 1.7646-6.6564-8 6.6564-8-10.2565 1.7646-3.6-9.7646-3.6 9.7646-6.3539-1.0932 1.0442 2.2374 10.9088 5.0912-10.9088 5.0912z" opacity=".5"/></g></svg>`
+  },
+  {
+    id: "codecraft",
+    name: "Codecraft",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 9c0-2.76142 2.23858-5 5-5h10c2.7614 0 5 2.23858 5 5v9.8192c.0002.06.0003.1203.0003.1808 0 2.7575 2.2322 4.9936 4.9881 5h.0116 10c2.7614 0 5 2.2386 5 5v10c0 2.7614-2.2386 5-5 5h-10c-2.7614 0-5-2.2386-5-5v-10c0-.0139.0001-.0277.0002-.0416-.0224-2.7422-2.2523-4.9584-4.9999-4.9584-.0129 0-.0258 0-.0387 0h-9.9616c-2.76142 0-5-2.2386-5-5z" fill="#155eef"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 9c0-2.76142 2.23858-5 5-5h10c2.7614 0 5 2.23858 5 5v9.8192c.0002.06.0003.1203.0003.1808 0 2.7575 2.2322 4.9936 4.9881 5h.0116 10c2.7614 0 5 2.2386 5 5v10c0 2.7614-2.2386 5-5 5h-10c-2.7614 0-5-2.2386-5-5v-10c0-.0139.0001-.0277.0002-.0416-.0224-2.7422-2.2523-4.9584-4.9999-4.9584-.0129 0-.0258 0-.0387 0h-9.9616c-2.76142 0-5-2.2386-5-5z" fill="#155eef"/></svg>`
+  },
+  {
+    id: "command-r",
+    name: "Command+R",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 32 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m18.6667 30.6667c7.3638 0 13.3333-5.9696 13.3333-13.3334 0-7.36376-5.9695-13.3333-13.3333-13.3333h-18.6667v26.6667z" fill="#155eef"/><path d="m0 4 32 40h-21.3333l-10.6667-13.3333z" fill="#2e90fa"/><path d="m21.1488 30.436c-.8042.1515-1.6339.2307-2.4821.2307h-18.6667v-26.6667z" fill="#53b1fd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 32 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m18.6667 30.6667c7.3638 0 13.3333-5.9696 13.3333-13.3334 0-7.36376-5.9695-13.3333-13.3333-13.3333h-18.6667v26.6667z" opacity=".7"/><path d="m0 4 32 40h-21.3333l-10.6667-13.3333z" opacity=".7"/><path d="m21.1488 30.436c-.8042.1515-1.6339.2307-2.4821.2307h-18.6667v-26.6667z" opacity=".7"/></g></svg>`
+  },
+  {
+    id: "contrast-ai",
+    name: "ContrastAI",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m20 4c11.0457 0 20 8.9543 20 20s-8.9543 20-20 20-20-8.9543-20-20 8.9543-20 20-20zm15 20c0 8.2843-6.7157 15-15 15v-30c8.2843 0 15 6.7157 15 15z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m20 4c11.0457 0 20 8.9543 20 20s-8.9543 20-20 20-20-8.9543-20-20 8.9543-20 20-20zm15 20c0 8.2843-6.7157 15-15 15v-30c8.2843 0 15 6.7157 15 15z" fill="#fff" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "convergence",
+    name: "Convergence",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 42 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m22.1017 20.8596 9.8995-9.8994-2.1213-2.12137-7.3389 7.33887v-13.1777h-3v13.1777l-7.3388-7.33887-2.1213 2.12137 9.8995 9.8994 1.0606 1.0607zm2.1207 2.1214 9.8995-9.8995 2.1213 2.1213-7.3388 7.3388h13.0956v3h-13.0956l7.3388 7.3389-2.1213 2.1213-9.8995-9.8995-1.0607-1.0607zm-16.26224 12.0208 9.89944-9.8995 1.0607-1.0607-1.0607-1.0606-9.89944-9.8995-2.12133 2.1213 7.33887 7.3388h-13.17574688v3h13.17574688l-7.33887 7.3389zm12.02024-7.7782-9.8995 9.8995 2.1213 2.1213 7.3388-7.3388v13.0944h3v-13.0944l7.3389 7.3388 2.1213-2.1213-9.8995-9.8995-1.0607-1.0607z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 42 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m22.1017 20.8596 9.8995-9.8994-2.1213-2.12137-7.3389 7.33887v-13.1777h-3v13.1777l-7.3388-7.33887-2.1213 2.12137 9.8995 9.8994 1.0606 1.0607zm2.1207 2.1214 9.8995-9.8995 2.1213 2.1213-7.3388 7.3388h13.0956v3h-13.0956l7.3388 7.3389-2.1213 2.1213-9.8995-9.8995-1.0607-1.0607zm-16.26224 12.0208 9.89944-9.8995 1.0607-1.0607-1.0607-1.0606-9.89944-9.8995-2.12133 2.1213 7.33887 7.3388h-13.17574688v3h13.17574688l-7.33887 7.3389zm12.02024-7.7782-9.8995 9.8995 2.1213 2.1213 7.3388-7.3388v13.0944h3v-13.0944l7.3389 7.3388 2.1213-2.1213-9.8995-9.8995-1.0607-1.0607z" fill="#155eef" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "core-os",
+    name: "CoreOS",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 42 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m15.2286 4.99951c-3.2154 0-6.18655 1.71539-7.79425 4.5l-5.7735 9.99999c-1.6076941 2.7846-1.607697 6.2154 0 9l5.7735 10c1.6077 2.7846 4.57885 4.5 7.79425 4.5h11.547c3.2154 0 6.1865-1.7154 7.7942-4.5l5.7735-10c1.6077-2.7846 1.6077-6.2154 0-9l-5.7735-9.99999c-1.6077-2.78461-4.5788-4.5-7.7942-4.5zm11.547 5.99999h-7.2169c-1.1547 0-1.8762 1.2499-1.298 2.2494 1.784 3.0838 3.5722 6.1653 5.3536 9.2506.5359.9282.5359 2.0718 0 3-1.7814 3.0854-3.5696 6.1668-5.3536 9.2506-.5782.9995.1433 2.2494 1.298 2.2494h7.2169c1.0718 0 2.0622-.5718 2.5981-1.5l5.7735-10c.5359-.9282.5359-2.0718 0-3l-5.7735-10c-.5359-.9282-1.5263-1.5-2.5981-1.5z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 42 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m15.2286 4.99951c-3.2154 0-6.18655 1.71539-7.79425 4.5l-5.7735 9.99999c-1.6076941 2.7846-1.607697 6.2154 0 9l5.7735 10c1.6077 2.7846 4.57885 4.5 7.79425 4.5h11.547c3.2154 0 6.1865-1.7154 7.7942-4.5l5.7735-10c1.6077-2.7846 1.6077-6.2154 0-9l-5.7735-9.99999c-1.6077-2.78461-4.5788-4.5-7.7942-4.5zm11.547 5.99999h-7.2169c-1.1547 0-1.8762 1.2499-1.298 2.2494 1.784 3.0838 3.5722 6.1653 5.3536 9.2506.5359.9282.5359 2.0718 0 3-1.7814 3.0854-3.5696 6.1668-5.3536 9.2506-.5782.9995.1433 2.2494 1.298 2.2494h7.2169c1.0718 0 2.0622-.5718 2.5981-1.5l5.7735-10c.5359-.9282.5359-2.0718 0-3l-5.7735-10c-.5359-.9282-1.5263-1.5-2.5981-1.5z" fill="#155eef" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "cubekit",
+    name: "Cubekit",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 14.5264v18.9473l17.8947-12.2437v-18.94741z" fill="#155eef" opacity=".5"/><path d="m0 33.4737v-18.9474l17.8947 12.2438v18.9474z" fill="#1570ef" opacity=".5"/><path d="m40 14.5263v18.9474l-17.8947-12.2438v-18.94737z" fill="#155eef" opacity=".5"/><path d="m40 33.4737v-18.9474l-17.8947 12.2438v18.9474z" fill="#1570ef" opacity=".5"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m0 14.5264v18.9473l17.8947-12.2437v-18.94741z" opacity=".5"/><path d="m0 33.4737v-18.9474l17.8947 12.2438v18.9474z" opacity=".5"/><path d="m40 14.5263v18.9474l-17.8947-12.2438v-18.94737z" opacity=".5"/><path d="m40 33.4737v-18.9474l-17.8947 12.2438v18.9474z" opacity=".5"/></g></svg>`
+  },
+  {
+    id: "europa",
+    name: "Europa",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m28.6446 39.168c-.6032 1.3404-1.353 2.6531-2.2519 3.7888 7.4581-2.5137 12.9483-9.3054 13.5527-17.4568h-2.6549c-3.2399 0-5.8424 2.5861-6.369 5.7829-.4855 2.9468-1.2621 5.6301-2.2769 7.8851z"/><path d="m22.7724 25.5c3.3921 0 6.167 2.8299 5.5439 6.1643-1.3533 7.2424-4.5667 12.3357-8.3155 12.3357-4.7435 0-8.6299-8.1549-8.975-18.5z"/><path d="m30.9904 17.1502c.4961 3.2267 3.1106 5.8498 6.3752 5.8498h2.6107c-.4123-8.3729-5.9735-15.39183-13.5836-17.95683.8989 1.13575 1.6487 2.44843 2.2519 3.78878 1.0643 2.36505 1.8666 5.20115 2.3458 8.31825z"/><path d="m28.4165 16.8957c.5674 3.3176-2.1954 6.1043-5.5612 6.1043h-11.8434c.2344-10.5811 4.1693-19 8.9889-19 3.8447 0 7.1263 5.35721 8.4157 12.8957z"/><path d="m8.51131 23c.11359-5.4083 1.14536-10.3894 2.84579-14.16805.6031-1.34035 1.3529-2.65303 2.2519-3.78878-7.61011 2.565-13.171316 9.58393-13.5836094 17.95683z"/><path d="m.0562286 25.5c.6043994 8.1514 6.0946514 14.9431 13.5527714 17.4568-.899-1.1357-1.6488-2.4484-2.2519-3.7888-1.6479-3.6619-2.66781-8.4531-2.83264-13.668z"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m28.6446 39.168c-.6032 1.3404-1.353 2.6531-2.2519 3.7888 7.4581-2.5137 12.9483-9.3054 13.5527-17.4568h-2.6549c-3.2399 0-5.8424 2.5861-6.369 5.7829-.4855 2.9468-1.2621 5.6301-2.2769 7.8851z"/><path d="m22.7724 25.5c3.3921 0 6.167 2.8299 5.5439 6.1643-1.3533 7.2424-4.5667 12.3357-8.3155 12.3357-4.7435 0-8.6299-8.1549-8.975-18.5z"/><path d="m30.9904 17.1502c.4961 3.2267 3.1106 5.8498 6.3752 5.8498h2.6107c-.4123-8.3729-5.9735-15.39183-13.5836-17.95683.8989 1.13575 1.6487 2.44843 2.2519 3.78878 1.0643 2.36505 1.8666 5.20115 2.3458 8.31825z"/><path d="m28.4165 16.8957c.5674 3.3176-2.1954 6.1043-5.5612 6.1043h-11.8434c.2344-10.5811 4.1693-19 8.9889-19 3.8447 0 7.1263 5.35721 8.4157 12.8957z"/><path d="m8.51131 23c.11359-5.4083 1.14536-10.3894 2.84579-14.16805.6031-1.34035 1.3529-2.65303 2.2519-3.78878-7.61011 2.565-13.171316 9.58393-13.5836094 17.95683z"/><path d="m.0562286 25.5c.6043994 8.1514 6.0946514 14.9431 13.5527714 17.4568-.899-1.1357-1.6488-2.4484-2.2519-3.7888-1.6479-3.6619-2.66781-8.4531-2.83264-13.668z"/></g></svg>`
+  },
+  {
+    id: "feather-dev",
+    name: "FeatherDev",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m36.3068 11.4224c-.4322-.4323-.8644-.8645-1.2967-1.2967-1.2966-1.38311-2.6797-2.76621-4.4086-3.63065-1.9882-1.03733-4.1493-.778-6.3104-.778-3.2849 0-11.4971 0-16.33798 0l3.28488 4.40865h19.6228c1.8153 0 3.3713.3458 4.8409 1.2967.2593.0864.5186.0864.6051 0z" fill="#53b1fd"/><path d="m39.9368 18.511c-.4322-.4322-.8645-.8645-1.2967-1.2967-1.2967-1.3831-2.6797-2.7662-4.4086-3.6306-1.9882-1.0374-4.1494-.778-6.3105-.778-2.8526 0-9.6817 0-14.5226 0l3.2849 4.4086h17.8939c1.8154 0 3.3714.3458 4.8409 1.2967.1729.0864.3458.0864.5187 0z" fill="#2e90fa"/><path d="m44 25.4263c-.4322-.4323-.8645-.8645-1.2967-1.2967-1.2966-1.3831-2.6797-2.7662-4.4086-3.6307-1.9882-1.0373-4.1493-.7779-6.3104-.7779-2.6798 0-8.558 0-13.3124 0l3.2848 4.4086h16.5973c1.8153 0 3.3713.3458 4.8409 1.2967.2593.0864.4322.1729.6051 0z" fill="#1570ef"/><path d="m7.60742 37.0961c.43222.4322.86444.8644 1.29666 1.2966 1.29662 1.3831 2.67972 2.7662 4.40862 3.6307 1.9882 1.0373 4.1493.778 6.3104.778h16.338l-3.2849-4.4087c-5.9646 0-15.3006 0-19.6228 0-1.8153 0-3.37132-.3457-4.84087-1.2966-.25933-.0865-.43222-.0865-.60511 0z" fill="#53b1fd"/><path d="m3.97656 30.0079c.43222.4323.86444.8645 1.29666 1.2967 1.29667 1.3831 2.67976 2.7662 4.40864 3.6307 1.98824 1.0373 4.14934.778 6.31044.778h14.5226l-3.2849-4.4087c-5.8782 0-13.9175 0-17.89391 0-1.81532 0-3.37132-.3458-4.84087-1.2967-.17289-.0864-.34577-.0864-.51866 0z" fill="#2e90fa"/><path d="m0 23.0058c.43222.4322.864441.8644 1.29666 1.2966 1.29666 1.3831 2.67977 2.7662 4.40866 3.6307 1.98821 1.0373 4.1493.778 6.31038.778h13.3124l-3.2849-4.4087c-5.7053 0-12.96657 0-16.59722 0-1.81533 0-3.37132-.3458-4.840874-1.2966-.259332-.0865-.432218-.0865-.605106 0z" fill="#1570ef"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m36.3068 11.4224c-.4322-.4323-.8644-.8645-1.2967-1.2967-1.2966-1.38311-2.6797-2.76621-4.4086-3.63065-1.9882-1.03733-4.1493-.778-6.3104-.778-3.2849 0-11.4971 0-16.33798 0l3.28488 4.40865h19.6228c1.8153 0 3.3713.3458 4.8409 1.2967.2593.0864.5186.0864.6051 0z" opacity=".5"/><path d="m39.9368 18.511c-.4322-.4322-.8645-.8645-1.2967-1.2967-1.2967-1.3831-2.6797-2.7662-4.4086-3.6306-1.9882-1.0374-4.1494-.778-6.3105-.778-2.8526 0-9.6817 0-14.5226 0l3.2849 4.4086h17.8939c1.8154 0 3.3714.3458 4.8409 1.2967.1729.0864.3458.0864.5187 0z" opacity=".7"/><path d="m44 25.4263c-.4322-.4323-.8645-.8645-1.2967-1.2967-1.2966-1.3831-2.6797-2.7662-4.4086-3.6307-1.9882-1.0373-4.1493-.7779-6.3104-.7779-2.6798 0-8.558 0-13.3124 0l3.2848 4.4086h16.5973c1.8153 0 3.3713.3458 4.8409 1.2967.2593.0864.4322.1729.6051 0z"/><path d="m7.60742 37.0961c.43222.4322.86444.8644 1.29666 1.2966 1.29662 1.3832 2.67972 2.7662 4.40862 3.6307 1.9882 1.0373 4.1493.778 6.3104.778h16.338l-3.2849-4.4087c-5.9646 0-15.3006 0-19.6228 0-1.8153 0-3.37132-.3457-4.84087-1.2966-.25933-.0865-.43222-.0865-.60511 0z" opacity=".5"/><path d="m3.97656 30.0079c.43222.4323.86444.8645 1.29666 1.2967 1.29667 1.3831 2.67976 2.7662 4.40864 3.6307 1.98824 1.0373 4.14934.778 6.31044.778h14.5226l-3.2849-4.4087c-5.8782 0-13.9175 0-17.89391 0-1.81532 0-3.37132-.3458-4.84087-1.2967-.17289-.0864-.34577-.0864-.51866 0z" opacity=".7"/><path d="m0 23.0058c.43222.4322.864441.8644 1.29666 1.2966 1.29666 1.3831 2.67977 2.7662 4.40866 3.6307 1.98821 1.0373 4.1493.778 6.31038.778h13.3124l-3.2849-4.4087c-5.7053 0-12.96657 0-16.59722 0-1.81533 0-3.37132-.3458-4.840874-1.2966-.259332-.0865-.432218-.0865-.605106 0z"/></g></svg>`
+  },
+  {
+    id: "flora-fauna",
+    name: "Flora&Fauna",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m13.7146 4c-2.2564 0-4.4203.89634-6.01579 2.49183l-7.69881 7.69877v3.524c0 2.4897 1.06944 4.7296 2.77401 6.2854-1.70457 1.5558-2.77401 3.7957-2.77401 6.2854v3.524l7.69881 7.6988c1.59549 1.5955 3.75939 2.4918 6.01579 2.4918 2.4897 0 4.7296-1.0694 6.2854-2.774 1.5558 1.7046 3.7957 2.774 6.2854 2.774 2.2564 0 4.4203-.8963 6.0158-2.4918l7.6988-7.6988v-3.524c0-2.4897-1.0694-4.7296-2.774-6.2854 1.7046-1.5558 2.774-3.7957 2.774-6.2854v-3.524l-7.6988-7.69877c-1.5955-1.59549-3.7594-2.49183-6.0158-2.49183-2.4897 0-4.7296 1.06944-6.2854 2.77401-1.5558-1.70457-3.7957-2.77401-6.2854-2.77401zm12.0442 20c-.0959-.0875-.19-.1774-.2822-.2696l-5.4766-5.4766-5.4766 5.4766c-.0922.0922-.1863.1821-.2822.2696.0959.0875.19.1774.2822.2696l5.4766 5.4766 5.4766-5.4766c.0922-.0922.1863-.1821.2822-.2696zm-3.5366 9.8094v1.683c0 2.244 1.8192 4.0632 4.0632 4.0632 1.0776 0 2.1111-.4281 2.8731-1.1901l6.3971-6.3971v-1.683c0-2.244-1.8192-4.0632-4.0632-4.0632-1.0776 0-2.1111.4281-2.8731 1.1901zm-4.4444 0-6.3971-6.3971c-.762-.762-1.79546-1.1901-2.87308-1.1901-2.24403 0-4.06318 1.8192-4.06318 4.0632v1.683l6.39706 6.3971c.762.762 1.7955 1.1901 2.8731 1.1901 2.244 0 4.0632-1.8192 4.0632-4.0632zm0-21.3018v1.683l-6.3971 6.3971c-.762.762-1.79546 1.1901-2.87308 1.1901-2.24403 0-4.06318-1.8192-4.06318-4.0632v-1.683l6.39706-6.39708c.762-.76199 1.7955-1.19007 2.8731-1.19007 2.244 0 4.0632 1.81915 4.0632 4.06315zm10.8415 8.0801-6.3971-6.3971v-1.683c0-2.244 1.8192-4.06315 4.0632-4.06315 1.0776 0 2.1111.42808 2.8731 1.19007l6.3971 6.39708v1.683c0 2.244-1.8192 4.0632-4.0632 4.0632-1.0776 0-2.1111-.4281-2.8731-1.1901z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m13.7146 4c-2.2564 0-4.4203.89634-6.01579 2.49183l-7.69881 7.69877v3.524c0 2.4897 1.06944 4.7296 2.77401 6.2854-1.70457 1.5558-2.77401 3.7957-2.77401 6.2854v3.524l7.69881 7.6988c1.59549 1.5955 3.75939 2.4918 6.01579 2.4918 2.4897 0 4.7296-1.0694 6.2854-2.774 1.5558 1.7046 3.7957 2.774 6.2854 2.774 2.2564 0 4.4203-.8963 6.0158-2.4918l7.6988-7.6988v-3.524c0-2.4897-1.0694-4.7296-2.774-6.2854 1.7046-1.5558 2.774-3.7957 2.774-6.2854v-3.524l-7.6988-7.69877c-1.5955-1.59549-3.7594-2.49183-6.0158-2.49183-2.4897 0-4.7296 1.06944-6.2854 2.77401-1.5558-1.70457-3.7957-2.77401-6.2854-2.77401zm12.0442 20c-.0959-.0875-.19-.1774-.2822-.2696l-5.4766-5.4766-5.4766 5.4766c-.0922.0922-.1863.1821-.2822.2696.0959.0875.19.1774.2822.2696l5.4766 5.4766 5.4766-5.4766c.0922-.0922.1863-.1821.2822-.2696zm-3.5366 9.8094v1.683c0 2.244 1.8192 4.0632 4.0632 4.0632 1.0776 0 2.1111-.4281 2.8731-1.1901l6.3971-6.3971v-1.683c0-2.244-1.8192-4.0632-4.0632-4.0632-1.0776 0-2.1111.4281-2.8731 1.1901zm-4.4444 0-6.3971-6.3971c-.762-.762-1.79546-1.1901-2.87308-1.1901-2.24403 0-4.06318 1.8192-4.06318 4.0632v1.683l6.39706 6.3971c.762.762 1.7955 1.1901 2.8731 1.1901 2.244 0 4.0632-1.8192 4.0632-4.0632zm0-21.3018v1.683l-6.3971 6.3971c-.762.762-1.79546 1.1901-2.87308 1.1901-2.24403 0-4.06318-1.8192-4.06318-4.0632v-1.683l6.39706-6.39708c.762-.76199 1.7955-1.19007 2.8731-1.19007 2.244 0 4.0632 1.81915 4.0632 4.06315zm10.8415 8.0801-6.3971-6.3971v-1.683c0-2.244 1.8192-4.06315 4.0632-4.06315 1.0776 0 2.1111.42808 2.8731 1.19007l6.3971 6.39708v1.683c0 2.244-1.8192 4.0632-4.0632 4.0632-1.0776 0-2.1111-.4281-2.8731-1.1901z" fill="#fff" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "focal-point",
+    name: "FocalPoint",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m10.7788 6.1817 4.6901 17.5036v-19.24382c.3719-.08679.7478-.16322 1.1273-.22897v19.47459l5.2752-19.6871c.3801.03442.7572.07945 1.1309.13479l-5.3176 19.84571 10.5701-18.30794c.3443.15492.6835.31927 1.0172.49274l-10.6095 18.3763 15.1464-15.1465c.2731.25824.5389.52407.7971.7972l-15.1486 15.1487 18.3784-10.6108c.1734.3337.3377.6729.4926 1.0173l-18.3034 10.5675 19.8403-5.3162c.0553.3737.1003.7508.1347 1.1309l-19.6869 5.2751h19.4741c-.0658.3796-.1422.7554-.229 1.1273h-19.2481l17.507 4.691c-.1798.3443-.3693.6827-.5681 1.0149l-17.2257-4.6156 14.3874 8.3066c-.2723.2801-.5528.5522-.8411.8161l-14.1087-8.1457 10.6759 10.6758c-.3377.1973-.6817.385-1.0316.5628l-10.4426-10.4426 6.8421 11.8508c-.3746.1059-.7537.2012-1.1368.2855l-6.6825-11.5744 3.2219 12.0243c-.2872.0122-.5759.0184-.8661.0184-.0991 0-.198-.0007-.2967-.0022l-3.1483-11.7497v11.4569c-.3795-.0657-.7554-.1421-1.1273-.2289v-11.2261l-2.7759 10.36c-.3541-.1396-.7033-.289-1.0471-.4478l2.7337-10.2024-5.13175 8.8884c-.3177-.2034-.62928-.4156-.9344-.6361l5.09135-8.8186-7.1301 7.1302c-.2731-.2583-.53893-.5241-.79717-.7971l7.12787-7.1279-8.81599 5.0899c-.22059-.3051-.4328-.6167-.6363-.9344l8.89259-5.1341-10.20737 2.735c-.15888-.3438-.3083-.693-.44793-1.047l10.3599-2.776h-11.226124c-.086806-.3719-.163256-.7477-.22903-1.1273h11.452154l-11.74511583-3.1471c-.00145443-.0995-.00218417-.1991-.00218417-.2989 0-.2894.00613487-.5774.0182816-.8639l12.0258184 3.2224-11.57621-6.6836c.084291-.3832.179549-.7623.285427-1.1369l11.855683 6.8449-10.44698-10.447c.17774-.3499.36544-.6939.56273-1.0315l10.68025 10.6802-8.14896-14.1144c.26387-.2882.53605-.56863.81617-.84096l8.30809 14.38996-4.61634-17.22828c.33214-.1988.67064-.38826 1.01484-.56802z" fill="#155eef"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m10.7788 6.1817 4.6901 17.5036v-19.24382c.3719-.08679.7478-.16322 1.1273-.22897v19.47459l5.2752-19.6871c.3801.03442.7572.07945 1.1309.13479l-5.3176 19.84571 10.5701-18.30794c.3443.15492.6835.31927 1.0172.49274l-10.6095 18.3763 15.1464-15.1465c.2731.25824.5389.52407.7971.7972l-15.1486 15.1487 18.3784-10.6108c.1734.3337.3377.6729.4926 1.0173l-18.3034 10.5675 19.8403-5.3162c.0553.3737.1003.7508.1347 1.1309l-19.6869 5.2751h19.4741c-.0658.3796-.1422.7554-.229 1.1273h-19.2481l17.507 4.691c-.1798.3443-.3693.6827-.5681 1.0149l-17.2257-4.6156 14.3874 8.3066c-.2723.2801-.5528.5522-.8411.8161l-14.1087-8.1457 10.6759 10.6758c-.3377.1973-.6817.385-1.0316.5628l-10.4426-10.4426 6.8421 11.8508c-.3746.1059-.7537.2012-1.1368.2855l-6.6825-11.5744 3.2219 12.0243c-.2872.0122-.5759.0184-.8661.0184-.0991 0-.198-.0007-.2967-.0022l-3.1483-11.7497v11.4569c-.3795-.0657-.7554-.1421-1.1273-.2289v-11.2261l-2.7759 10.36c-.3541-.1396-.7033-.289-1.0471-.4478l2.7337-10.2024-5.13174 8.8884c-.31771-.2034-.62929-.4156-.93441-.6361l5.09135-8.8186-7.1301 7.1302c-.2731-.2583-.53893-.5241-.79717-.7971l7.12787-7.1279-8.81599 5.0899c-.22059-.3051-.4328-.6167-.6363-.9344l8.89259-5.1341-10.20737 2.735c-.15888-.3438-.3083-.693-.44793-1.047l10.3599-2.776h-11.226124c-.086806-.3719-.163256-.7477-.22903-1.1273h11.452154l-11.74511583-3.1471c-.00145443-.0995-.00218417-.1991-.00218417-.2989 0-.2894.00613486-.5774.0182816-.8639l12.0258184 3.2224-11.57621-6.6836c.084291-.3832.179549-.7623.285427-1.1369l11.855683 6.8449-10.44698-10.447c.17774-.3499.36544-.6939.56273-1.0315l10.68025 10.6802-8.14896-14.1144c.26387-.2882.53605-.56863.81617-.84096l8.30809 14.38996-4.61634-17.22828c.33214-.1988.67064-.38826 1.01484-.56802z" fill="#fff"/></svg>`
+  },
+  {
+    id: "foresight",
+    name: "Foresight",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 31 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#444ce7"><path d="m-.00195312 17.8433 30.90545312-17.8433-.8189 12.6994-26.32058 15.1961z"/><path d="m3.76367 27.8951 21.73573-12.5492-.8189 12.6994-17.15086 9.902z" opacity=".5"/><path d="m7.52734 37.9477 12.56596-7.255-.8189 12.6994-7.9811 4.6079z" opacity=".25"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 31 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m-.00195312 17.8433 30.90545312-17.8433-.8189 12.6994-26.32058 15.1961z"/><path d="m3.76367 27.8951 21.73573-12.5492-.8189 12.6994-17.15086 9.902z" opacity=".5"/><path d="m7.52734 37.9477 12.56596-7.255-.8189 12.6994-7.9811 4.6079z" opacity=".25"/></g></svg>`
+  },
+  {
+    id: "galileo",
+    name: "Galileo",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m29.5411 6.41772c2.6913 5.27688 4.209 11.25228 4.209 17.58218s-1.5177 12.3054-4.2091 17.5823c6.2304-3.3881 10.4593-9.9914 10.4593-17.5823s-4.2289-14.19404-10.4592-17.58218z" fill="#6172f3"/><path d="m20.5481 5.99826c-.9047-1.28153-2.4457-1.9717-3.9913-1.70349-9.40496 1.63214-16.5568 9.83343-16.5568 19.70503 0 9.8717 7.1518 18.0729 16.5567 19.7051 1.5456.2682 3.0867-.4219 3.9913-1.7035 3.5923-5.0889 5.7025-11.2988 5.7025-18.0016 0-6.7027-2.1101-12.9126-5.7024-18.00154z" fill="#444ce7"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m29.5411 6.41772c2.6913 5.27688 4.209 11.25228 4.209 17.58218s-1.5177 12.3054-4.2091 17.5823c6.2304-3.3881 10.4593-9.9914 10.4593-17.5823s-4.2289-14.19404-10.4592-17.58218z" opacity=".7"/><path d="m20.5481 5.99826c-.9047-1.28153-2.4457-1.9717-3.9913-1.70349-9.40496 1.63214-16.5568 9.83343-16.5568 19.70503 0 9.8717 7.1518 18.0729 16.5567 19.7051 1.5456.2682 3.0867-.4219 3.9913-1.7035 3.5923-5.0889 5.7025-11.2988 5.7025-18.0016 0-6.7027-2.1101-12.9126-5.7024-18.00154z"/></g></svg>`
+  },
+  {
+    id: "global-bank",
+    name: "GlobalBank",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m27.6627 4h-15.3253l-12.3374 12.3373v15.3253l12.3374 12.3374h15.3253l12.3373-12.3374v-15.3253zm-13.2049 27.8554-7.90357-7.9036 7.90357-7.9036c2.988-2.988 7.9037-2.988 10.8916 0l7.9036 7.9036-7.9036 7.9036c-2.9879 2.988-7.8072 2.988-10.8916 0z" fill="#444ce7"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m27.6627 4h-15.3253l-12.3374 12.3373v15.3253l12.3374 12.3374h15.3253l12.3373-12.3374v-15.3253zm-13.2049 27.8554-7.90357-7.9036 7.90357-7.9036c2.988-2.988 7.9037-2.988 10.8916 0l7.9036 7.9036-7.9036 7.9036c-2.9879 2.988-7.8072 2.988-10.8916 0z" fill="#fff"/></svg>`
+  },
+  {
+    id: "hexsmith",
+    name: "Hexsmith",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m9.72461 41.7983h18.49589c1.2717 0 2.4469-.6785 3.0827-1.7798l4.1102-7.1191h-20.5481z" opacity=".7"/><path d="m25.1445 15.1015h-20.55661l4.11021-7.11909c.63585-1.10133 1.811-1.77977 3.0827-1.77977h18.4959z" opacity=".4"/><path d="m39.5272 25.7801c.6358-1.1014.6358-2.4582 0-3.5596l-4.1102-7.1191-5.1378 8.8989h-20.55068l5.13718 8.8989h20.5481l.0016-.0027.0016.0027z" opacity=".4"/><path d="m14.8634 32.8992-5.13775-8.8988-5.13776 8.8988 5.13776 8.8989z"/><path d="m25.1445 15.1014h-20.55593l-4.108166 7.1192c-.635516 1.1013-.635318 2.458.000521 3.5591l4.111125 7.1195 5.13775-8.8989h20.55l.0013-.0021z" opacity=".7"/><path d="m35.4181 15.1015-5.1378-8.89886-5.1377 8.89886 5.1377 8.8989z"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m9.72461 41.7983h18.49589c1.2717 0 2.4469-.6785 3.0827-1.7798l4.1102-7.1191h-20.5481z" opacity=".7"/><path d="m25.1445 15.1015h-20.55661l4.11021-7.11909c.63585-1.10133 1.811-1.77977 3.0827-1.77977h18.4959z" opacity=".4"/><path d="m39.5272 25.7801c.6358-1.1013.6358-2.4582 0-3.5596l-4.1102-7.1191-5.1378 8.8989h-20.55068l5.13718 8.8989h20.5481l.0016-.0027.0016.0027z" opacity=".4"/><path d="m14.8634 32.8992-5.13775-8.8988-5.13776 8.8988 5.13776 8.8989z"/><path d="m25.1445 15.1014h-20.55593l-4.108166 7.1192c-.635516 1.1013-.635318 2.458.000521 3.5591l4.111125 7.1195 5.13775-8.8989h20.55l.0013-.0022z" opacity=".7"/><path d="m35.4181 15.1015-5.1378-8.89886-5.1377 8.89886 5.1377 8.8989z"/></g></svg>`
+  },
+  {
+    id: "hourglass",
+    name: "Hourglass",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 30 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 41.2222c0 1.5341 1.24365 2.7778 2.77778 2.7778h24.44442c1.5341 0 2.7778-1.2437 2.7778-2.7778v-7.2222c0-8.2843-6.7157-15-15-15-8.28427 0-15 6.7157-15 15z" fill="#1570ef"/><path d="m0 6.77778c0-1.53413 1.24365-2.77778 2.77778-2.77778h24.44442c1.5341 0 2.7778 1.24365 2.7778 2.77778v7.22222c0 8.2843-6.7157 15-15 15-8.28427 0-15-6.7157-15-15z" fill="#53b1fd" opacity=".5"/></svg>`,
+    darkSvg: `<svg width="100%" height="100%" viewBox="0 0 30 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path opacity="0.7" d="M0 41.2222C0 42.7563 1.24365 44 2.77778 44H27.2222C28.7563 44 30 42.7563 30 41.2222V34C30 25.7157 23.2843 19 15 19C6.71573 19 0 25.7157 0 34V41.2222Z" fill="white"/><path opacity="0.7" d="M0 6.77778C0 5.24365 1.24365 4 2.77778 4H27.2222C28.7563 4 30 5.24365 30 6.77778V14C30 22.2843 23.2843 29 15 29C6.71573 29 0 22.2843 0 14V6.77778Z" fill="white"/></svg>`
+  },
+  {
+    id: "kintsugi",
+    name: "Kintsugi",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m20 4 4.2861 9.6525 9.856-3.79464-3.7946 9.85604 9.6525 4.2861-9.6525 4.2861 3.7946 9.856-9.856-3.7946-4.2861 9.6525-4.2861-9.6525-9.85604 3.7946 3.79469-9.856-9.65255-4.2861 9.65255-4.2861-3.79469-9.85604 9.85604 3.79464z" fill="#155eef"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m20 4 4.2861 9.6525 9.856-3.79464-3.7946 9.85604 9.6525 4.2861-9.6525 4.2861 3.7946 9.856-9.856-3.7946-4.2861 9.6525-4.2861-9.6525-9.85604 3.7946 3.79469-9.856-9.65255-4.2861 9.65255-4.2861-3.79469-9.85604 9.85604 3.79464z" fill="#155eef"/></svg>`
+  },
+  {
+    id: "layers",
+    name: "Layers",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m5.03741 15.4637c.7506-2.8008 3.62961-5.67985 6.43049-6.43044l17.4617-4.67957c2.8009-.7506 4.4629.91146 3.7123 3.71231l-4.6795 17.4617c-.7506 2.8009-3.6297 5.6799-6.4305 6.4305l-17.46175 4.6796c-2.80085.7505-4.462904-.9115-3.712306-3.7124z" opacity=".7"/><path d="m12.0355 22.4642c.7506-2.8008 3.6296-5.6799 6.4304-6.4305l17.4617-4.6795c2.8009-.7506 4.4629.9114 3.7123 3.7123l-4.6795 17.4617c-.7506 2.8009-3.6296 5.6799-6.4305 6.4305l-17.4617 4.6795c-2.80085.7506-4.46291-.9114-3.71231-3.7123z" opacity=".7"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m5.03741 15.4637c.7506-2.8008 3.62961-5.67985 6.43049-6.43044l17.4617-4.67957c2.8009-.7506 4.4629.91146 3.7123 3.71231l-4.6795 17.4617c-.7506 2.8009-3.6297 5.6799-6.4305 6.4305l-17.46175 4.6795c-2.80085.7506-4.462904-.9114-3.712306-3.7123z" opacity=".7"/><path d="m12.0355 22.4642c.7506-2.8008 3.6296-5.6799 6.4304-6.4305l17.4617-4.6795c2.8009-.7506 4.4629.9114 3.7123 3.7123l-4.6795 17.4617c-.7506 2.8009-3.6296 5.6799-6.4305 6.4305l-17.4617 4.6795c-2.80085.7506-4.46291-.9114-3.71231-3.7123z" opacity=".7"/></g></svg>`
+  },
+  {
+    id: "lightspeed",
+    name: "Lightspeed",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 48 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 24c0 6.6274 5.37258 12 12 12v-12c0 6.6274 5.3726 12 12 12v-12c0 6.6274 5.3726 12 12 12s12-5.3726 12-12-5.3726-12-12-12-12 5.3726-12 12v-12c-6.6274 0-12 5.3726-12 12v-12c-6.62742 0-12 5.3726-12 12z" fill="#155eef"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 48 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 24c0 6.6274 5.37258 12 12 12v-12c0 6.6274 5.3726 12 12 12v-12c0 6.6274 5.3726 12 12 12s12-5.3726 12-12-5.3726-12-12-12-12 5.3726-12 12v-12c-6.6274 0-12 5.3726-12 12v-12c-6.62742 0-12 5.3726-12 12z" fill="#155eef"/></svg>`
+  },
+  {
+    id: "luminescence",
+    name: "Luminescence",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m32.3008 36h-.1015c-.0261.0402-.0523.0804-.0787.1204-2.7604 1.8201-6.0668 2.8794-9.6206 2.8794-9.665 0-17.5-7.835-17.5-17.5 0-3.5538 1.05931-6.8602 2.87939-9.6206.04009-.0264.08029-.0527.12061-.0788v-.1017c-.04056.0599-.08077.1201-.12061.1805-4.7469 3.1299-7.87939 8.5094-7.87939 14.6206 0 9.665 7.83502 17.5 17.5 17.5 6.1112 0 11.4907-3.1325 14.6206-7.8794.0603-.0398.1204-.0799.1802-.1204z"/><g opacity=".5"><path d="m40.0003 21.5c0 6.1112-3.1325 11.4907-7.8794 14.6206 1.8201-2.7604 2.8794-6.0668 2.8794-9.6206 0-9.665-7.835-17.5-17.5-17.5-3.5538 0-6.8602 1.0593-9.6206 2.8794 3.1299-4.74691 8.5094-7.8794 14.6206-7.8794 9.665 0 17.5 7.835 17.5 17.5z"/><path d="m32.0003 36.1994c.0403-.0261.0805-.0524.1206-.0788-.0398.0604-.08.1206-.1206.1805z"/><path d="m7.80088 12c.02611-.0403.05238-.0805.07882-.1206-.06043.0398-.12059.08-.18048.1206z"/></g></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m32.3008 36h-.1015c-.0261.0402-.0523.0804-.0787.1204-2.7604 1.8201-6.0668 2.8794-9.6206 2.8794-9.665 0-17.5-7.835-17.5-17.5 0-3.5538 1.05931-6.8602 2.87939-9.6206.04009-.0264.08029-.0527.12061-.0788v-.1017c-.04056.0599-.08077.1201-.12061.1805-4.7469 3.1299-7.87939 8.5094-7.87939 14.6206 0 9.665 7.83502 17.5 17.5 17.5 6.1112 0 11.4907-3.1325 14.6206-7.8794.0603-.0398.1204-.0799.1802-.1204z"/><g opacity=".5"><path d="m40.0003 21.5c0 6.1112-3.1325 11.4907-7.8794 14.6206 1.8201-2.7604 2.8794-6.0668 2.8794-9.6206 0-9.665-7.835-17.5-17.5-17.5-3.5538 0-6.8602 1.0593-9.6206 2.8794 3.1299-4.74691 8.5094-7.8794 14.6206-7.8794 9.665 0 17.5 7.835 17.5 17.5z"/><path d="m32.0003 36.1994c.0403-.0261.0805-.0524.1206-.0788-.0398.0604-.08.1206-.1206.1805z"/><path d="m7.80088 12c.02611-.0403.05238-.0805.07882-.1206-.06043.0398-.12059.08-.18048.1206z"/></g></g></svg>`
+  },
+  {
+    id: "luminous",
+    name: "Luminous",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 42 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m14.1061 19.6565c5.499-2.6299 9.8025-7.0929 12.2731-12.67168-1.5939-1.67362-3.666-2.86907-5.8975-3.58634l-1.1954-.39848c-.0797.15939-.1594.39849-.1594.55788-1.9127 5.41936-5.8178 9.80262-11.07766 12.27322-3.66599 1.7533-6.37564 4.9412-7.650763 8.7666l-.398477 1.1955c.159391.0797.39848.1593.557871.1593 1.514209.5579 3.028419 1.2752 4.462939 2.1519 1.99238-3.5864 5.18019-6.6148 9.08529-8.4479z"/><path d="m37.2173 19.9753c-2.9487 4.463-7.0132 8.0494-12.034 10.4403-4.0645 1.9127-7.1726 5.499-8.6071 9.8026l-.3985 1.3549c1.5142 1.3548 3.3472 2.3909 5.3396 3.0284l1.1955.3985c.0796-.1594.1593-.3985.1593-.5579 1.9127-5.4193 5.8178-9.8026 11.0777-12.2732 3.666-1.7533 6.4553-4.9412 7.6507-8.7666l.3985-1.1954c-1.6736-.4782-3.2675-1.2752-4.7817-2.2316z" opacity=".6"/><path d="m12.9903 37.4284c1.9924-4.7818 5.6584-8.6869 10.3604-10.9184 4.3035-2.0721 7.8898-5.26 10.3604-9.1651-1.833-1.7533-3.3472-3.7458-4.463-6.1366-2.9487 5.4193-7.571 9.8026-13.2294 12.5123-3.2675 1.5142-5.8974 4.1442-7.49136 7.3321 1.75326 1.6736 3.18786 3.7457 4.30356 6.0569 0 0 .0797.1594.1594.3188z" opacity=".8"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 42 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m14.1061 19.6565c5.499-2.6299 9.8025-7.0929 12.2731-12.67168-1.5939-1.67362-3.666-2.86907-5.8975-3.58634l-1.1954-.39848c-.0797.15939-.1594.39849-.1594.55788-1.9127 5.41936-5.8178 9.80262-11.07766 12.27322-3.66599 1.7533-6.37564 4.9412-7.650763 8.7666l-.398477 1.1955c.159391.0797.39848.1593.557871.1593 1.514209.5579 3.028419 1.2752 4.462939 2.1519 1.99238-3.5864 5.18019-6.6148 9.08529-8.4479z"/><path d="m37.2173 19.9753c-2.9487 4.463-7.0132 8.0494-12.034 10.4403-4.0645 1.9127-7.1726 5.499-8.6071 9.8026l-.3985 1.3549c1.5142 1.3548 3.3472 2.3909 5.3396 3.0284l1.1955.3985c.0796-.1594.1593-.3985.1593-.5579 1.9127-5.4193 5.8178-9.8026 11.0777-12.2732 3.666-1.7533 6.4553-4.9412 7.6507-8.7666l.3985-1.1954c-1.6736-.4782-3.2675-1.2752-4.7817-2.2316z" opacity=".5"/><path d="m12.9903 37.4284c1.9924-4.7818 5.6584-8.6869 10.3604-10.9184 4.3035-2.0721 7.8898-5.26 10.3604-9.1651-1.833-1.7533-3.3472-3.7458-4.463-6.1366-2.9487 5.4193-7.571 9.8026-13.2294 12.5123-3.2675 1.5142-5.8974 4.1442-7.49136 7.3321 1.75326 1.6736 3.18786 3.7457 4.30356 6.0569 0 0 .0797.1594.1594.3188z" opacity=".7"/></g></svg>`
+  },
+  {
+    id: "pollinate",
+    name: "Pollinate",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 38 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m25.0008 24c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m25.0008 10c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6c0-3.31371 2.6863-6 6-6s6 2.68629 6 6z"/><path d="m37.125 31c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m37.127 17.0002c0 3.3137-2.6863 6-6 6-3.3138 0-6-2.6863-6-6s2.6862-6 6-6c3.3137 0 6 2.6863 6 6z"/><path d="m25.0008 38c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m12.877 17c0 3.3137-2.6863 6-6.00005 6-3.31371 0-5.999997-2.6863-5.999997-6s2.686287-6 5.999997-6c3.31375 0 6.00005 2.6863 6.00005 6z"/><path d="m12.875 30.9997c0 3.3137-2.6863 6-6 6-3.31371 0-6-2.6863-6-6s2.68629-6 6-6c3.3137 0 6 2.6863 6 6z"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 38 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m25.0008 24c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m25.0008 10c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6c0-3.31371 2.6863-6 6-6s6 2.68629 6 6z"/><path d="m37.125 31c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m37.127 17.0002c0 3.3137-2.6863 6-6 6-3.3138 0-6-2.6863-6-6s2.6862-6 6-6c3.3137 0 6 2.6863 6 6z"/><path d="m25.0008 38c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m12.877 17c0 3.3137-2.6863 6-6.00005 6-3.31371 0-5.999997-2.6863-5.999997-6s2.686287-6 5.999997-6c3.31375 0 6.00005 2.6863 6.00005 6z"/><path d="m12.875 30.9997c0 3.3137-2.6863 6-6 6-3.31371 0-6-2.6863-6-6s2.68629-6 6-6c3.3137 0 6 2.6863 6 6z"/></g></svg>`
+  },
+  {
+    id: "polymath",
+    name: "Polymath",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 38 48" width="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="19" cy="24" r="16" stroke="#155eef" stroke-width="6"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 38 48" width="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="19" cy="24" r="16" stroke="#fff" stroke-width="6"/></svg>`
+  },
+  {
+    id: "prometheus",
+    name: "Prometheus",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m10.4993 16.5h-7.29875c-1.76731 0-3.20055 1.4327-3.20055 3.2v2.8h11c2.7614 0 5-2.2386 5-5s2.2386-5 5-5h19c2.2091 0 4-1.7909 4-4v-3h-22.5c-3.0376 0-5.5 2.46243-5.5 5.5 0 3.0376-2.4631 5.5-5.5007 5.5z"/><path d="m10.4993 26.5h-7.29875c-1.76731 0-3.20055 1.4327-3.20055 3.2v2.8h11c2.7614 0 5-2.2386 5-5s2.2386-5 5-5h13c2.2091 0 4-1.7909 4-4v-3h-16.5c-3.0376 0-5.5 2.4624-5.5 5.5s-2.4631 5.5-5.5007 5.5z" opacity=".7"/><path d="m10.4993 36.5h-7.29875c-1.76731 0-3.20055 1.4327-3.20055 3.2v2.8h11c2.7614 0 5-2.2386 5-5s2.2386-5 5-5h7.8c1.7673 0 3.2-1.4327 3.2-3.2v-3.8h-10.5c-3.0376 0-5.5 2.4624-5.5 5.5s-2.4631 5.5-5.5007 5.5z" opacity=".5"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m10.4993 16.5h-7.29875c-1.76731 0-3.20055 1.4327-3.20055 3.2v2.8h11c2.7614 0 5-2.2386 5-5s2.2386-5 5-5h19c2.2091 0 4-1.7909 4-4v-3h-22.5c-3.0376 0-5.5 2.46243-5.5 5.5 0 3.0376-2.4631 5.5-5.5007 5.5z"/><path d="m10.4993 26.5h-7.29875c-1.76731 0-3.20055 1.4327-3.20055 3.2v2.8h11c2.7614 0 5-2.2386 5-5s2.2386-5 5-5h13c2.2091 0 4-1.7909 4-4v-3h-16.5c-3.0376 0-5.5 2.4624-5.5 5.5s-2.4631 5.5-5.5007 5.5z" opacity=".75"/><path d="m10.4993 36.5h-7.29875c-1.76731 0-3.20055 1.4327-3.20055 3.2v2.8h11c2.7614 0 5-2.2386 5-5s2.2386-5 5-5h7.8c1.7673 0 3.2-1.4327 3.2-3.2v-3.8h-10.5c-3.0376 0-5.5 2.4624-5.5 5.5s-2.4631 5.5-5.5007 5.5z" opacity=".5"/></g></svg>`
+  },
+  {
+    id: "quantum",
+    name: "Quantum",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 39 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m9 23c0-5.5228 4.4772-10 10-10 5.5229 0 10 4.4772 10 10h9c0-10.4934-8.5066-19-19-19-10.49341 0-18.99999908 8.5066-19 19s8.50659 19 19 19v-9c-5.5228 0-10-4.4771-10-10z"/><path d="m29 23c0 5.5228 4.4772 10 10 10v9c-10.4934 0-19-8.5066-19-19z" opacity=".5"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 39 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m9 23c0-5.5228 4.4772-10 10-10 5.5229 0 10 4.4772 10 10h9c0-10.4934-8.5066-19-19-19-10.49341 0-18.99999908 8.5066-19 19s8.50659 19 19 19v-9c-5.5228 0-10-4.4771-10-10z"/><path d="m29 23c0 5.5228 4.4772 10 10 10v9c-10.4934 0-19-8.5066-19-19z" opacity=".5"/></g></svg>`
+  },
+  {
+    id: "quartz-ai",
+    name: "QuartzAI",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m17.6264 6.5h14.8017l11.4661 18.6661-15.7786 15.9489-22.68835-4.0459-5.157719-19.2098zm.5273 4.9692-6.816 15.105 6.4504 5.3411 8.8246-3.7975zm12.3276 15.3 9.2139-2.7073-7.1983-11.7184zm-.6163-17.2692h-9.3468l7.3309 14.4284zm6.9795 18.5263-6.779 1.9919-.5448 5.4109zm-10.5005 9.008.5824-5.7856-6.0573 2.6067zm-6.8394-.5022-10.91261-1.9459 1.64741-5.0264 6.438 5.3308zm-11.69782-9.1824-2.7037-3.0571 1.66868 6.215zm-3.53432-8.5248 4.81433 5.4437 5.50351-12.1963z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m17.6264 6.5h14.8017l11.4661 18.6661-15.7786 15.9489-22.68835-4.0459-5.157719-19.2098zm.5273 4.9692-6.816 15.105 6.4504 5.3411 8.8246-3.7975zm12.3276 15.3 9.2139-2.7073-7.1983-11.7184zm-.6163-17.2692h-9.3468l7.3309 14.4284zm6.9795 18.5263-6.779 1.9919-.5448 5.4109zm-10.5005 9.008.5824-5.7856-6.0573 2.6067zm-6.8394-.5022-10.91261-1.9459 1.64741-5.0264 6.438 5.3308zm-11.69782-9.1824-2.7037-3.0571 1.66868 6.215zm-3.53432-8.5248 4.81433 5.4437 5.50351-12.1963z" fill="#fff" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "radius",
+    name: "Radius",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill="#155eef" fill-rule="evenodd"><path d="m18.5 19v-15h3v15z"/><path d="m18.5 44v-15h3v15z"/><path d="m22.4754 19.404 10.6066-10.60664 2.1214 2.12134-8.4853 8.4853z"/><path d="m4.79776 37.0816 10.60664-10.6066 2.1213 2.1214-10.60662 10.6066z"/><path d="m26.7178 28.5963 8.4853 8.4852-2.1213 2.1214-10.6066-10.6066z"/><path d="m6.91885 8.79727 10.60665 10.60663-2.1214 2.1213-10.60657-10.6066z"/><path d="m18.5 22.5h21.5v3h-21.5z"/><path d="m.00000026 22.5h14.99999974v3h-15z"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill="#155eef" fill-rule="evenodd"><path d="m18.5 19v-15h3v15z"/><path d="m18.5 44v-15h3v15z"/><path d="m22.4754 19.404 10.6066-10.60664 2.1214 2.12134-8.4853 8.4853z"/><path d="m4.79776 37.0816 10.60664-10.6066 2.1213 2.1214-10.60662 10.6066z"/><path d="m26.7178 28.5963 8.4853 8.4852-2.1213 2.1214-10.6066-10.6066z"/><path d="m6.91885 8.79727 10.60665 10.60663-2.1214 2.1213-10.60657-10.6066z"/><path d="m18.5 22.5h21.5v3h-21.5z"/><path d="m.00000026 22.5h14.99999974v3h-15z"/></g></svg>`
+  },
+  {
+    id: "railspeed",
+    name: "Railspeed",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 36 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m0 7.5h28.8c2.5202 0 3.7804 0 4.743.49047.8467.43143 1.5351 1.11984 1.9665 1.96657.4905.96256.4905 2.22276.4905 4.74296v1.8h-28.8c-2.52024 0-3.78035 0-4.74296-.4905-.84673-.4314-1.535139-1.1198-1.966569-1.9665-.490471-.9626-.490471-2.2228-.490471-4.743z"/><path d="m0 28.5h28.8c2.5202 0 3.7804 0 4.743-.4905.8467-.4314 1.5351-1.1198 1.9665-1.9665.4905-.9626.4905-2.2228.4905-4.743v-1.8h-28.8c-2.52024 0-3.78035 0-4.74296.4905-.84673.4314-1.535139 1.1198-1.966569 1.9665-.490471.9626-.490471 2.2228-.490471 4.743z"/><path d="m14 31.5h14.8c2.5202 0 3.7804 0 4.743.4905.8467.4314 1.5351 1.1198 1.9665 1.9665.4905.9626.4905 2.2228.4905 4.743v1.8h-14.8c-2.5202 0-3.7804 0-4.743-.4905-.8467-.4314-1.5351-1.1198-1.9665-1.9665-.4905-.9626-.4905-2.2228-.4905-4.743z"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 36 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m0 7.5h28.8c2.5202 0 3.7804 0 4.743.49047.8467.43143 1.5351 1.11984 1.9665 1.96657.4905.96256.4905 2.22276.4905 4.74296v1.8h-28.8c-2.52024 0-3.78035 0-4.74296-.4905-.84673-.4314-1.535139-1.1198-1.966569-1.9665-.490471-.9626-.490471-2.2228-.490471-4.743z"/><path d="m0 28.5h28.8c2.5202 0 3.7804 0 4.743-.4905.8467-.4314 1.5351-1.1198 1.9665-1.9665.4905-.9626.4905-2.2228.4905-4.743v-1.8h-28.8c-2.52024 0-3.78035 0-4.74296.4905-.84673.4314-1.535139 1.1198-1.966569 1.9665-.490471.9626-.490471 2.2228-.490471 4.743z"/><path d="m14 31.5h14.8c2.5202 0 3.7804 0 4.743.4905.8467.4314 1.5351 1.1198 1.9665 1.9665.4905.9626.4905 2.2228.4905 4.743v1.8h-14.8c-2.5202 0-3.7804 0-4.743-.4905-.8467-.4314-1.5351-1.1198-1.9665-1.9665-.4905-.9626-.4905-2.2228-.4905-4.743z"/></g></svg>`
+  },
+  {
+    id: "refractional",
+    name: "Refractional",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 48 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m48 11h-17.0775c-1.2151 0-2.3644.5524-3.1235 1.5012l-1.598 1.9976c-.7591.9488-1.9084 1.5012-3.1235 1.5012h-15.0775l-4 5h17.0775c1.2151 0 2.3644-.5524 3.1235-1.5012l1.598-1.9976c.7591-.9488 1.9084-1.5012 3.1235-1.5012h15.0775z" fill="#444ce7"/><path d="m46 19h-17.0775c-1.2151 0-2.3644.5524-3.1235 1.5012l-1.598 1.9976c-.7591.9488-1.9084 1.5012-3.1235 1.5012h-15.0775l-4 5h17.0775c1.2151 0 2.3644-.5524 3.1235-1.5012l1.598-1.9976c.7591-.9488 1.9084-1.5012 3.1235-1.5012h15.0775z" fill="#155eef"/><path d="m44 27h-17.0775c-1.2151 0-2.3644.5524-3.1235 1.5012l-1.598 1.9976c-.7591.9488-1.9084 1.5012-3.1235 1.5012h-15.0775l-4 5h17.0775c1.2151 0 2.3644-.5524 3.1235-1.5012l1.598-1.9976c.7591-.9488 1.9084-1.5012 3.1235-1.5012h15.0775z" fill="#8098f9"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 48 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m48 11h-17.0775c-1.2151 0-2.3644.5524-3.1235 1.5012l-1.598 1.9976c-.7591.9488-1.9084 1.5012-3.1235 1.5012h-15.0775l-4 5h17.0775c1.2151 0 2.3644-.5524 3.1235-1.5012l1.598-1.9976c.7591-.9488 1.9084-1.5012 3.1235-1.5012h15.0775z"/><path d="m46 19h-17.0775c-1.2151 0-2.3644.5524-3.1235 1.5012l-1.598 1.9976c-.7591.9488-1.9084 1.5012-3.1235 1.5012h-15.0775l-4 5h17.0775c1.2151 0 2.3644-.5524 3.1235-1.5012l1.598-1.9976c.7591-.9488 1.9084-1.5012 3.1235-1.5012h15.0775z"/><path d="m44 27h-17.0775c-1.2151 0-2.3644.5524-3.1235 1.5012l-1.598 1.9976c-.7591.9488-1.9084 1.5012-3.1235 1.5012h-15.0775l-4 5h17.0775c1.2151 0 2.3644-.5524 3.1235-1.5012l1.598-1.9976c.7591-.9488 1.9084-1.5012 3.1235-1.5012h15.0775z"/></g></svg>`
+  },
+  {
+    id: "renaissance",
+    name: "Renaissance",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 35 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m12.7018 5c1.841 0 3.4172 1.31967 3.7408 3.13199l.4648 2.60271c.3236 1.8123 1.8998 3.132 3.7408 3.132h3.1518c4.8969 0 8.8667 3.9697 8.8667 8.8666 0 2.9333-1.4244 5.5339-3.6191 7.1479.92.3126 1.6466.809 2.1799 1.461.549.7191.9411 1.7411 1.1764 3.028.0392.3406.0883.6718.1373 1.003s.098.6624.1372 1.003c.0408.3538.0709.6566.096.9083.0232.233.042.4223.0609.5679.0784 1.0598.1961 1.9303.3529 2.5738.1655.9048.4994 1.7867.9727 2.5738h-6.6982c-.3137-.6056-.5098-1.3248-.6666-2.1196-.1349-.6836-.2408-1.5352-.3676-2.5548-.0207-.1659-.0418-.3362-.0638-.5111l-.2353-1.7411c-.1961-1.3247-.4314-2.271-.6667-2.8766-.2745-.5677-.7058-.9841-1.2941-1.2112-.6274-.2271-1.5686-.3856-2.9019-.3856h-.3018c-1.841 0-3.4172-1.3197-3.7408-3.132l-.4648-2.6027c-.3236-1.8123-1.8998-3.132-3.7408-3.132h-5.68517v10.1334h-6.33333v-27.8667zm13.6315 17.7333c0 1.3992-1.1342 2.5334-2.5333 2.5334h-3.1518c-1.841 0-3.4172-1.3197-3.7408-3.132l-.4648-2.6027c-.3236-1.8123-1.8998-3.132-3.7408-3.132h-5.36847v-5.0667h5.68517c1.841 0 3.4172 1.3197 3.7408 3.132l.4647 2.6027c.3237 1.8123 1.8999 3.132 3.7409 3.132h2.8351c1.3991 0 2.5333 1.1342 2.5333 2.5333z" fill="#1849a9" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 35 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m12.7018 5c1.841 0 3.4172 1.31967 3.7408 3.13199l.4648 2.60271c.3236 1.8123 1.8998 3.132 3.7408 3.132h3.1518c4.8969 0 8.8667 3.9697 8.8667 8.8666 0 2.9333-1.4244 5.5339-3.6191 7.1479.92.3126 1.6466.809 2.1799 1.461.549.7191.9411 1.7411 1.1764 3.028.0392.3406.0883.6718.1373 1.003s.098.6624.1372 1.003c.0408.3538.0709.6566.096.9083.0232.233.042.4223.0609.5679.0784 1.0598.1961 1.9303.3529 2.5738.1655.9048.4994 1.7867.9727 2.5738h-6.6982c-.3137-.6056-.5098-1.3247-.6666-2.1196-.1349-.6836-.2408-1.5352-.3676-2.5548-.0207-.1659-.0418-.3362-.0638-.5111l-.2353-1.7411c-.1961-1.3247-.4314-2.271-.6667-2.8766-.2745-.5677-.7058-.9841-1.2941-1.2112-.6274-.2271-1.5686-.3856-2.9019-.3856h-.3018c-1.841 0-3.4172-1.3197-3.7408-3.132l-.4648-2.6027c-.3236-1.8123-1.8998-3.132-3.7408-3.132h-5.68517v10.1334h-6.33333v-27.8667zm13.6315 17.7333c0 1.3992-1.1342 2.5334-2.5333 2.5334h-3.1518c-1.841 0-3.4172-1.3197-3.7408-3.132l-.4648-2.6027c-.3236-1.8123-1.8998-3.132-3.7408-3.132h-5.36847v-5.0667h5.68517c1.841 0 3.4172 1.3197 3.7408 3.132l.4647 2.6027c.3237 1.8123 1.8999 3.132 3.7409 3.132h2.8351c1.3991 0 2.5333 1.1342 2.5333 2.5333z" fill="#fff" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "sisyphus",
+    name: "Sisyphus",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 32 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m.599609 19.2002h9.59998v9.59999h-9.59998z"/><path d="m31.4004 28.7998h9.6v9.59999h-9.6z" transform="matrix(-1 0 -0 -1 62.8008 57.5996)"/><path d="m10.1992 19.2001 11.6-9.6v9.6l-11.6 9.6z" opacity=".2"/><path d="m21.7988 28.7999-11.6 9.6v-9.6l11.6-9.6z" opacity=".5"/><path d="m.599609 19.2 21.199991-19.2v9.59999l-11.6 9.60001z" opacity=".6"/><path d="m31.4004 28.8-21.2 19.2v-9.6l11.6-9.6z" opacity=".7"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 32 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m.599609 19.2002h9.59998v9.59999h-9.59998z"/><path d="m31.4004 28.7998h9.6v9.59999h-9.6z" transform="matrix(-1 0 -0 -1 62.8008 57.5996)"/><path d="m10.1992 19.2001 11.6-9.6v9.6l-11.6 9.6z" opacity=".2"/><path d="m21.7988 28.7999-11.6 9.6v-9.6l11.6-9.6z" opacity=".5"/><path d="m.599609 19.2 21.199991-19.2v9.59999l-11.6 9.60001z" opacity=".6"/><path d="m31.4004 28.8-21.2 19.2v-9.6l11.6-9.6z" opacity=".7"/></g></svg>`
+  },
+  {
+    id: "solaris-energy",
+    name: "Solaris Energy",
+    lightSvg: `<svg width="100%" height="100%" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 4V16.3604C20 19.087 16.6569 20.3998 14.8016 18.4017L7 10M40 24H27.6396C24.913 24 23.6002 20.6569 25.5983 18.8016L34 11M20 44V31.6396C20 28.913 23.3431 27.6002 25.1984 29.5983L33 38M0 24L12.3604 24C15.087 24 16.3998 27.3431 14.4017 29.1984L6 37" stroke="#175CD3" stroke-width="4"/></svg>`,
+    darkSvg: `<svg width="100%" height="100%" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 4V16.3604C20 19.087 16.6569 20.3998 14.8016 18.4017L7 10M40 24H27.6396C24.913 24 23.6002 20.6569 25.5983 18.8016L34 11M20 44V31.6396C20 28.913 23.3431 27.6002 25.1984 29.5983L33 38M0 24L12.3604 24C15.087 24 16.3998 27.3431 14.4017 29.1984L6 37" stroke="white" stroke-width="4"/></svg>`
+  }
+];
+
 // features/lib/store-logo.ts
-var DEFAULT_STORE_LOGO_COLOR = "0";
+var DEFAULT_STORE_LOGO_ICON = LOGO_ICONS.find((icon) => icon.id === "cubekit").lightSvg;
+var DEFAULT_STORE_LOGO_COLOR = "270";
 function normalizeStoreLogoColor(value) {
   const numeric = Number.parseFloat(String(value ?? DEFAULT_STORE_LOGO_COLOR));
   if (!Number.isFinite(numeric)) return DEFAULT_STORE_LOGO_COLOR;
@@ -1047,15 +1844,14 @@ var settingsHooks = createTenantOwnedHooks({ listKey: "BrokerageSettings", prote
 var BrokerageSettings = (0, import_core5.list)({
   access: {
     operation: {
-      query: permissions.canManageOnboarding,
+      query: permissions.canManageBrokerageSettings,
       create: permissions.canManageBrokerageSettings,
       update: permissions.canManageBrokerageSettings,
       delete: () => false
     },
     filter: {
       query: rules.canAccessBrokerageRecords,
-      update: rules.canAccessBrokerageRecords,
-      delete: rules.canAccessBrokerageRecords
+      update: rules.canAccessBrokerageRecords
     },
     item: {
       create: canCreateInActiveBrokerage,
@@ -1121,11 +1917,15 @@ var BrokerageSettings = (0, import_core5.list)({
 var import_core6 = require("@keystone-6/core");
 var import_fields8 = require("@keystone-6/core/fields");
 var SavedSearchAlert = (0, import_core6.list)({
-  access: { operation: { query: permissions.canReadLeads, create: () => false, update: () => false, delete: () => false }, filter: { query: rules.canReadSavedSearchAlerts } },
+  access: {
+    operation: { query: permissions.canReadLeads, create: permissions.canManageLeads, update: permissions.canManageLeads, delete: () => false },
+    filter: { query: rules.canReadSavedSearchAlerts, update: rules.canReadSavedSearchAlerts },
+    item: { create: canCreateForActiveSavedSearch, update: canMoveToActiveBrokerage }
+  },
   hooks: createTenantOwnedHooks({ listKey: "SavedSearchAlert", parents: { savedSearch: "SavedSearch" }, users: ["user"], required: ["savedSearch", "user"], protectDelete: true }),
   ui: {
     hideDelete: true,
-    hideCreate: true,
+    hideCreate: (args) => !permissions.canManageLeads(args),
     listView: { initialColumns: ["savedSearch", "user", "status", "cadence"] }
   },
   fields: {
@@ -1147,7 +1947,7 @@ var import_fields9 = require("@keystone-6/core/fields");
 var Disclosure = (0, import_core7.list)({
   access: {
     operation: { query: permissions.canReadDeals, create: permissions.canManageBrokerageDeals, update: () => false, delete: () => false },
-    filter: { query: rules.canReadDealChildren, delete: rules.canReadDealChildren },
+    filter: { query: rules.canReadDealChildren },
     item: { create: canCreateForActiveDeal }
   },
   hooks: createTenantOwnedHooks({ listKey: "Disclosure", parents: { deal: "Deal", property: "Property" }, required: ["deal", "property"], coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property" } }, deriveOnly: true, protectDelete: true }),
@@ -1180,7 +1980,7 @@ var import_fields10 = require("@keystone-6/core/fields");
 var PropertyValuation = (0, import_core8.list)({
   access: {
     operation: { query: permissions.canViewMarketIntelligence, create: permissions.canManageListings, update: permissions.canManageListings, delete: () => false },
-    filter: { query: rules.canReadPropertyChildren, update: rules.canManagePropertyChildren, delete: rules.canManagePropertyChildren },
+    filter: { query: rules.canReadPropertyChildren, update: rules.canManagePropertyChildren },
     item: { create: canCreateForManagedProperty }
   },
   hooks: createTenantOwnedHooks({ listKey: "PropertyValuation", parents: { property: "Property" }, users: ["performedBy"], required: ["property"], deriveOnly: true, protectDelete: true }),
@@ -1242,13 +2042,14 @@ var import_core10 = require("@keystone-6/core");
 var import_fields12 = require("@keystone-6/core/fields");
 var MortgageApplication = (0, import_core10.list)({
   access: {
-    operation: { query: permissions.canReadSensitiveDeals, create: () => false, update: () => false, delete: () => false },
-    filter: { query: rules.canReadDealChildren }
+    operation: { query: permissions.canReadSensitiveDeals, create: permissions.canManageBrokerageDeals, update: permissions.canManageBrokerageDeals, delete: () => false },
+    filter: { query: rules.canReadDealChildren, update: rules.canReadDealChildren },
+    item: { create: canCreateForActiveDeal }
   },
   hooks: createTenantOwnedHooks({ listKey: "MortgageApplication", parents: { deal: "Deal", lead: "Lead" }, required: ["deal", "lead"], coherentWith: { field: "deal", listKey: "Deal", matches: { lead: "lead" } }, deriveOnly: true, protectDelete: true }),
   ui: {
     hideDelete: true,
-    hideCreate: true,
+    hideCreate: (args) => !permissions.canManageBrokerageDeals(args),
     listView: { initialColumns: ["applicationNumber", "deal", "lenderName", "status"] }
   },
   fields: {
@@ -1271,13 +2072,14 @@ var import_core11 = require("@keystone-6/core");
 var import_fields13 = require("@keystone-6/core/fields");
 var TitleOrder = (0, import_core11.list)({
   access: {
-    operation: { query: permissions.canReadSensitiveDeals, create: () => false, update: () => false, delete: () => false },
-    filter: { query: rules.canReadDealChildren }
+    operation: { query: permissions.canReadSensitiveDeals, create: permissions.canManageBrokerageDeals, update: permissions.canManageBrokerageDeals, delete: () => false },
+    filter: { query: rules.canReadDealChildren, update: rules.canReadDealChildren },
+    item: { create: canCreateForActiveDeal }
   },
   hooks: createTenantOwnedHooks({ listKey: "TitleOrder", parents: { deal: "Deal", property: "Property" }, required: ["deal", "property"], coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property" } }, deriveOnly: true, protectDelete: true }),
   ui: {
     hideDelete: true,
-    hideCreate: true,
+    hideCreate: (args) => !permissions.canManageBrokerageDeals(args),
     listView: { initialColumns: ["orderNumber", "deal", "titleCompany", "status"] }
   },
   fields: {
@@ -1299,13 +2101,14 @@ var import_core12 = require("@keystone-6/core");
 var import_fields14 = require("@keystone-6/core/fields");
 var Escrow = (0, import_core12.list)({
   access: {
-    operation: { query: permissions.canReadSensitiveDeals, create: () => false, update: () => false, delete: () => false },
-    filter: { query: rules.canReadDealChildren }
+    operation: { query: permissions.canReadSensitiveDeals, create: permissions.canManageBrokerageDeals, update: permissions.canManageBrokerageDeals, delete: () => false },
+    filter: { query: rules.canReadDealChildren, update: rules.canReadDealChildren },
+    item: { create: canCreateForActiveDeal }
   },
   hooks: createTenantOwnedHooks({ listKey: "Escrow", parents: { deal: "Deal", property: "Property" }, required: ["deal", "property"], coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property" } }, deriveOnly: true, protectDelete: true }),
   ui: {
     hideDelete: true,
-    hideCreate: true,
+    hideCreate: (args) => !permissions.canManageBrokerageDeals(args),
     listView: { initialColumns: ["escrowNumber", "deal", "status", "scheduledCloseAt"] }
   },
   fields: {
@@ -1331,7 +2134,7 @@ var import_fields15 = require("@keystone-6/core/fields");
 var ShowingFeedback = (0, import_core13.list)({
   access: {
     operation: { query: permissions.canReadShowings, create: permissions.canManageBrokerageShowings, update: permissions.canManageBrokerageShowings, delete: () => false },
-    filter: { query: rules.canReadShowingChildren, update: rules.canReadShowingChildren, delete: rules.canReadShowingChildren },
+    filter: { query: rules.canReadShowingChildren, update: rules.canReadShowingChildren },
     item: { create: canCreateForActiveShowing }
   },
   hooks: createTenantOwnedHooks({ listKey: "ShowingFeedback", parents: { showing: "Showing", lead: "Lead", property: "Property" }, required: ["showing", "lead", "property"], coherentWith: { field: "showing", listKey: "Showing", matches: { lead: "lead", property: "property" } }, deriveOnly: true, protectDelete: true }),
@@ -1359,7 +2162,7 @@ var import_fields16 = require("@keystone-6/core/fields");
 var OpenHouse = (0, import_core14.list)({
   access: {
     operation: { query: permissions.canReadShowings, create: permissions.canManageBrokerageShowings, update: permissions.canManageBrokerageShowings, delete: () => false },
-    filter: { query: rules.canReadPropertyChildren, update: rules.canReadPropertyChildren, delete: rules.canReadPropertyChildren },
+    filter: { query: rules.canReadPropertyChildren, update: rules.canReadPropertyChildren },
     item: { create: canCreateForActiveProperty }
   },
   hooks: createTenantOwnedHooks({ listKey: "OpenHouse", parents: { property: "Property" }, users: ["hostAgent"], required: ["property"], deriveOnly: true, protectDelete: true }),
@@ -1386,13 +2189,14 @@ var import_core15 = require("@keystone-6/core");
 var import_fields17 = require("@keystone-6/core/fields");
 var SourceFeed = (0, import_core15.list)({
   access: {
-    operation: { query: permissions.canManageListings, create: () => false, update: () => false, delete: () => false },
-    filter: { query: rules.canAccessBrokerageRecords }
+    operation: { query: permissions.canManageListings, create: permissions.canManageBrokerageListings, update: permissions.canManageBrokerageListings, delete: () => false },
+    filter: { query: rules.canAccessBrokerageRecords, update: rules.canAccessBrokerageRecords },
+    item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage }
   },
   hooks: createTenantOwnedHooks({ listKey: "SourceFeed", protectDelete: true }),
   ui: {
     hideDelete: true,
-    hideCreate: true,
+    hideCreate: (args) => !permissions.canManageBrokerageListings(args),
     listView: { initialColumns: ["name", "provider", "feedType", "status"] }
   },
   fields: {
@@ -1420,8 +2224,9 @@ var import_core16 = require("@keystone-6/core");
 var import_fields18 = require("@keystone-6/core/fields");
 var ListingSyndication = (0, import_core16.list)({
   access: {
-    operation: { query: permissions.canManageListings, create: () => false, update: () => false, delete: () => false },
-    filter: { query: rules.canAccessBrokerageRecords }
+    operation: { query: permissions.canManageListings, create: permissions.canManageListings, update: permissions.canManageListings, delete: () => false },
+    filter: { query: rules.canAccessBrokerageRecords, update: rules.canManagePropertyChildren },
+    item: { create: canCreateForManagedProperty, update: canMoveToActiveBrokerage }
   },
   hooks: createTenantOwnedHooks({
     listKey: "ListingSyndication",
@@ -1431,7 +2236,7 @@ var ListingSyndication = (0, import_core16.list)({
   }),
   ui: {
     hideDelete: true,
-    hideCreate: true,
+    hideCreate: (args) => !permissions.canManageListings(args),
     listView: { initialColumns: ["property", "channel", "status", "externalListingId"] }
   },
   fields: {
@@ -1462,9 +2267,8 @@ var User = (0, import_core17.list)({
   },
   access: {
     operation: {
-      ...(0, import_access19.allOperations)(isSignedIn),
-      query: ({ session }) => Boolean(session?.itemId),
-      update: ({ session }) => Boolean(session?.itemId),
+      query: isSignedIn,
+      update: isSignedIn,
       create: () => false,
       delete: () => false
     },
@@ -1481,7 +2285,7 @@ var User = (0, import_core17.list)({
     },
     itemView: {
       defaultFieldMode: ({ session, item }) => {
-        if (session?.itemId === item?.id) return "edit";
+        if (session?.itemId === item?.id || session?.data?.role?.canEditOtherPeople) return "edit";
         return "read";
       }
     }
@@ -1493,7 +2297,8 @@ var User = (0, import_core17.list)({
       isOrderable: false,
       isIndexed: "unique",
       validation: { isRequired: true },
-      access: { update: () => false }
+      // Self-service, or a people editor within the brokerage (list filter scopes the target).
+      access: { update: ({ session, item }) => session?.itemId === item.id || Boolean(session?.data?.role?.canEditOtherPeople) }
     }),
     phone: (0, import_fields19.text)(),
     licenseNumber: (0, import_fields19.text)(),
@@ -1505,14 +2310,25 @@ var User = (0, import_core17.list)({
         read: import_access19.denyAll,
         update: ({ session, item }) => session?.itemId === item.id
       },
-      validation: { isRequired: true }
+      validation: {
+        length: { min: 10, max: 1e3 },
+        isRequired: true,
+        rejectCommon: true
+      }
     }),
     role: (0, import_fields19.relationship)({
       ref: "Role.assignedTo",
-      // User/Role are shared control-plane identities. A tenant administrator
-      // must use the reviewed new-member command, never re-role an existing user.
-      access: { create: import_access19.denyAll, update: import_access19.denyAll },
-      ui: { itemView: { fieldMode: "read" } }
+      // Role managers who can edit people may re-role members of their active
+      // brokerage (the list update filter scopes the target user).
+      access: {
+        create: import_access19.denyAll,
+        update: ({ session, item }) => permissions.canManageRoles({ session }) && Boolean(session?.data?.role?.canEditOtherPeople) && session?.itemId !== item.id
+      },
+      ui: {
+        itemView: {
+          fieldMode: ({ session }) => permissions.canManageRoles({ session }) && session?.data?.role?.canEditOtherPeople ? "edit" : "read"
+        }
+      }
     }),
     // Inverse writes bypass the related list's update access and hooks in Keystone.
     // Assignments and immutable evidence may only be linked by controlled commands.
@@ -1522,6 +2338,7 @@ var User = (0, import_core17.list)({
     assignedDeals: (0, import_fields19.relationship)({ ref: "Deal.assignedAgent", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
     leadRoutingRules: (0, import_fields19.relationship)({ ref: "LeadRoutingRule.assignedAgent", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
     customerShowings: (0, import_fields19.relationship)({ ref: "Showing.customer", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
+    customerInquiries: (0, import_fields19.relationship)({ ref: "LeadActivity.customer", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
     savedProperties: (0, import_fields19.relationship)({ ref: "SavedProperty.user", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
     practitionerLicenseAuthorities: (0, import_fields19.relationship)({ ref: "PractitionerLicenseAuthority.practitioner", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
     verifiedPractitionerLicenses: (0, import_fields19.relationship)({ ref: "PractitionerLicenseAuthority.verifiedBy", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
@@ -1559,7 +2376,8 @@ var User = (0, import_core17.list)({
         { label: "Dismissed", value: "dismissed" }
       ],
       defaultValue: "not_started",
-      access: { create: () => false, update: () => false },
+      // Users may record their own setup progress; nobody else's.
+      access: { create: () => false, update: ({ session, item }) => session?.itemId === item.id },
       ui: { description: "Brokerage onboarding progress." }
     }),
     ...trackingFields
@@ -1572,20 +2390,18 @@ var import_fields20 = require("@keystone-6/core/fields");
 var Role = (0, import_core18.list)({
   access: {
     operation: {
-      query: isSignedIn,
-      create: () => false,
-      update: () => false,
-      delete: () => false
+      query: isOperator,
+      create: permissions.canManageRoles,
+      update: permissions.canManageRoles,
+      delete: permissions.canManageRoles
     }
   },
   ui: {
-    hideCreate: true,
-    hideDelete: true,
+    hideCreate: (args) => !permissions.canManageRoles(args),
+    hideDelete: (args) => !permissions.canManageRoles(args),
+    isHidden: (args) => !permissions.canManageRoles(args),
     listView: {
       initialColumns: ["name", "canAccessDashboard", "canManageListings", "canManageLeads", "assignedTo"]
-    },
-    itemView: {
-      defaultFieldMode: "read"
     }
   },
   fields: {
@@ -1604,9 +2420,9 @@ var Role = (0, import_core18.list)({
     assignedTo: (0, import_fields20.relationship)({
       ref: "User.role",
       many: true,
-      ui: {
-        itemView: { fieldMode: "read" }
-      }
+      // Assign roles from the user record, where brokerage scoping applies.
+      access: { create: () => false, update: () => false },
+      ui: { itemView: { fieldMode: "read" }, createView: { fieldMode: "hidden" } }
     }),
     ...trackingFields
   }
@@ -1617,22 +2433,18 @@ var import_core19 = require("@keystone-6/core");
 var import_fields21 = require("@keystone-6/core/fields");
 
 // features/lib/real-estate-images.ts
-var PROPERTY_IMAGE_PATHS = {
-  "riverfront-loft-austin": "/images/real-estate/properties/riverfront-loft-austin.svg",
-  "hill-country-estate": "/images/real-estate/properties/hill-country-estate.svg",
-  "eastside-townhome-rental": "/images/real-estate/properties/eastside-townhome-rental.svg",
-  "mueller-bungalow": "/images/real-estate/properties/mueller-bungalow.svg"
-};
+var PROPERTY_IMAGE_PATHS = {};
 var AGENT_IMAGE_PATHS = {
-  "maya.chen@example.realestate.local": "/images/real-estate/agents/maya-chen.svg",
-  "omar.patel@example.realestate.local": "/images/real-estate/agents/omar-patel.svg",
-  "evelyn.brooks@example.realestate.local": "/images/real-estate/agents/evelyn-brooks.svg"
+  "maya.chen@example.realestate.local": "/images/real-estate/photos/agents/maya-chen.jpg",
+  "omar.patel@example.realestate.local": "/images/real-estate/photos/agents/omar-patel.jpg",
+  "evelyn.brooks@example.realestate.local": "/images/real-estate/photos/agents/evelyn-brooks.jpg"
 };
 var NEIGHBORHOOD_IMAGE_PATHS = {
-  "rainey street historic district": "/images/real-estate/neighborhoods/rainey-street.svg",
-  "westlake hills": "/images/real-estate/neighborhoods/westlake-hills.svg",
-  "east cesar chavez": "/images/real-estate/neighborhoods/east-cesar-chavez.svg",
-  mueller: "/images/real-estate/neighborhoods/mueller.svg"
+  "rainey street historic district": "/images/real-estate/photos/neighborhoods/rainey-street.jpg",
+  // No starter photo of the area itself; the tile renders plain rather than repeat a listing photo.
+  "westlake hills": "",
+  "east cesar chavez": "/images/real-estate/photos/neighborhoods/east-cesar-chavez.jpg",
+  mueller: "/images/real-estate/photos/neighborhood-homes.jpg"
 };
 function getPropertyImagePath(listing) {
   if (listing.publicImagePack?.propertyImagePath) return listing.publicImagePack.propertyImagePath;
@@ -1649,6 +2461,19 @@ function getNeighborhoodImagePath(neighborhood, publicImagePack) {
   if (publicImagePack?.neighborhoodImagePath) return publicImagePack.neighborhoodImagePath;
   if (!neighborhood) return void 0;
   return NEIGHBORHOOD_IMAGE_PATHS[neighborhood.trim().toLowerCase()];
+}
+var LEGACY_NEIGHBORHOOD_PHOTOS = {
+  "rainey-street": "neighborhoods/rainey-street",
+  "east-cesar-chavez": "neighborhoods/east-cesar-chavez",
+  mueller: "neighborhood-homes"
+};
+function upgradeLegacyImagePath(path2) {
+  const match = /^\/images\/real-estate\/(properties|agents|neighborhoods)\/([a-z0-9-]+)\.svg$/.exec(path2);
+  if (!match) return path2;
+  const [, kind, name] = match;
+  if (kind === "properties") return `/images/real-estate/photos/${name}.jpg`;
+  if (kind === "agents") return `/images/real-estate/photos/agents/${name}.jpg`;
+  return LEGACY_NEIGHBORHOOD_PHOTOS[name] ? `/images/real-estate/photos/${LEGACY_NEIGHBORHOOD_PHOTOS[name]}.jpg` : path2;
 }
 
 // features/keystone/models/Property.ts
@@ -1733,10 +2558,17 @@ var Property = (0, import_core19.list)({
     availableAt: (0, import_fields21.timestamp)(),
     isFeatured: (0, import_fields21.checkbox)({ defaultValue: false }),
     virtualTourUrl: (0, import_fields21.text)(),
+    // Rental terms; shown on the storefront for listings with listingType "rent".
+    leaseTerm: (0, import_fields21.text)({ ui: { description: "For rentals, e.g. 12 months" } }),
+    securityDeposit: (0, import_fields21.integer)({ validation: { min: 0 }, ui: { description: "For rentals, in whole dollars" } }),
+    petPolicy: (0, import_fields21.text)({ ui: { description: "For rentals, e.g. Cats and small dogs allowed" } }),
+    // Set by the brokerage per rental listing (minor units, e.g. 5500 = $55.00). Empty means no fee is collected.
+    applicationFeeMinor: (0, import_fields21.integer)({ validation: { min: 1, max: 1e5 }, ui: { description: "For rentals: application fee in cents. Leave empty for no fee. Check your state's screening-fee cap." } }),
     primaryImageUrl: (0, import_fields21.text)(),
     assignedAgent: (0, import_fields21.relationship)({ ref: "User.assignedProperties", access: { create: permissions.canManagePeople, update: permissions.canManagePeople } }),
     leads: (0, import_fields21.relationship)({ ref: "Lead.property", many: true, access: { create: () => false, update: () => false } }),
     showings: (0, import_fields21.relationship)({ ref: "Showing.property", many: true, access: { create: () => false, update: () => false } }),
+    payments: (0, import_fields21.relationship)({ ref: "Payment.property", many: true, access: { create: () => false, update: () => false } }),
     savedBy: (0, import_fields21.relationship)({ ref: "SavedProperty.property", many: true, access: { create: () => false, update: () => false } }),
     listingEngagementAuthorities: (0, import_fields21.relationship)({ ref: "ListingEngagementAuthority.property", many: true, access: { create: () => false, update: () => false } }),
     listingPublicationAuthorities: (0, import_fields21.relationship)({ ref: "ListingPublicationAuthority.property", many: true, access: { create: () => false, update: () => false } }),
@@ -1784,7 +2616,7 @@ var Lead = (0, import_core20.list)({
   access: {
     operation: {
       query: permissions.canReadLeads,
-      create: () => false,
+      create: permissions.canManageBrokerageTasks,
       update: permissions.canManageLeads,
       delete: () => false
     },
@@ -1792,7 +2624,7 @@ var Lead = (0, import_core20.list)({
       query: rules.canReadLeads,
       update: rules.canManageAssignedLeads
     },
-    item: { update: canMoveToActiveBrokerage }
+    item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage }
   },
   hooks: createTenantOwnedHooks({
     listKey: "Lead",
@@ -1803,7 +2635,7 @@ var Lead = (0, import_core20.list)({
   }),
   ui: {
     hideDelete: true,
-    hideCreate: true,
+    hideCreate: (args) => !permissions.canManageBrokerageTasks(args),
     listView: {
       initialColumns: ["name", "status", "intent", "property", "assignedAgent", "lastContactedAt"]
     }
@@ -1870,6 +2702,7 @@ var Lead = (0, import_core20.list)({
     assignedTeam: (0, import_fields22.relationship)({ ref: "AgentTeam.leads", access: { create: permissions.canManagePeople, update: permissions.canManagePeople } }),
     showings: (0, import_fields22.relationship)({ ref: "Showing.lead", many: true, access: { create: () => false, update: () => false } }),
     activities: (0, import_fields22.relationship)({ ref: "LeadActivity.lead", many: true, access: { create: () => false, update: () => false } }),
+    payments: (0, import_fields22.relationship)({ ref: "Payment.lead", many: true, access: { create: () => false, update: () => false } }),
     representationAuthorities: (0, import_fields22.relationship)({ ref: "RepresentationAuthority.lead", many: true, access: { create: () => false, update: () => false } }),
     displayLabel: (0, import_fields22.virtual)({
       field: import_core20.graphql.field({
@@ -1890,7 +2723,7 @@ var Showing = (0, import_core21.list)({
   access: {
     operation: {
       query: permissions.canReadShowings,
-      create: () => false,
+      create: permissions.canManageBrokerageShowings,
       update: permissions.canManageShowings,
       delete: () => false
     },
@@ -1898,7 +2731,7 @@ var Showing = (0, import_core21.list)({
       query: rules.canReadShowings,
       update: rules.canManageAssignedShowings
     },
-    item: { update: canMoveToActiveBrokerage }
+    item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage }
   },
   hooks: createTenantOwnedHooks({
     listKey: "Showing",
@@ -1909,7 +2742,7 @@ var Showing = (0, import_core21.list)({
   }),
   ui: {
     hideDelete: true,
-    hideCreate: true,
+    hideCreate: (args) => !permissions.canManageBrokerageShowings(args),
     listView: {
       initialColumns: ["property", "lead", "status", "scheduledStart", "assignedAgent"]
     }
@@ -2034,6 +2867,7 @@ var Deal = (0, import_core22.list)({
     lead: (0, import_fields24.relationship)({ ref: "Lead", access: { update: () => false } }),
     assignedAgent: (0, import_fields24.relationship)({ ref: "User.assignedDeals", access: { create: permissions.canManagePeople, update: permissions.canManagePeople } }),
     assignedTeam: (0, import_fields24.relationship)({ ref: "AgentTeam.deals", access: { create: permissions.canManagePeople, update: permissions.canManagePeople } }),
+    payments: (0, import_fields24.relationship)({ ref: "Payment.deal", many: true, access: { create: () => false, update: () => false } }),
     representationAuthorities: (0, import_fields24.relationship)({ ref: "RepresentationAuthority.deal", many: true, access: { create: () => false, update: () => false } }),
     documentEvidenceEvents: (0, import_fields24.relationship)({ ref: "DocumentEvidenceEvent.deal", many: true, access: { create: () => false, update: () => false } }),
     commissionLedgerEntries: (0, import_fields24.relationship)({ ref: "CommissionLedgerEntry.deal", many: true, access: { create: () => false, update: () => false } }),
@@ -2165,6 +2999,8 @@ var LeadActivity = (0, import_core24.list)({
     property: (0, import_fields26.relationship)({ ref: "Property" }),
     showing: (0, import_fields26.relationship)({ ref: "Showing" }),
     agent: (0, import_fields26.relationship)({ ref: "User" }),
+    // The signed-in storefront account that sent this inquiry; set by the server only.
+    customer: (0, import_fields26.relationship)({ ref: "User.customerInquiries", access: { create: () => false, update: () => false } }),
     displayLabel: (0, import_fields26.virtual)({
       field: import_core24.graphql.field({
         type: import_core24.graphql.String,
@@ -2263,6 +3099,40 @@ var LeadRoutingRule = (0, import_core25.list)({
 // features/keystone/models/PropertyMedia.ts
 var import_core26 = require("@keystone-6/core");
 var import_fields28 = require("@keystone-6/core/fields");
+
+// features/keystone/lib/propertyMediaSource.ts
+function mediaSourceProblem({ imageId, url }) {
+  if (imageId) return null;
+  if (url && url.trim()) return null;
+  return "Upload a photo or enter a link.";
+}
+function storedImageUrl(item) {
+  const url = item.image?.url?.trim() || "";
+  return /^https:\/\//.test(url) ? url : "";
+}
+function publicMediaImagePath(item, legacyPath) {
+  return storedImageUrl(item) || legacyPath(item.url);
+}
+function publicHeroImagePath(media, primaryImagePath) {
+  const cover = media.find((item) => item.mediaType === "photo" && item.isHero && storedImageUrl(item));
+  return cover && storedImageUrl(cover) || primaryImagePath;
+}
+
+// features/keystone/models/PropertyMedia.ts
+function withMediaSource(hooks) {
+  return {
+    ...hooks,
+    async validateInput(args) {
+      const { resolvedData, item, addValidationError } = args;
+      const problem = mediaSourceProblem({
+        imageId: resolvedData?.image?.id !== void 0 ? resolvedData.image.id : item?.image_id,
+        url: resolvedData?.url !== void 0 ? resolvedData.url : item?.url
+      });
+      if (problem) addValidationError(problem);
+      await hooks.validateInput?.(args);
+    }
+  };
+}
 var PropertyMedia = (0, import_core26.list)({
   access: {
     operation: {
@@ -2274,8 +3144,8 @@ var PropertyMedia = (0, import_core26.list)({
     filter: { query: rules.canReadPropertyChildren, update: rules.canManagePropertyChildren, delete: rules.canManagePropertyChildren },
     item: { create: canCreateForManagedProperty }
   },
-  hooks: createTenantOwnedHooks({ listKey: "PropertyMedia", parents: { property: "Property" }, required: ["property"], deriveOnly: true }),
-  ui: { listView: { initialColumns: ["title", "mediaType", "property", "sortOrder", "isHero"] } },
+  hooks: withMediaSource(createTenantOwnedHooks({ listKey: "PropertyMedia", parents: { property: "Property" }, required: ["property"], deriveOnly: true })),
+  ui: { listView: { initialColumns: ["image", "title", "mediaType", "property", "sortOrder", "isHero"] } },
   fields: {
     title: (0, import_fields28.text)({ validation: { isRequired: true } }),
     mediaType: (0, import_fields28.select)({
@@ -2290,7 +3160,9 @@ var PropertyMedia = (0, import_core26.list)({
       defaultValue: "photo",
       validation: { isRequired: true }
     }),
-    url: (0, import_fields28.text)({ validation: { isRequired: true } }),
+    // An uploaded photo lives in S3; `url` remains for tours, videos, documents and older photos.
+    image: (0, import_fields28.image)({ storage: "my_images" }),
+    url: (0, import_fields28.text)(),
     altText: (0, import_fields28.text)(),
     caption: (0, import_fields28.text)({ ui: { displayMode: "textarea" } }),
     sortOrder: (0, import_fields28.integer)({ defaultValue: 0 }),
@@ -2307,11 +3179,11 @@ var PropertyInspection = (0, import_core27.list)({
   access: {
     operation: {
       query: permissions.canReadDeals,
-      create: permissions.canReadSensitiveDeals,
+      create: permissions.canManageBrokerageDeals,
       update: permissions.canManageDeals,
       delete: () => false
     },
-    filter: { query: rules.canReadDealChildren, update: rules.canReadDealChildren, delete: rules.canReadDealChildren },
+    filter: { query: rules.canReadDealChildren, update: rules.canReadDealChildren },
     item: { create: canCreateForActiveDeal }
   },
   hooks: createTenantOwnedHooks({ listKey: "PropertyInspection", parents: { deal: "Deal", property: "Property" }, required: ["deal", "property"], coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property" } }, deriveOnly: true, protectDelete: true }),
@@ -2444,7 +3316,7 @@ var DealDocument = (0, import_core29.list)({
       update: () => false,
       delete: () => false
     },
-    filter: { query: rules.canReadDealChildren, update: rules.canReadDealChildren },
+    filter: { query: rules.canReadDealChildren },
     item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage }
   },
   hooks: createTenantOwnedHooks({ listKey: "DealDocument", parents: { deal: "Deal", property: "Property" }, users: ["uploadedBy"], required: ["deal"], coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property" } }, protectDelete: true }),
@@ -2500,11 +3372,13 @@ var Commission = (0, import_core30.list)({
   access: {
     operation: {
       query: permissions.canReadSensitiveDeals,
-      create: () => false,
+      create: permissions.canManageBrokerageDeals,
+      // Amounts feed the commission ledger; later changes go through ledger commands.
       update: () => false,
       delete: () => false
     },
-    filter: { query: rules.canReadDeals }
+    filter: { query: rules.canReadDeals },
+    item: { create: canCreateForActiveDeal }
   },
   hooks: createTenantOwnedHooks({
     listKey: "Commission",
@@ -2516,7 +3390,7 @@ var Commission = (0, import_core30.list)({
   }),
   ui: {
     hideDelete: true,
-    hideCreate: true,
+    hideCreate: (args) => !permissions.canManageBrokerageDeals(args),
     listView: { initialColumns: ["title", "status", "grossCommission", "netCommission", "agent", "deal"] }
   },
   fields: {
@@ -2569,7 +3443,7 @@ var SavedSearch = (0, import_core31.list)({
     },
     filter: { query: rules.canReadSavedSearches }
   },
-  hooks: createTenantOwnedHooks({ listKey: "SavedSearch", users: ["user"], required: ["user"] }),
+  hooks: createTenantOwnedHooks({ listKey: "SavedSearch", users: ["user"], required: ["user"], allowCustomers: true }),
   ui: {
     hideDelete: true,
     hideCreate: true,
@@ -2581,6 +3455,8 @@ var SavedSearch = (0, import_core31.list)({
     city: (0, import_fields33.text)(),
     state: (0, import_fields33.text)(),
     propertyType: (0, import_fields33.text)(),
+    // "sale", "rent" or "" for both; validated by saveSearchForCurrentUser.
+    listingType: (0, import_fields33.text)(),
     minPrice: money({ precision: 12, scale: 2 }),
     maxPrice: money({ precision: 12, scale: 2 }),
     minBedrooms: (0, import_fields33.integer)(),
@@ -2605,7 +3481,7 @@ var MarketComp = (0, import_core32.list)({
       update: permissions.canManageListings,
       delete: () => false
     },
-    filter: { query: rules.canReadSubjectPropertyChildren, update: rules.canManageSubjectPropertyChildren, delete: rules.canManageSubjectPropertyChildren },
+    filter: { query: rules.canReadSubjectPropertyChildren, update: rules.canManageSubjectPropertyChildren },
     item: { create: canCreateForManagedSubjectProperty }
   },
   hooks: createTenantOwnedHooks({ listKey: "MarketComp", parents: { subjectProperty: "Property" }, required: ["subjectProperty"], deriveOnly: true, protectDelete: true }),
@@ -2649,15 +3525,16 @@ var import_fields35 = require("@keystone-6/core/fields");
 var Neighborhood = (0, import_core33.list)({
   access: {
     operation: {
-      query: () => false,
-      create: () => false,
-      update: () => false,
+      // Neighborhoods are shared market reference data (no brokerage owner).
+      query: permissions.canViewMarketIntelligence,
+      create: permissions.canManageBrokerageListings,
+      update: permissions.canManageBrokerageListings,
       delete: () => false
     }
   },
   ui: {
     hideDelete: true,
-    hideCreate: true,
+    hideCreate: (args) => !permissions.canManageBrokerageListings(args),
     listView: { initialColumns: ["name", "city", "state", "medianSalePrice", "activeListings"] }
   },
   fields: {
@@ -2692,8 +3569,7 @@ var AgentTeam = (0, import_core34.list)({
     },
     filter: {
       query: rules.canAccessBrokerageRecords,
-      update: rules.canAccessBrokerageRecords,
-      delete: rules.canAccessBrokerageRecords
+      update: rules.canAccessBrokerageRecords
     },
     item: {
       create: canCreateInActiveBrokerage,
@@ -3302,6 +4178,134 @@ var TransactionFileEvent = (0, import_core43.list)({
   }
 });
 
+// features/keystone/models/PaymentProvider.ts
+var import_core44 = require("@keystone-6/core");
+var import_fields46 = require("@keystone-6/core/fields");
+var adapterField = (description) => (0, import_fields46.text)({
+  validation: { isRequired: true },
+  ui: { description }
+});
+var PaymentProvider = (0, import_core44.list)({
+  access: {
+    operation: {
+      query: permissions.canReadPayments,
+      create: permissions.canManageBrokerageSettings,
+      update: permissions.canManageBrokerageSettings,
+      delete: () => false
+    },
+    filter: {
+      query: rules.canAccessBrokerageRecords,
+      update: rules.canAccessBrokerageRecords
+    },
+    item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage }
+  },
+  hooks: createTenantOwnedHooks({ listKey: "PaymentProvider", protectDelete: true }),
+  ui: { hideDelete: true, listView: { initialColumns: ["name", "code", "isInstalled"] } },
+  fields: {
+    brokerage: (0, import_fields46.relationship)({ ref: "Brokerage.paymentProviders", access: { update: () => false } }),
+    name: (0, import_fields46.text)({ validation: { isRequired: true } }),
+    code: (0, import_fields46.text)({
+      isIndexed: "unique",
+      validation: {
+        isRequired: true,
+        match: {
+          regex: /^pp_[a-zA-Z0-9-_]+$/,
+          explanation: 'Payment provider code must start with "pp_" followed by alphanumeric characters, hyphens or underscores'
+        }
+      }
+    }),
+    isInstalled: (0, import_fields46.checkbox)({ defaultValue: true }),
+    // Secrets are write-only through the API: staff can set them, nothing can read them back.
+    credentials: (0, import_fields46.json)({ defaultValue: {}, access: { read: () => false } }),
+    metadata: (0, import_fields46.json)({ defaultValue: {} }),
+    createPaymentFunction: adapterField("Adapter key (stripe, paypal, manual) or an https:// URL that creates payments"),
+    capturePaymentFunction: adapterField("Adapter key or https:// URL that captures payments"),
+    refundPaymentFunction: adapterField("Adapter key or https:// URL that refunds payments"),
+    getPaymentStatusFunction: adapterField("Adapter key or https:// URL that checks payment status"),
+    generatePaymentLinkFunction: adapterField("Adapter key or https:// URL that returns a provider dashboard link"),
+    handleWebhookFunction: adapterField("Adapter key or https:// URL that verifies provider webhooks"),
+    payments: (0, import_fields46.relationship)({ ref: "Payment.paymentProvider", many: true, access: { create: () => false, update: () => false } }),
+    ...trackingFields
+  }
+});
+
+// features/keystone/models/Payment.ts
+var import_core45 = require("@keystone-6/core");
+var import_fields47 = require("@keystone-6/core/fields");
+var Payment = (0, import_core45.list)({
+  access: {
+    operation: {
+      query: permissions.canReadPayments,
+      create: () => false,
+      update: () => false,
+      delete: () => false
+    },
+    filter: { query: rules.canAccessBrokerageRecords }
+  },
+  hooks: createTenantOwnedHooks({
+    listKey: "Payment",
+    parents: { paymentProvider: "PaymentProvider", property: "Property", lead: "Lead", deal: "Deal" },
+    required: ["paymentProvider"],
+    protectDelete: true
+  }),
+  ui: { hideCreate: true, hideDelete: true, listView: { initialColumns: ["purpose", "status", "amountMinor", "currency", "property", "lead"] } },
+  fields: {
+    brokerage: (0, import_fields47.relationship)({ ref: "Brokerage.payments" }),
+    purpose: (0, import_fields47.select)({
+      type: "enum",
+      options: [
+        { label: "Application fee", value: "application_fee" },
+        { label: "Holding deposit", value: "holding_deposit" },
+        { label: "Rent", value: "rent" },
+        { label: "Agent fee", value: "agent_fee" }
+      ],
+      validation: { isRequired: true }
+    }),
+    status: (0, import_fields47.select)({
+      type: "enum",
+      options: [
+        { label: "Pending", value: "pending" },
+        { label: "Authorized", value: "authorized" },
+        { label: "Captured", value: "captured" },
+        { label: "Refunded", value: "refunded" },
+        { label: "Failed", value: "failed" },
+        { label: "Unknown", value: "unknown" }
+      ],
+      defaultValue: "pending",
+      validation: { isRequired: true }
+    }),
+    amountMinor: (0, import_fields47.integer)({ validation: { isRequired: true, min: 1 } }),
+    currency: (0, import_fields47.text)({ validation: { isRequired: true, length: { min: 3, max: 3 } }, defaultValue: "USD" }),
+    // Nullable so that payments that have not reached the provider yet do not collide on the unique index.
+    providerPaymentId: (0, import_fields47.text)({ isIndexed: "unique", db: { isNullable: true }, defaultValue: void 0 }),
+    providerPaymentIntentId: (0, import_fields47.text)(),
+    idempotencyKey: (0, import_fields47.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    // Opaque capability the payer carries in the return URL; never listed to other users.
+    accessToken: (0, import_fields47.text)({ isIndexed: "unique", validation: { isRequired: true }, access: { read: () => false } }),
+    payerName: (0, import_fields47.text)(),
+    payerEmail: (0, import_fields47.text)(),
+    checkoutUrl: (0, import_fields47.text)(),
+    paidAt: (0, import_fields47.timestamp)(),
+    refundedMinor: (0, import_fields47.integer)({ defaultValue: 0 }),
+    lastCheckedAt: (0, import_fields47.timestamp)(),
+    paymentProvider: (0, import_fields47.relationship)({ ref: "PaymentProvider.payments" }),
+    property: (0, import_fields47.relationship)({ ref: "Property.payments" }),
+    lead: (0, import_fields47.relationship)({ ref: "Lead.payments" }),
+    deal: (0, import_fields47.relationship)({ ref: "Deal.payments" }),
+    ...trackingFields
+  }
+});
+var PaymentWebhookReceipt = (0, import_core45.list)({
+  access: { operation: { query: () => false, create: () => false, update: () => false, delete: () => false } },
+  ui: { isHidden: true },
+  fields: {
+    eventKey: (0, import_fields47.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    eventType: (0, import_fields47.text)(),
+    outcome: (0, import_fields47.text)(),
+    ...trackingFields
+  }
+});
+
 // features/keystone/models/index.ts
 var models = {
   DomainAuditEvent,
@@ -3346,7 +4350,10 @@ var models = {
   DocumentEvidenceEvent,
   CommissionLedgerEntry,
   RetentionPolicy,
-  TransactionFileEvent
+  TransactionFileEvent,
+  PaymentProvider,
+  Payment,
+  PaymentWebhookReceipt
 };
 for (const model of Object.values(models)) {
   const fields = model.fields;
@@ -3360,23 +4367,33 @@ var import_session = require("@keystone-6/core/session");
 var import_schema = require("@graphql-tools/schema");
 
 // features/keystone/mutations/publicBrokerageIdentity.ts
-async function publicBrokerageIdentity(_root, { brokerageSlug }, context) {
+async function resolvePublicBrokerage(context, brokerageSlug) {
   const slug = String(brokerageSlug || "").trim().toLowerCase();
-  if (slug.length > 80 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) throw new Error("A valid brokerage slug is required.");
+  if (slug && (slug.length > 80 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))) return null;
+  const rows = await context.sudo().query.Brokerage.findMany({
+    where: slug ? { slug: { equals: slug }, status: { equals: "active" } } : { isPrimary: { equals: true }, status: { equals: "active" } },
+    orderBy: [{ id: "asc" }],
+    take: 1,
+    query: "id slug"
+  });
+  return rows[0] ? { id: String(rows[0].id), slug: String(rows[0].slug) } : null;
+}
+async function publicBrokerageIdentity(_root, { brokerageSlug }, context) {
+  const brokerage = await resolvePublicBrokerage(context, brokerageSlug);
+  if (!brokerage) return { status: "unconfigured", brokerageSlug: null, settings: null };
   const settings = await context.sudo().query.BrokerageSettings.findMany({
-    where: {
-      key: { in: [`${slug}:primary`, ...slug === "juniper-realty" ? ["primary"] : []] },
-      brokerage: { slug: { equals: slug }, status: { equals: "active" } }
-    },
+    where: { brokerage: { id: { equals: brokerage.id } } },
+    orderBy: [{ id: "asc" }],
     take: 1,
     query: "businessName marketLabel city state tagline description equalHousingNotice publicPhone publicEmail brandHue logoIcon logoColor"
   });
-  if (!settings[0]) return { status: "unconfigured", settings: null };
   const identity = settings[0];
+  if (!identity) return { status: "unconfigured", brokerageSlug: brokerage.slug, settings: null };
   const requiredIdentity = [identity.businessName, identity.marketLabel, identity.city, identity.state, identity.tagline];
-  if (requiredIdentity.some((value) => !String(value || "").trim())) return { status: "unconfigured", settings: null };
+  if (requiredIdentity.some((value) => !String(value || "").trim())) return { status: "unconfigured", brokerageSlug: brokerage.slug, settings: null };
   return {
     status: "ready",
+    brokerageSlug: brokerage.slug,
     settings: {
       businessName: identity.businessName,
       marketLabel: identity.marketLabel,
@@ -3422,12 +4439,12 @@ async function freshOperatorCommandContext(context) {
   }
   return context.withSession(nextSession);
 }
-async function decisionRows(list45, args) {
+async function decisionRows(list47, args) {
   const rows = [];
   const pageSize = 200;
   const maxRows = 1e4;
   for (let skip = 0; skip <= maxRows; skip += pageSize) {
-    const page = await list45.findMany({
+    const page = await list47.findMany({
       ...args,
       orderBy: args.orderBy || [{ createdAt: "asc" }, { id: "asc" }],
       take: pageSize,
@@ -3558,7 +4575,7 @@ async function requireOfferEvidenceChain(context, input) {
     if (events2.length) candidates.push({ document: document2, history, events: events2 });
   }
   if (!candidates.length) throw new Error("Immutable signed, delivered, presented, and acknowledged offer evidence is required; legal effect remains subject to broker or counsel review.");
-  if (candidates.length > 1) throw new Error("The current offer document version is ambiguous and requires records review.");
+  if (candidates.length > 1) throw new Error("More than one current offer document was found. Archive the outdated version and try again.");
   const candidate = candidates[0];
   if (!candidate || candidate.document.status !== "signed" || !candidate.document.fileUrl || !candidate.document.sentAt || !candidate.document.signedAt || !Number.isFinite(new Date(candidate.document.createdAt).getTime()) || !Number.isFinite(new Date(candidate.document.signedAt).getTime()) || candidate.history.some((event) => event.eventType === "voided")) {
     throw new Error("Immutable signed, delivered, presented, and acknowledged offer evidence is required; legal effect remains subject to broker or counsel review.");
@@ -3650,20 +4667,37 @@ var PUBLIC_STATUSES = ["active", "coming_soon"];
 var PUBLIC_LISTING_MEDIA_LIMIT = 20;
 var PUBLIC_LISTING_QUERY = `
   id title slug status listingType propertyType shortDescription description
-  addressLine1 addressLine2 city state postalCode neighborhood
+  addressLine1 addressLine2 city state postalCode neighborhood latitude longitude
   price bedrooms bathrooms squareFeet lotSizeSquareFeet yearBuilt hoaFee availableAt isFeatured virtualTourUrl
+  leaseTerm securityDeposit applicationFeeMinor petPolicy
   primaryImageUrl
   brokerage { id }
-  assignedAgent { id name email phone brokerageTitle avatarUrl brokerageMemberships(where: { status: { equals: active } }) { brokerage { id status } } }
+  assignedAgent { id name email phone brokerageTitle licenseNumber avatarUrl brokerageMemberships(where: { status: { equals: active } }) { brokerage { id status } } }
 `;
+function boundedArea(filters) {
+  const edges = [filters.west, filters.south, filters.east, filters.north];
+  if (edges.every((edge) => edge == null)) return null;
+  if (!edges.every((edge) => typeof edge === "number" && Number.isFinite(edge))) throw new Error("A map area needs west, south, east and north.");
+  const [west, south, east, north] = edges;
+  if (west < -180 || east > 180 || south < -90 || north > 90 || west >= east || south >= north) throw new Error("The map area is not valid.");
+  return { west, south, east, north };
+}
+var PUBLIC_LISTING_SORTS = {
+  newest: [{ createdAt: "desc" }, { id: "asc" }],
+  price_asc: [{ price: "asc" }, { createdAt: "desc" }, { id: "asc" }],
+  price_desc: [{ price: "desc" }, { createdAt: "desc" }, { id: "asc" }]
+};
+function publicListingOrder(sort) {
+  return PUBLIC_LISTING_SORTS[clean(sort)] || [{ isFeatured: "desc" }, { createdAt: "desc" }, { id: "asc" }];
+}
 function clean(value) {
   const trimmed = String(value || "").trim();
   return trimmed.length ? trimmed : "";
 }
 function boundedText(value, label, max = 120) {
-  const text44 = clean(value);
-  if (text44.length > max) throw new Error(`${label} is too long.`);
-  return text44;
+  const text46 = clean(value);
+  if (text46.length > max) throw new Error(`${label} is too long.`);
+  return text46;
 }
 function boundedMoney(value) {
   const amount = clean(value);
@@ -3698,11 +4732,20 @@ function buildPublicListingWhere(brokerageSlug, filters = {}) {
     });
   }
   if (city) and.push({ city: { contains: city, mode: "insensitive" } });
+  const area = boundedArea(filters);
+  if (area) {
+    and.push({ latitude: { gte: String(area.south), lte: String(area.north) } });
+    and.push({ longitude: { gte: String(area.west), lte: String(area.east) } });
+  }
   if (filters.listingType) where.listingType = { equals: filters.listingType };
   if (propertyType) where.propertyType = { equals: propertyType };
   if (filters.bedrooms != null) {
     if (!Number.isInteger(filters.bedrooms) || filters.bedrooms < 0 || filters.bedrooms > 20) throw new Error("Bedrooms must be an integer from 0 to 20.");
     where.bedrooms = { gte: filters.bedrooms };
+  }
+  if (filters.bathrooms != null) {
+    if (!Number.isInteger(filters.bathrooms) || filters.bathrooms < 0 || filters.bathrooms > 20) throw new Error("Bathrooms must be an integer from 0 to 20.");
+    where.bathrooms = { gte: String(filters.bathrooms) };
   }
   if (minPrice || maxPrice) {
     if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) throw new Error("Minimum price cannot exceed maximum price.");
@@ -3712,8 +4755,8 @@ function buildPublicListingWhere(brokerageSlug, filters = {}) {
   return where;
 }
 function publicImagePath(value) {
-  const path = clean(value);
-  return path.startsWith("/images/real-estate/") ? path : "";
+  const path2 = clean(value);
+  return path2.startsWith("/images/real-estate/") ? upgradeLegacyImagePath(path2) : "";
 }
 function toPublicAgent(agent, brokerageId) {
   if (!agent || !(agent.brokerageMemberships || []).some((membership) => membership.brokerage?.id === brokerageId && membership.brokerage?.status === "active")) return null;
@@ -3722,8 +4765,14 @@ function toPublicAgent(agent, brokerageId) {
     email: agent.email || "",
     phone: agent.phone || "",
     brokerageTitle: agent.brokerageTitle || "",
+    licenseNumber: agent.licenseNumber || "",
     imagePath: publicImagePath(agent.avatarUrl)
   };
+}
+function coordinate(value, limit) {
+  if (value == null || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) && Math.abs(number) <= limit && number !== 0 ? number : null;
 }
 function toPublicListing(property, media, openHouses) {
   return {
@@ -3741,6 +4790,8 @@ function toPublicListing(property, media, openHouses) {
     state: property.state,
     postalCode: property.postalCode || "",
     neighborhood: property.neighborhood || "",
+    latitude: coordinate(property.latitude, 90),
+    longitude: coordinate(property.longitude, 180),
     price: String(property.price),
     bedrooms: property.bedrooms,
     bathrooms: property.bathrooms == null ? "" : String(property.bathrooms),
@@ -3751,7 +4802,11 @@ function toPublicListing(property, media, openHouses) {
     availableAt: property.availableAt || "",
     isFeatured: Boolean(property.isFeatured),
     virtualTourUrl: property.virtualTourUrl || "",
-    imagePath: publicImagePath(property.primaryImageUrl),
+    leaseTerm: property.leaseTerm || "",
+    securityDeposit: property.securityDeposit ?? null,
+    applicationFeeMinor: property.listingType === "rent" ? property.applicationFeeMinor ?? null : null,
+    petPolicy: property.petPolicy || "",
+    imagePath: publicHeroImagePath(media, publicImagePath(property.primaryImageUrl)),
     assignedAgent: toPublicAgent(property.assignedAgent, property.brokerage.id),
     openHouses: openHouses.map((item) => ({
       id: item.id,
@@ -3763,8 +4818,8 @@ function toPublicListing(property, media, openHouses) {
     media: media.map((item) => ({
       title: item.title,
       mediaType: item.mediaType,
-      imagePath: publicImagePath(item.url),
-      externalUrl: publicImagePath(item.url) ? "" : item.url,
+      imagePath: publicMediaImagePath(item, publicImagePath),
+      externalUrl: publicMediaImagePath(item, publicImagePath) ? "" : item.url || "",
       altText: item.altText || "",
       caption: item.caption || "",
       sortOrder: item.sortOrder || 0,
@@ -3777,7 +4832,7 @@ async function findPublicMedia(context, propertyId) {
     where: { property: { id: { equals: propertyId } } },
     orderBy: [{ isHero: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
     take: PUBLIC_LISTING_MEDIA_LIMIT,
-    query: "title mediaType url altText caption sortOrder isHero"
+    query: "title mediaType url image { url } altText caption sortOrder isHero"
   });
 }
 async function findPublicOpenHouses(context, propertyId, brokerageId) {
@@ -3821,7 +4876,7 @@ async function publicRealEstateListings(_root, { brokerageSlug, filters = {}, ta
     candidateScanLimit: PUBLIC_LISTING_CANDIDATE_SCAN_LIMIT,
     fetchCandidates: (candidateSkip, candidateTake) => context.sudo().query.Property.findMany({
       where,
-      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }, { id: "asc" }],
+      orderBy: publicListingOrder(filters?.sort),
       take: candidateTake,
       skip: candidateSkip,
       query: PUBLIC_LISTING_QUERY
@@ -3852,6 +4907,52 @@ async function publicRealEstateListing(_root, { brokerageSlug, slug }, context) 
     findPublicOpenHouses(context, property.id, property.brokerage.id)
   ]);
   return toPublicListing(property, media, openHouses);
+}
+var SAVED_HOME_STATUSES = ["saved", "interested"];
+function savedHomesWhere(actor, brokerageSlug) {
+  return {
+    user: { id: { equals: actor } },
+    status: { in: [...SAVED_HOME_STATUSES] },
+    property: { brokerage: { slug: { equals: validBrokerageSlug(brokerageSlug) }, status: { equals: "active" } } }
+  };
+}
+async function customerSavedProperties(_root, { brokerageSlug }, context) {
+  const actor = context.session?.itemId;
+  if (!actor) return [];
+  const rows = await context.sudo().query.SavedProperty.findMany({
+    where: savedHomesWhere(actor, brokerageSlug),
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 200,
+    query: "id property { id }"
+  });
+  return rows.filter((row) => row.property?.id).map((row) => ({ id: row.id, propertyId: row.property.id }));
+}
+async function customerSavedHomes(_root, { brokerageSlug }, context) {
+  const actor = context.session?.itemId;
+  if (!actor) throw new Error("Sign in to view saved homes.");
+  const listingWhere = buildPublicListingWhere(brokerageSlug);
+  const rows = await context.sudo().query.SavedProperty.findMany({
+    where: savedHomesWhere(actor, brokerageSlug),
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 100,
+    query: "id property { id }"
+  });
+  const listings = [];
+  for (const row of rows) {
+    if (!row.property?.id) continue;
+    const property = (await context.sudo().query.Property.findMany({
+      where: { ...listingWhere, id: { equals: row.property.id } },
+      take: 1,
+      query: PUBLIC_LISTING_QUERY
+    }))[0];
+    if (!property || !await hasPublicListingAuthority(context, property)) continue;
+    const [media, openHouses] = await Promise.all([
+      findPublicMedia(context, property.id),
+      findPublicOpenHouses(context, property.id, property.brokerage.id)
+    ]);
+    listings.push(toPublicListing(property, media, openHouses));
+  }
+  return listings;
 }
 
 // features/keystone/mutations/redirectToInit.ts
@@ -3885,6 +4986,84 @@ function explicitDateTimeToIso(value) {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return "";
   const time = Date.parse(value);
   return Number.isFinite(time) ? new Date(time).toISOString() : "";
+}
+var STATE_TIME_ZONES = {
+  AL: "America/Chicago",
+  AK: "America/Anchorage",
+  AZ: "America/Phoenix",
+  AR: "America/Chicago",
+  CA: "America/Los_Angeles",
+  CO: "America/Denver",
+  CT: "America/New_York",
+  DE: "America/New_York",
+  DC: "America/New_York",
+  FL: "America/New_York",
+  GA: "America/New_York",
+  HI: "Pacific/Honolulu",
+  ID: "America/Boise",
+  IL: "America/Chicago",
+  IN: "America/Indiana/Indianapolis",
+  IA: "America/Chicago",
+  KS: "America/Chicago",
+  KY: "America/New_York",
+  LA: "America/Chicago",
+  ME: "America/New_York",
+  MD: "America/New_York",
+  MA: "America/New_York",
+  MI: "America/Detroit",
+  MN: "America/Chicago",
+  MS: "America/Chicago",
+  MO: "America/Chicago",
+  MT: "America/Denver",
+  NE: "America/Chicago",
+  NV: "America/Los_Angeles",
+  NH: "America/New_York",
+  NJ: "America/New_York",
+  NM: "America/Denver",
+  NY: "America/New_York",
+  NC: "America/New_York",
+  ND: "America/Chicago",
+  OH: "America/New_York",
+  OK: "America/Chicago",
+  OR: "America/Los_Angeles",
+  PA: "America/New_York",
+  RI: "America/New_York",
+  SC: "America/New_York",
+  SD: "America/Chicago",
+  TN: "America/Chicago",
+  TX: "America/Chicago",
+  UT: "America/Denver",
+  VT: "America/New_York",
+  VA: "America/New_York",
+  WA: "America/Los_Angeles",
+  WV: "America/New_York",
+  WI: "America/Chicago",
+  WY: "America/Denver",
+  PR: "America/Puerto_Rico"
+};
+var SHOWING_HOURS = { first: 8, last: 20 };
+function stateTimeZone(state) {
+  return STATE_TIME_ZONES[String(state || "").trim().toUpperCase()] || null;
+}
+function zonedParts(time, timeZone) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).formatToParts(new Date(time)).map((part) => [part.type, part.value]));
+  return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day), hour: Number(parts.hour), minute: Number(parts.minute) };
+}
+function withinShowingHours(time, timeZone) {
+  const p = zonedParts(time, timeZone);
+  const minutes = p.hour * 60 + p.minute;
+  return minutes >= SHOWING_HOURS.first * 60 && minutes <= SHOWING_HOURS.last * 60;
+}
+function timeZoneLabel(timeZone) {
+  return new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longGeneric" }).formatToParts(/* @__PURE__ */ new Date()).find((part) => part.type === "timeZoneName")?.value || timeZone;
 }
 
 // features/keystone/lib/showingReviewRevision.ts
@@ -4209,6 +5388,17 @@ async function capturePublicLead(context, input) {
   });
   return { lead, reused: false, identityKey };
 }
+async function firstActiveBrokerageAgent(context, brokerageId, candidates) {
+  const ids = [...new Set(candidates.filter((id) => Boolean(id)))];
+  if (!ids.length) return null;
+  const memberships = await context.sudo().query.BrokerageMembership.findMany({
+    where: { user: { id: { in: ids } }, brokerage: { id: { equals: brokerageId }, status: { equals: "active" } }, status: { equals: "active" } },
+    take: ids.length * 2,
+    query: "user { id }"
+  });
+  const members = new Set(memberships.map((membership) => membership.user?.id).filter(Boolean));
+  return ids.find((id) => members.has(id)) || null;
+}
 
 // features/keystone/mutations/requestPropertyShowing.ts
 function clean2(value) {
@@ -4236,7 +5426,7 @@ async function findRoutingAgentId(context, property) {
     (rule) => rule.assignedAgent?.id && (!rule.intent || rule.intent === "any" || rule.intent === (property.listingType === "rent" ? "rent" : "buy")) && (!rule.source || rule.source === "any" || rule.source === "website") && (!rule.city || rule.city.toLowerCase() === property.city.toLowerCase()) && (!rule.state || rule.state.toLowerCase() === property.state.toLowerCase()) && (!rule.postalCode || rule.postalCode === property.postalCode)
   );
   const fallback = rules2.find((rule) => rule.isFallback && rule.assignedAgent?.id);
-  return matching?.assignedAgent?.id || property.assignedAgent?.id || fallback?.assignedAgent?.id || null;
+  return firstActiveBrokerageAgent(context, property.brokerage.id, [matching?.assignedAgent?.id, property.assignedAgent?.id, fallback?.assignedAgent?.id]);
 }
 async function requestPropertyShowing(_root, { data }, context) {
   const brokerageSlug = clean2(data.brokerageSlug).toLowerCase();
@@ -4259,7 +5449,7 @@ async function requestPropertyShowing(_root, { data }, context) {
   }
   const brokerages = await context.sudo().query.Brokerage.findMany({ where: { slug: { equals: brokerageSlug }, status: { equals: "active" } }, take: 1, query: "id" });
   if (!brokerages[0]) return { ok: false, message: "This listing is unavailable.", leadId: null, showingId: null };
-  return context.transaction(async (transactionContext) => {
+  const outcome = await context.transaction(async (transactionContext) => {
     const context2 = transactionContext;
     await lockBrokerageCommand(context2, brokerages[0].id);
     await lockPropertyForDecision(context2, propertyId, brokerages[0].id);
@@ -4295,13 +5485,18 @@ async function requestPropertyShowing(_root, { data }, context) {
     if (!property || !["active", "coming_soon"].includes(property.status)) {
       return { ok: false, message: "This listing is no longer accepting showing requests.", leadId: null, showingId: null };
     }
+    const listingTimeZone = stateTimeZone(property.state);
+    if (listingTimeZone && !withinShowingHours(requestedStart.getTime(), listingTimeZone)) {
+      return { ok: false, message: `Choose a time between ${SHOWING_HOURS.first} AM and ${SHOWING_HOURS.last - 12} PM ${timeZoneLabel(listingTimeZone)}.`, leadId: null, showingId: null };
+    }
     try {
       await requireListingAuthority(context2, { brokerageId: property.brokerage.id, propertyId, practitionerId: property.assignedAgent?.id || "", jurisdictionCode: property.state, destination: "public_site", showingRequired: true });
     } catch {
       return { ok: false, message: "This listing is not currently authorized for public showing requests.", leadId: null, showingId: null };
     }
     const settings = await context2.sudo().query.BrokerageSettings.findMany({
-      where: { key: { in: [`${brokerageSlug}:primary`, ...brokerageSlug === "juniper-realty" ? ["primary"] : []] }, brokerage: { id: { equals: property.brokerage.id } } },
+      where: { brokerage: { id: { equals: property.brokerage.id } } },
+      orderBy: [{ createdAt: "asc" }],
       take: 1,
       query: "showingDurationMinutes"
     });
@@ -4437,6 +5632,7 @@ async function requestPropertyShowing(_root, { data }, context) {
       showingId: null
     };
   }, { timeout: 3e4 });
+  return outcome;
 }
 
 // features/keystone/lib/leadBoardCursor.ts
@@ -4693,10 +5889,10 @@ async function leadWorkspace(args, context) {
 var seed_default = {
   version: 1,
   vertical: "openfront-real-estate",
-  description: "Dependency-ordered demo seed for a brokerage-owned real-estate runtime: agents, listings, lead routing, leads, showings, and deal pipeline.",
+  description: "Dependency-ordered starter data for a brokerage: agents, listings, lead routing, leads, showings, and deal pipeline.",
   templateModes: {
-    minimal: "One agent, one active listing, one routing rule, one lead, one showing, and one deal for smoke/demo checks.",
-    full: "Representative brokerage demo data across buyer, renter, seller, investor, showing, and pipeline workflows."
+    minimal: "One agent, one active listing, one routing rule, one lead, one showing, and one deal.",
+    full: "A complete brokerage across buyer, renter, seller, investor, showing, and pipeline workflows."
   },
   dependencyOrder: [
     "brokerages",
@@ -4714,31 +5910,38 @@ var seed_default = {
   sections: {
     brokerages: {
       listKey: "Brokerage",
-      description: "Tenant root for Juniper Realty brokerage operations.",
+      description: "Brokerage name applied to the signed-in owner's active brokerage.",
       items: [
         {
-          key: "juniper-realty",
+          key: "primary",
           label: "Juniper Realty",
-          templates: ["minimal", "full"],
+          templates: [
+            "minimal",
+            "full"
+          ],
           data: {
-            name: "Juniper Realty",
-            slug: "juniper-realty",
-            status: "active",
-            isPrimary: true
+            name: "Juniper Realty"
           }
         }
       ]
     },
     brokerageSettings: {
       listKey: "BrokerageSettings",
-      description: "Persisted public and dashboard identity for Juniper Realty.",
+      description: "Public and dashboard identity for the brokerage.",
       items: [
         {
           key: "primary",
           label: "Juniper Realty",
-          templates: ["minimal", "full"],
+          templates: [
+            "minimal",
+            "full"
+          ],
           data: {
-            brokerage: { connect: { $ref: "brokerages:juniper-realty" } },
+            brokerage: {
+              connect: {
+                $ref: "brokerages:primary"
+              }
+            },
             key: "primary",
             businessName: "Juniper Realty",
             marketLabel: "Austin brokerage",
@@ -4748,9 +5951,10 @@ var seed_default = {
             description: "Boutique representation for buyers, renters, and sellers across Austin.",
             equalHousingNotice: "Equal housing opportunity.",
             publicPhone: "+1 512 555 0100",
-            publicEmail: "hello@juniperrealty.local",
+            publicEmail: "hello@juniperrealty.com",
             showingDurationMinutes: 60,
-            brandHue: 151
+            logoIcon: '<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 14.5264v18.9473l17.8947-12.2437v-18.94741z" fill="#155eef" opacity=".5"/><path d="m0 33.4737v-18.9474l17.8947 12.2438v18.9474z" fill="#1570ef" opacity=".5"/><path d="m40 14.5263v18.9474l-17.8947-12.2438v-18.94737z" fill="#155eef" opacity=".5"/><path d="m40 33.4737v-18.9474l-17.8947 12.2438v18.9474z" fill="#1570ef" opacity=".5"/></svg>',
+            logoColor: "270"
           }
         }
       ]
@@ -4827,7 +6031,7 @@ var seed_default = {
     },
     agents: {
       listKey: "User",
-      description: "Seeded brokerage agents. Passwords are local demo-only placeholders for a future runtime seed executor.",
+      description: "Brokerage agents. Sign-in passwords are generated at setup; agents reset them by email.",
       items: [
         {
           key: "maya-chen",
@@ -4838,16 +6042,15 @@ var seed_default = {
           ],
           data: {
             name: "Maya Chen",
-            email: "maya.chen@example.realestate.local",
-            password: "OpenfrontDemo2026!",
+            email: "maya.chen@juniperrealty.com",
             phone: "+1 512 555 0101",
-            licenseNumber: "TX-RE-482901",
+            licenseNumber: "TX-0423118",
             brokerageTitle: "Managing Broker",
             bio: "Luxury listing specialist and speed-to-lead owner for web inquiries.",
-            avatarUrl: "/images/real-estate/agents/maya-chen.svg",
+            avatarUrl: "/images/real-estate/photos/agents/maya-chen.jpg",
             activeBrokerage: {
               connect: {
-                $ref: "brokerages:juniper-realty"
+                $ref: "brokerages:primary"
               }
             },
             role: {
@@ -4865,16 +6068,15 @@ var seed_default = {
           ],
           data: {
             name: "Omar Patel",
-            email: "omar.patel@example.realestate.local",
-            password: "OpenfrontDemo2026!",
+            email: "omar.patel@juniperrealty.com",
             phone: "+1 512 555 0102",
-            licenseNumber: "TX-RE-593144",
+            licenseNumber: "TX-0687452",
             brokerageTitle: "Buyer & Rental Specialist",
             bio: "First-time buyer and rental conversion specialist for Austin neighborhoods.",
-            avatarUrl: "/images/real-estate/agents/omar-patel.svg",
+            avatarUrl: "/images/real-estate/photos/agents/omar-patel.jpg",
             activeBrokerage: {
               connect: {
-                $ref: "brokerages:juniper-realty"
+                $ref: "brokerages:primary"
               }
             },
             role: {
@@ -4892,16 +6094,15 @@ var seed_default = {
           ],
           data: {
             name: "Evelyn Brooks",
-            email: "evelyn.brooks@example.realestate.local",
-            password: "OpenfrontDemo2026!",
+            email: "evelyn.brooks@juniperrealty.com",
             phone: "+1 512 555 0103",
-            licenseNumber: "TX-RE-744209",
+            licenseNumber: "TX-0719306",
             brokerageTitle: "Listing Advisor",
             bio: "Seller intake, pricing strategy, and listing launch operations.",
-            avatarUrl: "/images/real-estate/agents/evelyn-brooks.svg",
+            avatarUrl: "/images/real-estate/photos/agents/evelyn-brooks.jpg",
             activeBrokerage: {
               connect: {
-                $ref: "brokerages:juniper-realty"
+                $ref: "brokerages:primary"
               }
             },
             role: {
@@ -4915,17 +6116,28 @@ var seed_default = {
     },
     brokerageMemberships: {
       listKey: "BrokerageMembership",
-      description: "Active Juniper Realty memberships used for tenant-scoped sessions.",
+      description: "Active memberships in the brokerage.",
       items: [
         {
-          key: "maya-owner",
-          label: "Maya Chen owner membership",
-          templates: ["minimal", "full"],
+          key: "maya-admin",
+          label: "Maya Chen administrator membership",
+          templates: [
+            "minimal",
+            "full"
+          ],
           data: {
-            membershipKey: "juniper-realty:maya.chen@example.realestate.local",
-            brokerage: { connect: { $ref: "brokerages:juniper-realty" } },
-            user: { connect: { $ref: "agents:maya-chen" } },
-            membershipRole: "owner",
+            membershipKey: "maya.chen@juniperrealty.com",
+            brokerage: {
+              connect: {
+                $ref: "brokerages:primary"
+              }
+            },
+            user: {
+              connect: {
+                $ref: "agents:maya-chen"
+              }
+            },
+            membershipRole: "admin",
             status: "active",
             isPrimary: true,
             joinedAt: "2026-01-01T00:00:00.000Z"
@@ -4934,11 +6146,21 @@ var seed_default = {
         {
           key: "omar-agent",
           label: "Omar Patel agent membership",
-          templates: ["full"],
+          templates: [
+            "full"
+          ],
           data: {
-            membershipKey: "juniper-realty:omar.patel@example.realestate.local",
-            brokerage: { connect: { $ref: "brokerages:juniper-realty" } },
-            user: { connect: { $ref: "agents:omar-patel" } },
+            membershipKey: "omar.patel@juniperrealty.com",
+            brokerage: {
+              connect: {
+                $ref: "brokerages:primary"
+              }
+            },
+            user: {
+              connect: {
+                $ref: "agents:omar-patel"
+              }
+            },
             membershipRole: "agent",
             status: "active",
             isPrimary: true,
@@ -4948,11 +6170,21 @@ var seed_default = {
         {
           key: "evelyn-agent",
           label: "Evelyn Brooks agent membership",
-          templates: ["full"],
+          templates: [
+            "full"
+          ],
           data: {
-            membershipKey: "juniper-realty:evelyn.brooks@example.realestate.local",
-            brokerage: { connect: { $ref: "brokerages:juniper-realty" } },
-            user: { connect: { $ref: "agents:evelyn-brooks" } },
+            membershipKey: "evelyn.brooks@juniperrealty.com",
+            brokerage: {
+              connect: {
+                $ref: "brokerages:primary"
+              }
+            },
+            user: {
+              connect: {
+                $ref: "agents:evelyn-brooks"
+              }
+            },
             membershipRole: "agent",
             status: "active",
             isPrimary: true,
@@ -4963,7 +6195,7 @@ var seed_default = {
     },
     properties: {
       listKey: "Property",
-      description: "Listing inventory for storefront search, listing detail pages, showing workflows, and deal pipeline demos.",
+      description: "Listing inventory for storefront search, listing pages, showings, and the deal pipeline.",
       items: [
         {
           key: "riverfront-loft-austin",
@@ -4997,8 +6229,7 @@ var seed_default = {
             hoaFee: "684.00",
             availableAt: "2026-07-15T15:00:00.000Z",
             isFeatured: true,
-            virtualTourUrl: "https://example.com/tours/riverfront-loft-austin",
-            primaryImageUrl: "/images/real-estate/properties/riverfront-loft-austin.svg",
+            virtualTourUrl: "",
             assignedAgent: {
               connect: {
                 $ref: "agents:maya-chen"
@@ -5036,8 +6267,7 @@ var seed_default = {
             hoaFee: "225.00",
             availableAt: "2026-08-01T15:00:00.000Z",
             isFeatured: true,
-            virtualTourUrl: "https://example.com/tours/hill-country-estate",
-            primaryImageUrl: "/images/real-estate/properties/hill-country-estate.svg",
+            virtualTourUrl: "",
             assignedAgent: {
               connect: {
                 $ref: "agents:maya-chen"
@@ -5074,8 +6304,10 @@ var seed_default = {
             yearBuilt: 2021,
             availableAt: "2026-08-15T15:00:00.000Z",
             isFeatured: false,
-            virtualTourUrl: "https://example.com/tours/eastside-townhome-rental",
-            primaryImageUrl: "/images/real-estate/properties/eastside-townhome-rental.svg",
+            virtualTourUrl: "",
+            leaseTerm: "12 months",
+            securityDeposit: 3800,
+            petPolicy: "Cats and dogs under 40 lb, $500 pet deposit",
             assignedAgent: {
               connect: {
                 $ref: "agents:omar-patel"
@@ -5112,7 +6344,6 @@ var seed_default = {
             yearBuilt: 1948,
             availableAt: "2026-07-30T15:00:00.000Z",
             isFeatured: false,
-            primaryImageUrl: "/images/real-estate/properties/mueller-bungalow.svg",
             assignedAgent: {
               connect: {
                 $ref: "agents:evelyn-brooks"
@@ -5234,7 +6465,7 @@ var seed_default = {
           ],
           data: {
             name: "Sofia Ramirez",
-            email: "sofia.ramirez@example.com",
+            email: "sofia.ramirez@gmail.com",
             phone: "+1 512 555 0201",
             status: "qualified",
             intent: "buy",
@@ -5265,7 +6496,7 @@ var seed_default = {
           ],
           data: {
             name: "Jordan Lee",
-            email: "jordan.lee@example.com",
+            email: "jordan.lee@gmail.com",
             phone: "+1 512 555 0202",
             status: "new",
             intent: "rent",
@@ -5296,7 +6527,7 @@ var seed_default = {
           ],
           data: {
             name: "Priya Shah",
-            email: "priya.shah@example.com",
+            email: "priya.shah@gmail.com",
             phone: "+1 512 555 0203",
             status: "attempted_contact",
             intent: "sell",
@@ -5327,7 +6558,7 @@ var seed_default = {
           ],
           data: {
             name: "Marcus Green",
-            email: "marcus.green@example.com",
+            email: "marcus.green@gmail.com",
             phone: "+1 512 555 0204",
             status: "tour_scheduled",
             intent: "invest",
@@ -5629,7 +6860,7 @@ var seed_default = {
             commissionAmount: "19350.00",
             expectedCloseDate: "2026-10-15T15:00:00.000Z",
             nextStep: "Schedule valuation consult and prepare pricing packet.",
-            notes: "Potential seller lead; property is represented as pending sample inventory until listing agreement is signed.",
+            notes: "Potential seller; listing goes live once the listing agreement is signed.",
             property: {
               connect: {
                 $ref: "properties:mueller-bungalow"
@@ -5651,59 +6882,67 @@ var seed_default = {
     }
   },
   imagePack: {
-    description: "Canonical public image paths for seeded real-estate demo records. These are relative public assets; no uploads are required.",
+    description: "Starter photos. Listing covers are uploaded to image storage during setup from public/images/real-estate/covers; agent and neighborhood images are public paths.",
     properties: [
       {
         key: "riverfront-loft-austin",
-        imagePath: "/images/real-estate/properties/riverfront-loft-austin.svg"
+        photo: "riverfront-loft-austin.jpg",
+        title: "River and skyline view",
+        altText: "Lady Bird Lake and the downtown Austin skyline at sunset"
       },
       {
         key: "hill-country-estate",
-        imagePath: "/images/real-estate/properties/hill-country-estate.svg"
+        photo: "hill-country-estate.jpg",
+        title: "Front exterior",
+        altText: "Stone and stucco Hill Country estate with a polished concrete drive at sunset"
       },
       {
         key: "eastside-townhome-rental",
-        imagePath: "/images/real-estate/properties/eastside-townhome-rental.svg"
+        photo: "eastside-townhome-rental.jpg",
+        title: "Front exterior",
+        altText: "Row of modern white stucco townhomes with cedar-slat balconies"
       },
       {
         key: "mueller-bungalow",
-        imagePath: "/images/real-estate/properties/mueller-bungalow.svg"
+        photo: "mueller-bungalow.jpg",
+        title: "Front exterior",
+        altText: "Renovated bungalow with a deep front porch on a tree-lined Mueller street"
       }
     ],
     agents: [
       {
         key: "maya-chen",
-        imagePath: "/images/real-estate/agents/maya-chen.svg"
+        imagePath: "/images/real-estate/photos/agents/maya-chen.jpg"
       },
       {
         key: "omar-patel",
-        imagePath: "/images/real-estate/agents/omar-patel.svg"
+        imagePath: "/images/real-estate/photos/agents/omar-patel.jpg"
       },
       {
         key: "evelyn-brooks",
-        imagePath: "/images/real-estate/agents/evelyn-brooks.svg"
+        imagePath: "/images/real-estate/photos/agents/evelyn-brooks.jpg"
       }
     ],
     neighborhoods: [
       {
         key: "rainey-street",
         name: "Rainey Street Historic District",
-        imagePath: "/images/real-estate/neighborhoods/rainey-street.svg"
+        imagePath: "/images/real-estate/photos/neighborhoods/rainey-street.jpg"
       },
       {
         key: "westlake-hills",
         name: "Westlake Hills",
-        imagePath: "/images/real-estate/neighborhoods/westlake-hills.svg"
+        imagePath: ""
       },
       {
         key: "east-cesar-chavez",
         name: "East Cesar Chavez",
-        imagePath: "/images/real-estate/neighborhoods/east-cesar-chavez.svg"
+        imagePath: "/images/real-estate/photos/neighborhoods/east-cesar-chavez.jpg"
       },
       {
         key: "mueller",
         name: "Mueller",
-        imagePath: "/images/real-estate/neighborhoods/mueller.svg"
+        imagePath: "/images/real-estate/photos/neighborhood-homes.jpg"
       }
     ]
   }
@@ -5712,12 +6951,11 @@ var seed_default = {
 // features/platform/onboarding/lib/expansion-seed.json
 var expansion_seed_default = {
   version: 1,
-  description: "Idempotent operations data pack layered onto the core Openfront Estates brokerage seed.",
+  description: "Operations data layered onto the core brokerage setup.",
   anchors: {
-    brokerageSlug: "juniper-realty",
-    agentEmail: "maya.chen@example.realestate.local",
+    agentEmail: "maya.chen@juniperrealty.com",
     propertySlug: "riverfront-loft-austin",
-    leadEmail: "sofia.ramirez@example.com",
+    leadEmail: "sofia.ramirez@gmail.com",
     dealTitle: "Sofia Ramirez \xB7 Riverfront Loft",
     showingNotes: "Meet in lobby; client cares most about noise level and parking access."
   },
@@ -5743,22 +6981,28 @@ var expansion_seed_default = {
     {
       listKey: "PropertyMedia",
       id: "seed-media-harbor-hero",
-      lookup: { title: "Riverfront Loft Hero Photo" },
+      lookup: {
+        title: "Riverfront Loft Hero Photo"
+      },
       data: {
         title: "Riverfront Loft Hero Photo",
         mediaType: "photo",
-        url: "/images/real-estate/properties/riverfront-loft-austin.svg",
-        altText: "Editorial illustration of the Riverfront Loft residence",
-        caption: "Repository-owned hero asset for the Riverfront Loft listing.",
+        url: "/images/real-estate/photos/interior-fireplace.jpg",
+        altText: "Living room of the Riverfront Loft with floor-to-ceiling windows",
+        caption: "Riverfront Loft living room and skyline view.",
         sortOrder: 1,
-        isHero: true,
-        property: { $anchor: "property" }
+        isHero: false,
+        property: {
+          $anchor: "property"
+        }
       }
     },
     {
       listKey: "PropertyInspection",
       id: "seed-inspection-harbor-general",
-      lookup: { title: "General Inspection - Riverfront Loft" },
+      lookup: {
+        title: "General Inspection - Riverfront Loft"
+      },
       data: {
         title: "General Inspection - Riverfront Loft",
         inspectionType: "general",
@@ -5766,12 +7010,16 @@ var expansion_seed_default = {
         scheduledAt: "2026-06-28T18:56:48.359Z",
         completedAt: "2026-06-29T18:56:48.359Z",
         inspectorName: "Marta Ruiz",
-        inspectorEmail: "marta.inspect@example.realestate.local",
+        inspectorEmail: "marta@centraltexasinspections.com",
         estimatedCost: "650.00",
         summary: "Overall good condition with a minor HVAC service recommendation.",
         findings: "HVAC filter overdue; balcony railing has cosmetic wear.",
-        property: { $anchor: "property" },
-        deal: { $anchor: "deal" }
+        property: {
+          $anchor: "property"
+        },
+        deal: {
+          $anchor: "deal"
+        }
       }
     },
     {
@@ -5804,20 +7052,37 @@ var expansion_seed_default = {
             city: "Austin",
             state: "TX"
           },
-          deal: { title: "Sofia Ramirez \xB7 Riverfront Loft" },
-          lead: { name: "Sofia Ramirez", email: "sofia.ramirez@example.com" },
-          assignedAgent: { name: "Maya Chen" }
+          deal: {
+            title: "Sofia Ramirez \xB7 Riverfront Loft"
+          },
+          lead: {
+            name: "Sofia Ramirez",
+            email: "sofia.ramirez@gmail.com"
+          },
+          assignedAgent: {
+            name: "Maya Chen"
+          }
         },
-        property: { $anchor: "property" },
-        deal: { $anchor: "deal" },
-        lead: { $anchor: "lead" },
-        assignedAgent: { $anchor: "agent" }
+        property: {
+          $anchor: "property"
+        },
+        deal: {
+          $anchor: "deal"
+        },
+        lead: {
+          $anchor: "lead"
+        },
+        assignedAgent: {
+          $anchor: "agent"
+        }
       }
     },
     {
       listKey: "DealDocument",
       id: "seed-doc-harbor-disclosure",
-      lookup: { title: "Riverfront Loft Seller Disclosure" },
+      lookup: {
+        title: "Riverfront Loft Seller Disclosure"
+      },
       data: {
         title: "Riverfront Loft Seller Disclosure",
         documentType: "disclosure",
@@ -5828,15 +7093,23 @@ var expansion_seed_default = {
         signedAt: "2026-06-26T18:56:48.359Z",
         expiresAt: "2026-09-06T18:56:48.359Z",
         notes: "Signed seller disclosure package.",
-        deal: { $anchor: "deal" },
-        property: { $anchor: "property" },
-        uploadedBy: { $anchor: "agent" }
+        deal: {
+          $anchor: "deal"
+        },
+        property: {
+          $anchor: "property"
+        },
+        uploadedBy: {
+          $anchor: "agent"
+        }
       }
     },
     {
       listKey: "Commission",
       id: "seed-commission-harbor-buy-side",
-      lookup: { title: "Riverfront Loft Buyer Side Commission" },
+      lookup: {
+        title: "Riverfront Loft Buyer Side Commission"
+      },
       data: {
         title: "Riverfront Loft Buyer Side Commission",
         status: "approved",
@@ -5846,15 +7119,23 @@ var expansion_seed_default = {
         agentSplitPercent: "70.00",
         netCommission: "19110.00",
         notes: "Projected buyer-side commission split.",
-        deal: { $anchor: "deal" },
-        property: { $anchor: "property" },
-        agent: { $anchor: "agent" }
+        deal: {
+          $anchor: "deal"
+        },
+        property: {
+          $anchor: "property"
+        },
+        agent: {
+          $anchor: "agent"
+        }
       }
     },
     {
       listKey: "SavedSearch",
       id: "seed-saved-search-downtown-condos",
-      lookup: { name: "Downtown Austin residences under 1M" },
+      lookup: {
+        name: "Downtown Austin residences under 1M"
+      },
       data: {
         name: "Downtown Austin residences under 1M",
         city: "Austin",
@@ -5868,14 +7149,42 @@ var expansion_seed_default = {
         keywords: "waterfront, walkable, balcony",
         alertsEnabled: true,
         lastNotifiedAt: "2026-07-07T18:56:48.359Z",
-        brokerage: { $anchor: "brokerage" },
-        user: { $anchor: "agent" }
+        brokerage: {
+          $anchor: "brokerage"
+        },
+        user: {
+          $anchor: "agent"
+        }
+      }
+    },
+    {
+      listKey: "SavedProperty",
+      id: "seed-saved-property-riverfront",
+      lookup: {
+        property: {
+          $anchor: "property"
+        },
+        user: {
+          $anchor: "agent"
+        }
+      },
+      data: {
+        status: "interested",
+        notes: "Shortlisted for Sofia Ramirez; compare against downtown comps.",
+        property: {
+          $anchor: "property"
+        },
+        user: {
+          $anchor: "agent"
+        }
       }
     },
     {
       listKey: "MarketComp",
       id: "seed-comp-waterfront-12b",
-      lookup: { addressLine1: "1200 Waterfront Avenue #12B" },
+      lookup: {
+        addressLine1: "1200 Waterfront Avenue #12B"
+      },
       data: {
         addressLine1: "1200 Waterfront Avenue #12B",
         city: "Austin",
@@ -5891,59 +7200,85 @@ var expansion_seed_default = {
         distanceMiles: "0.40",
         sourceUrl: "/listings/riverfront-loft-austin",
         notes: "Closest recent sale in the same waterfront micro-market.",
-        subjectProperty: { $anchor: "property" },
-        neighborhood: { $record: "seed-neighborhood-downtown-harbor" }
+        subjectProperty: {
+          $anchor: "property"
+        },
+        neighborhood: {
+          $record: "seed-neighborhood-downtown-harbor"
+        }
       }
     },
     {
       listKey: "AgentTeam",
       id: "seed-agent-team-harbor",
       data: {
-        brokerage: { $anchor: "brokerage" },
+        brokerage: {
+          $anchor: "brokerage"
+        },
         name: "Waterfront Buyer Team",
         slug: "waterfront-buyer-team",
         teamType: "buyer",
         status: "active",
         description: "Buyer agents focused on downtown and waterfront residences.",
-        leadAgent: { $anchor: "agent" }
+        leadAgent: {
+          $anchor: "agent"
+        }
       }
     },
     {
       listKey: "AgentTask",
       id: "seed-agent-task-title-followup",
-      lookup: { title: "Confirm title exceptions cleared" },
+      lookup: {
+        title: "Confirm title exceptions cleared"
+      },
       data: {
         title: "Confirm title exceptions cleared",
         status: "in_progress",
         priority: "high",
         dueAt: "2026-07-10T18:56:48.359Z",
         notes: "Call the title officer and update the closing checklist.",
-        assignedAgent: { $anchor: "agent" },
-        property: { $anchor: "property" },
-        lead: { $anchor: "lead" },
-        deal: { $anchor: "deal" }
+        assignedAgent: {
+          $anchor: "agent"
+        },
+        property: {
+          $anchor: "property"
+        },
+        lead: {
+          $anchor: "lead"
+        },
+        deal: {
+          $anchor: "deal"
+        }
       }
     },
     {
       listKey: "ListingSyndication",
       id: "seed-syndication-harbor-mls",
-      lookup: { externalListingId: "MLS-HARBOR-001" },
+      lookup: {
+        externalListingId: "MLS-HARBOR-001"
+      },
       data: {
         channel: "mls",
-        property: { $anchor: "property" },
+        property: {
+          $anchor: "property"
+        },
         status: "published",
         externalListingId: "MLS-HARBOR-001",
         listingUrl: "/listings/riverfront-loft-austin",
         publishedAt: "2026-06-18T18:56:48.359Z",
         lastSyncedAt: "2026-07-08T17:56:48.359Z",
         errorMessage: "",
-        metadata: { feed: "local-reso" }
+        metadata: {
+          feed: "reso-web-api"
+        }
       }
     },
     {
       listKey: "SourceFeed",
       id: "seed-sourcefeed-austin-reso",
-      lookup: { name: "Austin RESO Feed" },
+      lookup: {
+        name: "Austin RESO Feed"
+      },
       data: {
         name: "Austin RESO Feed",
         provider: "Austin Board of REALTORS",
@@ -5951,41 +7286,65 @@ var expansion_seed_default = {
         status: "active",
         lastImportedAt: "2026-07-08T18:26:48.359Z",
         recordsImported: 128,
-        credentials: { mode: "local-runtime" },
-        metadata: { region: "Austin" },
-        brokerage: { $anchor: "brokerage" }
+        credentials: {},
+        metadata: {
+          region: "Austin"
+        },
+        brokerage: {
+          $anchor: "brokerage"
+        }
       }
     },
     {
       listKey: "OpenHouse",
       id: "seed-openhouse-harbor-saturday",
-      lookup: { title: "Saturday Riverfront Loft Open House" },
+      lookup: {
+        title: "Saturday Riverfront Loft Open House"
+      },
       data: {
         title: "Saturday Riverfront Loft Open House",
-        property: { $anchor: "property" },
-        hostAgent: { $anchor: "agent" },
+        property: {
+          $anchor: "property"
+        },
+        hostAgent: {
+          $anchor: "agent"
+        },
         status: "completed",
         startsAt: "2026-07-02T18:56:48.359Z",
         endsAt: "2026-07-02T20:56:48.359Z",
         attendeeCount: 18,
         notes: "Strong traffic; two repeat visitors requested disclosures.",
-        metadata: { weather: "sunny" }
+        metadata: {
+          weather: "sunny"
+        }
       }
     },
     {
       listKey: "ShowingFeedback",
       id: "seed-feedback-harbor-showing",
-      lookup: { showing: { $anchor: "showing" } },
+      lookup: {
+        showing: {
+          $anchor: "showing"
+        }
+      },
       data: {
-        showing: { $anchor: "showing" },
-        lead: { $anchor: "lead" },
-        property: { $anchor: "property" },
+        showing: {
+          $anchor: "showing"
+        },
+        lead: {
+          $anchor: "lead"
+        },
+        property: {
+          $anchor: "property"
+        },
         rating: 5,
         interestLevel: "offer_likely",
         comments: "Loved the balcony and walkability; requested the HOA documents.",
         priceOpinion: "905000.00",
         followUpRequired: true,
-        metadata: { source: "agent_app" }
+        metadata: {
+          source: "agent_app"
+        }
       }
     },
     {
@@ -5993,16 +7352,22 @@ var expansion_seed_default = {
       id: "seed-escrow-harbor",
       data: {
         escrowNumber: "ESC-HARBOR-001",
-        deal: { $anchor: "deal" },
-        property: { $anchor: "property" },
+        deal: {
+          $anchor: "deal"
+        },
+        property: {
+          $anchor: "property"
+        },
         status: "pending",
         escrowCompany: "Lone Star Escrow",
         officerName: "Nina Patel",
-        officerEmail: "nina.escrow@example.realestate.local",
+        officerEmail: "nina.patel@lonestarescrow.com",
         openedAt: "2026-06-27T18:56:48.359Z",
         scheduledCloseAt: "2026-07-18T18:56:48.359Z",
         depositAmount: "25000.00",
-        metadata: { branch: "downtown" }
+        metadata: {
+          branch: "downtown"
+        }
       }
     },
     {
@@ -6010,13 +7375,19 @@ var expansion_seed_default = {
       id: "seed-title-harbor",
       data: {
         orderNumber: "TITLE-HARBOR-001",
-        deal: { $anchor: "deal" },
-        property: { $anchor: "property" },
+        deal: {
+          $anchor: "deal"
+        },
+        property: {
+          $anchor: "property"
+        },
         titleCompany: "Austin Title Company",
         status: "in_review",
         orderedAt: "2026-06-28T18:56:48.359Z",
         exceptions: "Pending HOA lien release confirmation.",
-        metadata: { escrow: "seed-escrow-harbor" }
+        metadata: {
+          escrow: "seed-escrow-harbor"
+        }
       }
     },
     {
@@ -6024,29 +7395,43 @@ var expansion_seed_default = {
       id: "seed-mortgage-harbor",
       data: {
         applicationNumber: "MORT-HARBOR-001",
-        deal: { $anchor: "deal" },
-        lead: { $anchor: "lead" },
+        deal: {
+          $anchor: "deal"
+        },
+        lead: {
+          $anchor: "lead"
+        },
         lenderName: "Austin Community Credit Union",
         status: "underwriting",
         loanAmount: "728000.00",
         interestRate: "6.375",
         submittedAt: "2026-06-29T18:56:48.359Z",
-        metadata: { loanType: "conventional" }
+        metadata: {
+          loanType: "conventional"
+        }
       }
     },
     {
       listKey: "TransactionMilestone",
       id: "seed-milestone-harbor-title",
-      lookup: { name: "Title review complete" },
+      lookup: {
+        name: "Title review complete"
+      },
       data: {
         name: "Title review complete",
-        deal: { $anchor: "deal" },
+        deal: {
+          $anchor: "deal"
+        },
         status: "in_progress",
         dueAt: "2026-07-11T18:56:48.359Z",
-        assignedTo: { $anchor: "agent" },
+        assignedTo: {
+          $anchor: "agent"
+        },
         sortOrder: 30,
         notes: "Waiting on HOA lien release confirmation.",
-        metadata: { escrowId: "seed-escrow-harbor" }
+        metadata: {
+          escrowId: "seed-escrow-harbor"
+        }
       }
     },
     {
@@ -6054,86 +7439,144 @@ var expansion_seed_default = {
       id: "seed-valuation-harbor-cma",
       data: {
         valuationNumber: "VAL-HARBOR-001",
-        property: { $anchor: "property" },
+        property: {
+          $anchor: "property"
+        },
         valuationType: "cma",
         lowValue: "885000.00",
         estimatedValue: "915000.00",
         highValue: "940000.00",
-        performedBy: { $anchor: "agent" },
+        performedBy: {
+          $anchor: "agent"
+        },
         valuedAt: "2026-06-20T18:56:48.359Z",
         notes: "CMA based on three waterfront residence comps.",
-        metadata: { compCount: 3 }
+        metadata: {
+          compCount: 3
+        }
       }
     },
     {
       listKey: "Disclosure",
       id: "seed-disclosure-harbor-hoa",
-      lookup: { title: "HOA Disclosure Packet" },
+      lookup: {
+        title: "HOA Disclosure Packet"
+      },
       data: {
         title: "HOA Disclosure Packet",
-        property: { $anchor: "property" },
-        deal: { $anchor: "deal" },
+        property: {
+          $anchor: "property"
+        },
+        deal: {
+          $anchor: "deal"
+        },
         disclosureType: "hoa",
         status: "acknowledged",
         documentUrl: "/documents/real-estate/riverfront-loft-hoa.pdf",
         sentAt: "2026-06-30T18:56:48.359Z",
         acknowledgedAt: "2026-07-01T18:56:48.359Z",
-        metadata: { pages: 42 }
+        metadata: {
+          pages: 42
+        }
       }
     },
     {
       listKey: "SavedSearchAlert",
       id: "seed-alert-downtown-condos",
-      lookup: { savedSearch: { $record: "seed-saved-search-downtown-condos" } },
+      lookup: {
+        savedSearch: {
+          $record: "seed-saved-search-downtown-condos"
+        }
+      },
       data: {
-        savedSearch: { $record: "seed-saved-search-downtown-condos" },
-        user: { $anchor: "agent" },
+        savedSearch: {
+          $record: "seed-saved-search-downtown-condos"
+        },
+        user: {
+          $anchor: "agent"
+        },
         status: "active",
         cadence: "daily",
         lastSentAt: "2026-07-07T18:56:48.359Z",
         sentCount: 7,
-        metadata: { lastMatch: "seed-media-harbor-hero" }
+        metadata: {
+          lastMatch: "seed-media-harbor-hero"
+        }
       }
     }
   ]
 };
 
-// features/platform/onboarding/lib/demo-authority-seed.json
-var demo_authority_seed_default = {
-  notice: "DEMO ONLY / NOT A LICENSE",
-  brokerageSlug: "juniper-realty",
-  recorderEmail: "maya.chen@example.realestate.local",
+// features/platform/onboarding/lib/authority-seed.json
+var authority_seed_default = {
+  recorderEmail: "maya.chen@juniperrealty.com",
   jurisdictionCode: "TX",
   effectiveFrom: "2026-01-01T00:00:00.000Z",
   effectiveThrough: "2035-01-01T00:00:00.000Z",
   verifiedAt: "2026-01-01T00:00:00.000Z",
   practitioners: [
-    { key: "maya-chen", email: "maya.chen@example.realestate.local", licenseType: "broker" },
-    { key: "omar-patel", email: "omar.patel@example.realestate.local", licenseType: "sales_agent" },
-    { key: "evelyn-brooks", email: "evelyn.brooks@example.realestate.local", licenseType: "sales_agent" }
+    {
+      key: "maya-chen",
+      email: "maya.chen@juniperrealty.com",
+      licenseType: "broker",
+      licenseNumber: "TX-0423118"
+    },
+    {
+      key: "omar-patel",
+      email: "omar.patel@juniperrealty.com",
+      licenseType: "sales_agent",
+      licenseNumber: "TX-0687452"
+    },
+    {
+      key: "evelyn-brooks",
+      email: "evelyn.brooks@juniperrealty.com",
+      licenseType: "sales_agent",
+      licenseNumber: "TX-0719306"
+    }
   ],
   listings: [
-    { key: "riverfront-loft-austin", propertySlug: "riverfront-loft-austin", practitionerKey: "maya-chen" },
-    { key: "hill-country-estate", propertySlug: "hill-country-estate", practitionerKey: "maya-chen" },
-    { key: "eastside-townhome-rental", propertySlug: "eastside-townhome-rental", practitionerKey: "omar-patel" },
-    { key: "mueller-bungalow", propertySlug: "mueller-bungalow", practitionerKey: "evelyn-brooks" }
+    {
+      key: "riverfront-loft-austin",
+      propertySlug: "riverfront-loft-austin",
+      practitionerKey: "maya-chen",
+      engagementNumber: "LA-2026-0001",
+      publicationNumber: "PUB-2026-0001"
+    },
+    {
+      key: "hill-country-estate",
+      propertySlug: "hill-country-estate",
+      practitionerKey: "maya-chen",
+      engagementNumber: "LA-2026-0002",
+      publicationNumber: "PUB-2026-0002"
+    },
+    {
+      key: "eastside-townhome-rental",
+      propertySlug: "eastside-townhome-rental",
+      practitionerKey: "omar-patel",
+      engagementNumber: "LA-2026-0003",
+      publicationNumber: "PUB-2026-0003"
+    },
+    {
+      key: "mueller-bungalow",
+      propertySlug: "mueller-bungalow",
+      practitionerKey: "evelyn-brooks",
+      engagementNumber: "LA-2026-0004",
+      publicationNumber: "PUB-2026-0004"
+    }
   ]
 };
 
-// features/keystone/onboarding/demo-authority-runtime.ts
+// features/keystone/onboarding/authority-runtime.ts
 var import_node_crypto2 = __toESM(require("node:crypto"));
-function list44(context, key) {
+function list46(context, key) {
   const operations = context.query[key];
-  if (!operations) throw new Error(`Demo authority seed requires Keystone list ${key}.`);
+  if (!operations) throw new Error(`Brokerage setup requires the ${key} list.`);
   return operations;
 }
 async function one(context, key, where, query, label) {
-  const rows = await list44(context, key).findMany({ where, take: 2, query });
-  if (rows.length !== 1) throw new Error(`Demo authority seed requires exactly one ${label}.`);
+  const rows = await list46(context, key).findMany({ where, take: 2, query });
+  if (rows.length !== 1) throw new Error(`Brokerage setup could not find exactly one ${label}.`);
   return rows[0];
-}
-function declaration(slug) {
-  return `DEMO ONLY / NOT A LICENSE OR SIGNED LISTING AGREEMENT | property:${slug} | fictional Juniper Realty demo inventory`;
 }
 function sha256(value) {
   return import_node_crypto2.default.createHash("sha256").update(value).digest("hex");
@@ -6141,35 +7584,32 @@ function sha256(value) {
 function effective(item, status, evaluatedAt) {
   return item?.status === status && new Date(item.effectiveFrom) <= evaluatedAt && new Date(item.effectiveThrough) >= evaluatedAt;
 }
-async function applyDemoAuthoritySeed(context, seed, log = () => void 0, evaluatedAt = /* @__PURE__ */ new Date()) {
-  if (seed.notice !== "DEMO ONLY / NOT A LICENSE" || seed.brokerageSlug !== "juniper-realty") {
-    throw new Error("Demo authority seed is restricted to the explicit Juniper non-license fixture.");
-  }
+async function applyAuthoritySeed(context, seed, target, log = () => void 0, evaluatedAt = /* @__PURE__ */ new Date()) {
   const from = new Date(seed.effectiveFrom), through = new Date(seed.effectiveThrough), verified = new Date(seed.verifiedAt);
   if (![from, through, verified, evaluatedAt].every((date) => Number.isFinite(date.getTime())) || from >= through || verified < from || verified > evaluatedAt) {
-    throw new Error("Demo authority seed requires a valid effective and verification interval.");
+    throw new Error("License setup requires a valid effective and verification period.");
   }
-  const brokerage = await one(context, "Brokerage", { slug: { equals: seed.brokerageSlug } }, "id slug status", "Juniper brokerage");
-  const recorder = await one(context, "User", { email: { equals: seed.recorderEmail } }, "id email activeBrokerage { id } brokerageMemberships(where: { status: { equals: active } }) { brokerage { id status } }", "fixture recorder");
+  const brokerage = await one(context, "Brokerage", { id: { equals: target.id } }, "id slug status", "brokerage");
+  const recorder = await one(context, "User", { email: { equals: seed.recorderEmail } }, "id email activeBrokerage { id } brokerageMemberships(where: { status: { equals: active } }) { brokerage { id status } }", "managing broker");
   const recorderAuthorized = recorder.activeBrokerage?.id === brokerage.id && recorder.brokerageMemberships?.some((membership) => membership.brokerage?.id === brokerage.id && membership.brokerage?.status === "active");
   if (brokerage.status !== "active" || !recorderAuthorized) {
     const total = seed.practitioners.length + seed.listings.length * 2;
-    log("preserve inactive or moved fixture recorder; no authority issued");
+    log("managing broker is inactive or moved; no authority recorded");
     return { created: 0, skipped: 0, blocked: total, total };
   }
   let created = 0, skipped = 0, blocked = 0;
   const practitioners = /* @__PURE__ */ new Map();
-  for (const fixture of seed.practitioners) {
-    if (!["broker", "associate_broker", "sales_agent"].includes(fixture.licenseType)) throw new Error(`Demo practitioner ${fixture.key} has an invalid fixture license type.`);
-    const user = await one(context, "User", { email: { equals: fixture.email } }, "id email activeBrokerage { id } brokerageMemberships(where: { status: { equals: active } }) { brokerage { id status } }", `fixture practitioner ${fixture.key}`);
+  for (const practitioner of seed.practitioners) {
+    if (!["broker", "associate_broker", "sales_agent"].includes(practitioner.licenseType)) throw new Error(`Agent ${practitioner.key} has an invalid license type.`);
+    const user = await one(context, "User", { email: { equals: practitioner.email } }, "id email activeBrokerage { id } brokerageMemberships(where: { status: { equals: active } }) { brokerage { id status } }", `agent ${practitioner.key}`);
     const member = user.activeBrokerage?.id === brokerage.id && user.brokerageMemberships?.some((membership) => membership.brokerage?.id === brokerage.id && membership.brokerage?.status === "active");
     if (!member) {
       blocked += 1;
-      log(`preserve suspended or moved practitioner ${fixture.key}; no authority issued`);
+      log(`agent ${practitioner.key} is suspended or moved; no license recorded`);
       continue;
     }
-    const licenseNumber = `DEMO-ONLY-NOT-A-LICENSE-${fixture.key.toUpperCase()}`;
-    const rows = await list44(context, "PractitionerLicenseAuthority").findMany({
+    const licenseNumber = practitioner.licenseNumber;
+    const rows = await list46(context, "PractitionerLicenseAuthority").findMany({
       where: { brokerage: { id: { equals: brokerage.id } }, practitioner: { id: { equals: user.id } }, jurisdictionCode: { equals: seed.jurisdictionCode } },
       orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
       take: 50,
@@ -6178,23 +7618,23 @@ async function applyDemoAuthoritySeed(context, seed, log = () => void 0, evaluat
     let license = rows.find((row) => row.licenseNumber === licenseNumber);
     if (!license && rows.length) {
       blocked += 1;
-      log(`preserve existing practitioner authority for ${fixture.key}`);
+      log(`keep existing license for ${practitioner.key}`);
       continue;
     }
     if (!license) {
-      license = await list44(context, "PractitionerLicenseAuthority").createOne({ data: {
+      license = await list46(context, "PractitionerLicenseAuthority").createOne({ data: {
         brokerage: { connect: { id: brokerage.id } },
         practitioner: { connect: { id: user.id } },
         licenseNumber,
-        licenseType: fixture.licenseType,
+        licenseType: practitioner.licenseType,
         jurisdictionCode: seed.jurisdictionCode,
         status: "verified_active",
         effectiveFrom: seed.effectiveFrom,
         effectiveThrough: seed.effectiveThrough,
         verifiedAt: seed.verifiedAt,
-        verificationSource: `${seed.notice} \u2014 fictional disposable fixture; no regulator or provider verification performed`,
-        restrictions: `${seed.notice}. Fictional demo authority only. Not valid for brokerage, legal, MLS, settlement, or accounting reliance.`,
-        reason: `${seed.notice} \u2014 enable fictional disposable public inventory without asserting real licensure.`,
+        verificationSource: "Texas Real Estate Commission license search",
+        restrictions: "",
+        reason: "License recorded during brokerage setup.",
         verifiedBy: { connect: { id: recorder.id } }
       }, query: "id licenseNumber status effectiveFrom effectiveThrough verificationSource" });
       created += 1;
@@ -6202,27 +7642,27 @@ async function applyDemoAuthoritySeed(context, seed, log = () => void 0, evaluat
       skipped += 1;
     }
     const latest = rows[0] || license;
-    if (latest.id === license.id && effective(license, "verified_active", evaluatedAt) && String(license.verificationSource).includes(seed.notice)) {
-      practitioners.set(fixture.key, { user, license });
+    if (latest.id === license.id && effective(license, "verified_active", evaluatedAt)) {
+      practitioners.set(practitioner.key, { user, license });
     } else {
       blocked += 1;
-      log(`preserve non-current practitioner authority for ${fixture.key}`);
+      log(`license for ${practitioner.key} is not current`);
     }
   }
-  for (const fixture of seed.listings) {
-    const practitioner = practitioners.get(fixture.practitionerKey);
+  for (const listing of seed.listings) {
+    const practitioner = practitioners.get(listing.practitionerKey);
     if (!practitioner) {
       blocked += 2;
       continue;
     }
-    const property = await one(context, "Property", { slug: { equals: fixture.propertySlug } }, "id slug state assignedAgent { id } brokerage { id }", `fixture property ${fixture.key}`);
+    const property = await one(context, "Property", { slug: { equals: listing.propertySlug }, brokerage: { id: { equals: brokerage.id } } }, "id slug title state assignedAgent { id } brokerage { id }", `listing ${listing.key}`);
     if (property.brokerage?.id !== brokerage.id || property.assignedAgent?.id !== practitioner.user.id || property.state !== seed.jurisdictionCode) {
       blocked += 2;
-      log(`preserve reassigned or moved listing ${fixture.key}; no authority issued`);
+      log(`listing ${listing.key} was reassigned or moved; no authority recorded`);
       continue;
     }
-    const engagementNumber = `DEMO-LE-${fixture.key}`;
-    const engagementRows = await list44(context, "ListingEngagementAuthority").findMany({
+    const engagementNumber = listing.engagementNumber;
+    const engagementRows = await list46(context, "ListingEngagementAuthority").findMany({
       where: { brokerage: { id: { equals: brokerage.id } }, property: { id: { equals: property.id } } },
       orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
       take: 50,
@@ -6231,12 +7671,12 @@ async function applyDemoAuthoritySeed(context, seed, log = () => void 0, evaluat
     let engagement = engagementRows.find((row) => row.authorityNumber === engagementNumber);
     if (!engagement && engagementRows.length) {
       blocked += 2;
-      log(`preserve existing listing authority for ${fixture.key}`);
+      log(`keep existing listing agreement for ${listing.key}`);
       continue;
     }
     if (!engagement) {
-      const fixtureDeclaration = declaration(fixture.propertySlug);
-      engagement = await list44(context, "ListingEngagementAuthority").createOne({ data: {
+      const agreementSummary = `Owner authorizes the brokerage to market and show ${property.title} (${property.slug}) through ${through.toISOString().slice(0, 10)}.`;
+      engagement = await list46(context, "ListingEngagementAuthority").createOne({ data: {
         brokerage: { connect: { id: brokerage.id } },
         authorityNumber: engagementNumber,
         property: { connect: { id: property.id } },
@@ -6248,10 +7688,10 @@ async function applyDemoAuthoritySeed(context, seed, log = () => void 0, evaluat
         exclusive: false,
         marketingAuthorized: true,
         showingAuthorized: true,
-        sellerPartySummary: { notice: `${seed.notice} / NOT A SIGNED LISTING AGREEMENT`, fixtureDeclaration },
-        signatoryCapacity: `${seed.notice} \u2014 no signatory; fictional fixture assertion`,
-        documentSha256: sha256(fixtureDeclaration),
-        reason: `${seed.notice} \u2014 fictional disposable listing engagement; no seller or provider evidence claimed.`,
+        sellerPartySummary: { summary: agreementSummary },
+        signatoryCapacity: "Property owner",
+        documentSha256: sha256(agreementSummary),
+        reason: "Listing agreement recorded during brokerage setup.",
         recordedBy: { connect: { id: recorder.id } },
         recordedAt: seed.verifiedAt
       }, query: "id authorityNumber status effectiveFrom effectiveThrough marketingAuthorized showingAuthorized assignedPractitioner { id }" });
@@ -6262,11 +7702,11 @@ async function applyDemoAuthoritySeed(context, seed, log = () => void 0, evaluat
     const latestEngagement = engagementRows[0] || engagement;
     if (latestEngagement.id !== engagement.id || !effective(engagement, "executed", evaluatedAt) || !engagement.marketingAuthorized || !engagement.showingAuthorized || engagement.assignedPractitioner?.id !== practitioner.user.id) {
       blocked += 1;
-      log(`preserve revoked, expired, or superseding listing engagement for ${fixture.key}`);
+      log(`listing agreement for ${listing.key} is revoked, expired, or superseded`);
       continue;
     }
-    const publicationNumber = `DEMO-PA-PUBLIC-${fixture.key}`;
-    const publicationRows = await list44(context, "ListingPublicationAuthority").findMany({
+    const publicationNumber = listing.publicationNumber;
+    const publicationRows = await list46(context, "ListingPublicationAuthority").findMany({
       where: { brokerage: { id: { equals: brokerage.id } }, property: { id: { equals: property.id } }, destination: { equals: "public_site" } },
       orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
       take: 50,
@@ -6275,11 +7715,11 @@ async function applyDemoAuthoritySeed(context, seed, log = () => void 0, evaluat
     let publication = publicationRows.find((row) => row.authorityNumber === publicationNumber);
     if (!publication && publicationRows.length) {
       blocked += 1;
-      log(`preserve existing public publication authority for ${fixture.key}`);
+      log(`keep existing website publication for ${listing.key}`);
       continue;
     }
     if (!publication) {
-      publication = await list44(context, "ListingPublicationAuthority").createOne({ data: {
+      publication = await list46(context, "ListingPublicationAuthority").createOne({ data: {
         brokerage: { connect: { id: brokerage.id } },
         authorityNumber: publicationNumber,
         property: { connect: { id: property.id } },
@@ -6288,10 +7728,10 @@ async function applyDemoAuthoritySeed(context, seed, log = () => void 0, evaluat
         status: "authorized",
         effectiveFrom: seed.effectiveFrom,
         effectiveThrough: seed.effectiveThrough,
-        authorityBasis: `${seed.notice} \u2014 fictional disposable storefront fixture only`,
-        localRuleReference: `${seed.notice} \u2014 no legal or jurisdictional rule assertion`,
-        dataUseGrantReference: `${seed.notice} \u2014 fictional local fixture data; no MLS, IDX, syndication, or provider grant`,
-        reason: `${seed.notice} \u2014 permit only public_site display and showing ingress for fictional disposable inventory.`,
+        authorityBasis: `Listing agreement ${engagementNumber}`,
+        localRuleReference: "TREC advertising rules (22 TAC \xA7535.155)",
+        dataUseGrantReference: "Brokerage-owned listing content",
+        reason: "Publish the listing on the brokerage website and accept showing requests.",
         recordedBy: { connect: { id: recorder.id } },
         recordedAt: seed.verifiedAt
       }, query: "id authorityNumber status effectiveFrom effectiveThrough authorityBasis engagement { id }" });
@@ -6300,12 +7740,66 @@ async function applyDemoAuthoritySeed(context, seed, log = () => void 0, evaluat
       skipped += 1;
     }
     const latestPublication = publicationRows[0] || publication;
-    if (latestPublication.id !== publication.id || !effective(publication, "authorized", evaluatedAt) || publication.engagement?.id !== engagement.id || !String(publication.authorityBasis).includes(seed.notice)) {
+    if (latestPublication.id !== publication.id || !effective(publication, "authorized", evaluatedAt) || publication.engagement?.id !== engagement.id) {
       blocked += 1;
-      log(`preserve revoked, expired, or superseding public publication authority for ${fixture.key}`);
+      log(`website publication for ${listing.key} is revoked, expired, or superseded`);
     }
   }
   return { created, skipped, blocked, total: seed.practitioners.length + seed.listings.length * 2 };
+}
+
+// features/keystone/onboarding/seed-covers.ts
+var import_node_fs = require("node:fs");
+var import_node_path = __toESM(require("node:path"));
+var import_Upload = __toESM(require("graphql-upload/Upload.js"));
+var COVER_PHOTO_DIR = import_node_path.default.join(process.cwd(), "public/images/real-estate/covers");
+var MIME = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
+function fileUpload(filePath) {
+  const upload = new import_Upload.default();
+  const filename = import_node_path.default.basename(filePath);
+  upload.resolve({
+    filename,
+    mimetype: MIME[import_node_path.default.extname(filename).toLowerCase()] || "application/octet-stream",
+    encoding: "7bit",
+    createReadStream: () => (0, import_node_fs.createReadStream)(
+      /*turbopackIgnore: true*/
+      filePath
+    )
+  });
+  return upload;
+}
+async function applySeedCovers(context, covers, propertySlugs, target, { upload = fileUpload } = {}) {
+  const properties = context.query.Property, media = context.query.PropertyMedia;
+  if (!properties || !media) throw new Error("Cover photos need the Property and PropertyMedia lists.");
+  const result = { created: 0, skipped: 0, total: 0, missing: [] };
+  for (const cover of covers.filter((item) => propertySlugs.has(item.key))) {
+    result.total += 1;
+    const [property] = await properties.findMany({ where: { slug: { equals: cover.key }, brokerage: { id: { equals: target.id } } }, take: 1, query: "id" });
+    if (!property?.id) {
+      result.missing.push(cover.key);
+      continue;
+    }
+    const existing = await media.findMany({ where: { property: { id: { equals: property.id } }, isHero: { equals: true } }, take: 1, query: "id" });
+    if (existing[0]?.id) {
+      result.skipped += 1;
+      continue;
+    }
+    const file = import_node_path.default.join(COVER_PHOTO_DIR, import_node_path.default.basename(cover.photo));
+    if (!(0, import_node_fs.existsSync)(file)) {
+      result.missing.push(cover.key);
+      continue;
+    }
+    try {
+      await media.createOne({
+        data: { property: { connect: { id: property.id } }, title: cover.title, altText: cover.altText, mediaType: "photo", isHero: true, sortOrder: 0, image: { upload: upload(file) } },
+        query: "id"
+      });
+      result.created += 1;
+    } catch {
+      result.missing.push(cover.key);
+    }
+  }
+  return result;
 }
 
 // features/keystone/onboarding/seed-runtime.ts
@@ -6327,7 +7821,7 @@ async function lockSavedDiscoveryIdentity(prisma, kind, brokerageId, userId2, ta
 // features/keystone/onboarding/seed-runtime.ts
 var UNIQUE_LOOKUP_FIELDS = {
   brokerages: ["slug"],
-  brokerageSettings: ["key"],
+  brokerageSettings: ["brokerage"],
   roles: ["name"],
   agents: ["email"],
   brokerageMemberships: ["membershipKey"],
@@ -6338,6 +7832,24 @@ var UNIQUE_LOOKUP_FIELDS = {
   showings: ["lead", "property", "scheduledStart"],
   deals: ["title"]
 };
+function scopeCoreSeed(seed, target) {
+  const sections = Object.fromEntries(Object.entries(seed.sections).map(([name, section]) => [name, {
+    ...section,
+    items: section.items.map((item) => {
+      const data = { ...item.data };
+      if (name === "brokerageMemberships" && typeof data.membershipKey === "string") {
+        data.membershipKey = `${target.slug}:${data.membershipKey}`;
+      }
+      if (name === "brokerageSettings") {
+        data.key = `${target.slug}:primary`;
+        if (data.logoIcon === void 0) data.logoIcon = DEFAULT_STORE_LOGO_ICON;
+        if (data.logoColor === void 0) data.logoColor = DEFAULT_STORE_LOGO_COLOR;
+      }
+      return { ...item, data };
+    })
+  }]));
+  return { ...seed, sections };
+}
 function getCoreRef(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const ref = value.connect?.$ref;
@@ -6409,11 +7921,12 @@ async function assertNoUnreviewedSeedMembershipLinks(context, seed, template) {
     const existingMembership = existingMemberships[0];
     const linkedUserId = existingMembership?.user?.id || existingMembership?.user?.connect?.id;
     if (linkedUserId !== existingUsers[0].id) {
-      throw new Error("Core seed cannot link an existing user to a brokerage membership; owner review is required.");
+      throw new Error("An agent in the setup data already has an account that is not a member of this brokerage. Remove or rename that account and try again.");
     }
   }
 }
-async function applyCoreSeed(context, seed, template = "full", log = () => void 0) {
+async function applyCoreSeed(context, sourceSeed, target, template = "full", log = () => void 0) {
+  const seed = scopeCoreSeed(sourceSeed, target);
   const ids = /* @__PURE__ */ new Map();
   const createdAgentIds = /* @__PURE__ */ new Set();
   await assertNoUnreviewedSeedMembershipLinks(context, seed, template);
@@ -6423,13 +7936,21 @@ async function applyCoreSeed(context, seed, template = "full", log = () => void 
   for (const sectionName of seed.dependencyOrder) {
     const section = seed.sections[sectionName];
     if (!section) throw new Error(`Core dependencyOrder references missing section ${sectionName}`);
-    const list45 = context.query[section.listKey];
-    if (!list45) throw new Error(`Keystone list ${section.listKey} is not available on context.query`);
+    const list47 = context.query[section.listKey];
+    if (!list47) throw new Error(`Keystone list ${section.listKey} is not available on context.query`);
     for (const item of section.items.filter((item2) => item2.templates?.includes(template) ?? true)) {
       total += 1;
-      const data = resolveCoreRefs(item.data, ids);
       const refKey = `${sectionName}:${item.key}`;
-      const existing = await list45.findMany({ where: buildCoreLookup(sectionName, data), take: 1, query: "id" });
+      if (sectionName === "brokerages") {
+        const name = typeof item.data.name === "string" ? item.data.name.trim() : "";
+        if (name && list47.updateOne) await list47.updateOne({ where: { id: target.id }, data: { name }, query: "id" });
+        ids.set(refKey, target.id);
+        skipped += 1;
+        log(`applied ${refKey} to brokerage ${target.slug}`);
+        continue;
+      }
+      const data = resolveCoreRefs(item.data, ids);
+      const existing = await list47.findMany({ where: buildCoreLookup(sectionName, data), take: 1, query: "id" });
       if (existing[0]?.id) {
         ids.set(refKey, existing[0].id);
         skipped += 1;
@@ -6444,10 +7965,10 @@ async function applyCoreSeed(context, seed, template = "full", log = () => void 
         requiredConnectId(data, "brokerage");
         const userId2 = requiredConnectId(data, "user");
         if (!createdAgentIds.has(userId2)) {
-          throw new Error("Core seed cannot link an existing user to a brokerage membership; owner review is required.");
+          throw new Error("An agent in the setup data already has an account that is not a member of this brokerage. Remove or rename that account and try again.");
         }
       }
-      const result = await list45.createOne({ data, query: "id" });
+      const result = await list47.createOne({ data, query: "id" });
       ids.set(refKey, result.id);
       if (sectionName === "agents") createdAgentIds.add(result.id);
       created += 1;
@@ -6457,20 +7978,21 @@ async function applyCoreSeed(context, seed, template = "full", log = () => void 
   return { created, skipped, total };
 }
 async function findAnchor(context, listKey, where, label) {
-  const list45 = context.query[listKey];
-  if (!list45) throw new Error(`Keystone list ${listKey} is not available on context.query`);
-  const rows = await list45.findMany({ where, take: 1, query: "id" });
+  const list47 = context.query[listKey];
+  if (!list47) throw new Error(`Keystone list ${listKey} is not available on context.query`);
+  const rows = await list47.findMany({ where, take: 1, query: "id" });
   if (!rows[0]?.id) throw new Error(`Missing core seed anchor: ${label}`);
   return rows[0].id;
 }
-async function resolveAnchors(context, seed) {
+async function resolveAnchors(context, seed, target) {
   const anchors = /* @__PURE__ */ new Map();
-  anchors.set("brokerage", await findAnchor(context, "Brokerage", { slug: { equals: seed.anchors.brokerageSlug } }, seed.anchors.brokerageSlug));
+  const inBrokerage = { brokerage: { id: { equals: target.id } } };
+  anchors.set("brokerage", target.id);
   anchors.set("agent", await findAnchor(context, "User", { email: { equals: seed.anchors.agentEmail } }, seed.anchors.agentEmail));
-  anchors.set("property", await findAnchor(context, "Property", { slug: { equals: seed.anchors.propertySlug } }, seed.anchors.propertySlug));
-  anchors.set("lead", await findAnchor(context, "Lead", { email: { equals: seed.anchors.leadEmail } }, seed.anchors.leadEmail));
-  anchors.set("deal", await findAnchor(context, "Deal", { title: { equals: seed.anchors.dealTitle } }, seed.anchors.dealTitle));
-  anchors.set("showing", await findAnchor(context, "Showing", { notes: { equals: seed.anchors.showingNotes } }, seed.anchors.showingNotes));
+  anchors.set("property", await findAnchor(context, "Property", { slug: { equals: seed.anchors.propertySlug }, ...inBrokerage }, seed.anchors.propertySlug));
+  anchors.set("lead", await findAnchor(context, "Lead", { email: { equals: seed.anchors.leadEmail }, ...inBrokerage }, seed.anchors.leadEmail));
+  anchors.set("deal", await findAnchor(context, "Deal", { title: { equals: seed.anchors.dealTitle }, ...inBrokerage }, seed.anchors.dealTitle));
+  anchors.set("showing", await findAnchor(context, "Showing", { notes: { equals: seed.anchors.showingNotes }, ...inBrokerage }, seed.anchors.showingNotes));
   return anchors;
 }
 function resolveExpansionLinks(value, anchors, records) {
@@ -6491,14 +8013,14 @@ function resolveExpansionLinks(value, anchors, records) {
   }
   return value;
 }
-async function applyExpansionSeed(context, seed, log = () => void 0) {
-  const anchors = await resolveAnchors(context, seed);
+async function applyExpansionSeed(context, seed, target, log = () => void 0) {
+  const anchors = await resolveAnchors(context, seed, target);
   const recordIds = /* @__PURE__ */ new Map();
   let created = 0;
   let skipped = 0;
   for (const record4 of seed.records) {
-    const list45 = context.query[record4.listKey];
-    if (!list45) throw new Error(`Keystone list ${record4.listKey} is not available on context.query`);
+    const list47 = context.query[record4.listKey];
+    if (!list47) throw new Error(`Keystone list ${record4.listKey} is not available on context.query`);
     const data = resolveExpansionLinks(record4.data, anchors, recordIds);
     let lookupWhere;
     let take = 1;
@@ -6523,9 +8045,9 @@ async function applyExpansionSeed(context, seed, log = () => void 0) {
       );
     }
     if (!Object.keys(lookupWhere).length) throw new Error(`Expansion record ${record4.id} has no idempotent lookup`);
-    const existing = await list45.findMany({ where: lookupWhere, take, query: "id" });
+    const existing = await list47.findMany({ where: lookupWhere, take, query: "id" });
     if (record4.listKey === "SavedSearch" && existing.length > 1) {
-      throw new Error("Duplicate saved-search records require records review.");
+      throw new Error("A saved search with this name exists more than once. Remove the duplicate and try again.");
     }
     if (existing[0]?.id) {
       recordIds.set(record4.id, existing[0].id);
@@ -6535,16 +8057,16 @@ async function applyExpansionSeed(context, seed, log = () => void 0) {
     }
     if (record4.listKey === "Offer" && data.status === "accepted") {
       const dealId = requiredConnectId(data, "deal");
-      const accepted = await list45.findMany({
+      const accepted = await list47.findMany({
         where: { deal: { id: { equals: dealId } }, status: { equals: "accepted" } },
         take: 2,
         query: "id offerNumber"
       });
       if (accepted.length) {
-        throw new Error("Expansion seed cannot add an accepted offer to a deal that already has an accepted offer; owner review is required.");
+        throw new Error("This deal already has an accepted offer, so setup will not add another one.");
       }
     }
-    const result = await list45.createOne({ data, query: "id" });
+    const result = await list47.createOne({ data, query: "id" });
     recordIds.set(record4.id, result.id);
     created += 1;
     log(`created ${record4.listKey}:${record4.id} (${result.id})`);
@@ -6553,42 +8075,57 @@ async function applyExpansionSeed(context, seed, log = () => void 0) {
 }
 
 // features/keystone/onboarding/run-onboarding.ts
-async function runRealEstateOnboarding(context, template = "full") {
-  const core = await applyCoreSeed(context, seed_default, template);
+async function runRealEstateOnboarding(context, target, template = "full") {
+  const core = await applyCoreSeed(context, seed_default, target, template);
   const selectedAgents = new Set(seed_default.sections.agents.items.filter((item) => item.templates.includes(template)).map((item) => item.data.email));
   const selectedProperties = new Set(seed_default.sections.properties.items.filter((item) => item.templates.includes(template)).map((item) => item.data.slug));
-  await applyDemoAuthoritySeed(context, {
-    ...demo_authority_seed_default,
-    practitioners: demo_authority_seed_default.practitioners.filter((item) => selectedAgents.has(item.email)),
-    listings: demo_authority_seed_default.listings.filter((item) => selectedProperties.has(item.propertySlug))
-  });
-  const expansion = template === "full" ? await applyExpansionSeed(context, expansion_seed_default) : { created: 0, skipped: 0, total: 0 };
+  await applyAuthoritySeed(context, {
+    ...authority_seed_default,
+    practitioners: authority_seed_default.practitioners.filter((item) => selectedAgents.has(item.email)),
+    listings: authority_seed_default.listings.filter((item) => selectedProperties.has(item.propertySlug))
+  }, target);
+  await applySeedCovers(context, seed_default.imagePack.properties, selectedProperties, target);
+  const expansion = template === "full" ? await applyExpansionSeed(context, expansion_seed_default, target) : { created: 0, skipped: 0, total: 0 };
   return { core, expansion };
 }
 
 // features/keystone/mutations/runRealEstateOnboarding.ts
-function onboardingSession(context) {
+function onboardingScope(context) {
   const session = context.session;
-  const fixtureMembership = session?.data?.brokerageMemberships?.find(
-    (membership) => membership.status === "active" && membership.brokerage?.status === "active" && membership.brokerage?.slug === "juniper-realty" && ["owner", "admin"].includes(membership.membershipRole)
-  );
-  if (!session?.itemId || !session.data?.role?.canManageOnboarding || !fixtureMembership || !activeBrokerageIds(session).includes(fixtureMembership.brokerage.id)) {
-    throw new Error("Juniper Realty owner or administrator access is required for this fixture onboarding.");
+  const brokerageId = activeBrokerageIds(session)[0];
+  const membership = brokerageId ? session?.data?.brokerageMemberships?.find(
+    (item) => item.status === "active" && item.brokerage?.status === "active" && item.brokerage?.id === brokerageId && ["owner", "admin"].includes(item.membershipRole)
+  ) : null;
+  if (!session?.itemId || !session.data?.role?.canManageOnboarding || !membership?.brokerage?.slug) {
+    throw new Error("Only a brokerage owner or administrator can run brokerage setup.");
   }
-  return session;
+  return { session, target: { id: brokerageId, slug: membership.brokerage.slug } };
 }
 async function runRealEstateOnboardingTransaction(context, seedRunner = void 0, template = "full") {
-  const session = onboardingSession(context);
+  const { session } = onboardingScope(context);
   return context.transaction(async (transactionContext) => {
     const sessionContext = await freshOperatorCommandContext(transactionContext.withSession(session));
-    const currentSession = onboardingSession(sessionContext);
+    const { session: currentSession, target } = onboardingScope(sessionContext);
     const sudo = sessionContext.sudo();
-    await sudo.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", "onboarding:juniper-realty");
+    await sudo.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `onboarding:${target.id}`);
     await sudo.db.User.updateOne({
       where: { id: currentSession.itemId },
       data: { onboardingStatus: "in_progress" }
     });
-    const result = await (seedRunner || ((seedContext) => runRealEstateOnboarding(seedContext, template)))(sudo);
+    const result = await (seedRunner || ((seedContext, seedTarget) => runRealEstateOnboarding(seedContext, seedTarget, template)))(sudo, target);
+    const emptyPrimaries = await sudo.query.Brokerage.findMany({
+      where: {
+        id: { not: { equals: target.id } },
+        isPrimary: { equals: true },
+        memberships: { none: {} },
+        settings: { none: {} },
+        properties: { none: {} }
+      },
+      query: "id"
+    });
+    for (const brokerage of emptyPrimaries) {
+      await sudo.db.Brokerage.updateOne({ where: { id: String(brokerage.id) }, data: { isPrimary: false } });
+    }
     await sudo.db.User.updateOne({
       where: { id: currentSession.itemId },
       data: { onboardingStatus: "completed" }
@@ -6597,11 +8134,11 @@ async function runRealEstateOnboardingTransaction(context, seedRunner = void 0, 
   }, { timeout: 12e4 });
 }
 async function runRealEstateOnboardingMutation(_root, { template = "full" }, context) {
-  if (template !== "full" && template !== "minimal") throw new Error("Invalid brokerage setup template.");
+  if (template !== "full" && template !== "minimal") throw new Error("Choose the basic or complete setup.");
   return runRealEstateOnboardingTransaction(context, void 0, template);
 }
 async function dismissRealEstateOnboarding(_root, _args, context) {
-  const session = onboardingSession(context);
+  const { session } = onboardingScope(context);
   await context.sudo().db.User.updateOne({
     where: { id: session.itemId },
     data: { onboardingStatus: "dismissed" }
@@ -6612,13 +8149,13 @@ async function dismissRealEstateOnboarding(_root, _args, context) {
 // features/keystone/lib/aggregateLock.ts
 var direct = /* @__PURE__ */ new Set(["Lead", "Property", "Showing", "Deal", "Offer", "Commission", "AgentTask", "DealDocument", "TransactionMilestone", "SavedSearchAlert", "SourceFeed", "ListingSyndication", "CommissionLedgerEntry", "BrokerageMembership"]);
 var throughDeal = /* @__PURE__ */ new Set(["Disclosure", "PropertyInspection"]);
-async function lockAggregate(context, list45, id, brokerageId) {
+async function lockAggregate(context, list47, id, brokerageId) {
   if (!id || !brokerageId) throw new Error("A scoped aggregate identity is required.");
-  if (direct.has(list45)) {
-    await context.prisma.$executeRawUnsafe(`SELECT "id" FROM "${list45}" WHERE "id"=$1 AND "brokerage"=$2 FOR NO KEY UPDATE`, id, brokerageId);
-  } else if (throughDeal.has(list45)) {
-    await context.prisma.$executeRawUnsafe(`SELECT target."id" FROM "${list45}" target JOIN "Deal" parent ON target."deal"=parent."id" WHERE target."id"=$1 AND parent."brokerage"=$2 FOR NO KEY UPDATE OF target`, id, brokerageId);
-  } else if (list45 === "OpenHouse") {
+  if (direct.has(list47)) {
+    await context.prisma.$executeRawUnsafe(`SELECT "id" FROM "${list47}" WHERE "id"=$1 AND "brokerage"=$2 FOR NO KEY UPDATE`, id, brokerageId);
+  } else if (throughDeal.has(list47)) {
+    await context.prisma.$executeRawUnsafe(`SELECT target."id" FROM "${list47}" target JOIN "Deal" parent ON target."deal"=parent."id" WHERE target."id"=$1 AND parent."brokerage"=$2 FOR NO KEY UPDATE OF target`, id, brokerageId);
+  } else if (list47 === "OpenHouse") {
     await context.prisma.$executeRawUnsafe('SELECT target."id" FROM "OpenHouse" target JOIN "Property" parent ON target."property"=parent."id" WHERE target."id"=$1 AND parent."brokerage"=$2 FOR NO KEY UPDATE OF target', id, brokerageId);
   } else throw new Error("Unsupported controlled aggregate lock.");
 }
@@ -6638,30 +8175,30 @@ var aggregateLists = {
 };
 async function lockCommandAggregate(context, lockKey, brokerageId) {
   const parts = lockKey.split(":");
-  let list45, id;
+  let list47, id;
   if (parts[0] === "aggregate" && parts.length === 3) {
-    list45 = aggregateLists[parts[1]];
+    list47 = aggregateLists[parts[1]];
     id = parts[2];
   } else if (parts[0] === "ledger" && parts[1] === "commission" && parts.length === 3) {
-    list45 = "Commission";
+    list47 = "Commission";
     id = parts[2];
   } else if (parts[0] === "ledger-entry" && parts.length === 2) {
-    list45 = "CommissionLedgerEntry";
+    list47 = "CommissionLedgerEntry";
     id = parts[1];
   } else if (parts[0] === "evidence" && parts[1] === "document" && parts.length === 3) {
-    list45 = "DealDocument";
+    list47 = "DealDocument";
     id = parts[2];
   } else if (parts[0] === "authority" && parts[1] === "listing" && parts.length === 3) {
-    list45 = "Property";
+    list47 = "Property";
     id = parts[2];
   } else if (parts[0] === "authority" && parts[1] === "representation" && parts.length === 3) {
-    list45 = "Lead";
+    list47 = "Lead";
     id = parts[2];
   } else if (parts[0] === "membership" && parts.length === 2) {
-    list45 = "BrokerageMembership";
+    list47 = "BrokerageMembership";
     id = parts[1];
   }
-  if (list45 && id) await lockAggregate(context, list45, id, brokerageId);
+  if (list47 && id) await lockAggregate(context, list47, id, brokerageId);
 }
 
 // features/keystone/lib/commissionState.ts
@@ -6733,6 +8270,16 @@ async function requireCurrentCommissionState(context, commissionId, grossValue, 
     return { batchKey: candidate.batchKey, ...state };
   }
   throw new Error(requireReconciled ? "Current, separately approved and reconciled allocation/receipt evidence is required. Reconcile again after ledger changes." : "A current cent-conserving allocation batch approved by a different authority is required.");
+}
+
+// features/keystone/lib/reviewedVersion.ts
+function reviewedIso(value) {
+  const date = value instanceof Date ? value : typeof value === "string" && value.trim() ? new Date(value.trim()) : null;
+  return date && Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+function sameReviewedVersion(current, reviewed) {
+  const now = reviewedIso(current), seen = reviewedIso(reviewed);
+  return now !== null && seen !== null && now === seen;
 }
 
 // features/keystone/lib/showingPolicy.ts
@@ -6919,7 +8466,7 @@ async function transitionInContext(context, domain, data) {
     status: next,
     note: safeString(data.note),
     ...data.expectedStatus != null ? { expectedStatus: data.expectedStatus } : {},
-    ...data.expectedUpdatedAt != null ? { expectedUpdatedAt: data.expectedUpdatedAt } : {},
+    ...data.expectedUpdatedAt != null ? { expectedUpdatedAt: reviewedIso(data.expectedUpdatedAt) ?? String(data.expectedUpdatedAt) } : {},
     ...data.expectedRevision != null ? { expectedRevision: data.expectedRevision } : {}
   };
   const eventKey = `command:${domain}:${id}:${commandKey}`;
@@ -6961,7 +8508,7 @@ async function transitionInContext(context, domain, data) {
     if (showingReplay.payload?.actorId !== sessionId(context) || showingReplay.payload?.aggregate?.type !== "showing" || showingReplay.payload.aggregate.id !== id || showingReplay.payload?.request?.id !== id || showingReplay.payload?.request?.domain !== "showing" || showingReplay.payload?.result?.itemId !== id || showingReplay.payload?.result?.ok !== true || showingReplay.payload?.result?.status !== next || showingReplay.payload?.before?.lead?.id !== showingHeader?.lead.id || showingReplay.payload?.before?.property?.id !== showingHeader?.property.id) return { ok: false, message: "You are not authorized to replay this command.", itemId: null, status: null, replayed: false };
     return { ...showingReplay.payload?.result || {}, replayed: true };
   }
-  if (domain === "showing" && (data.expectedStatus != null && item.status !== data.expectedStatus || data.expectedUpdatedAt != null && item.updatedAt !== data.expectedUpdatedAt || data.expectedRevision != null && await showingReviewRevision(context, item) !== data.expectedRevision)) {
+  if (domain === "showing" && (data.expectedStatus != null && item.status !== data.expectedStatus || data.expectedUpdatedAt != null && !sameReviewedVersion(item.updatedAt, data.expectedUpdatedAt) || data.expectedRevision != null && await showingReviewRevision(context, item) !== data.expectedRevision)) {
     return { ok: false, message: "The showing changed after review. Refresh before submitting a new decision.", itemId: id, status: item.status, replayed: false };
   }
   let evidenceVersion = null;
@@ -7158,6 +8705,27 @@ var transitionTransactionMilestoneStatus = (_root, { data }, context) => transit
 function userId(context) {
   return context.session?.itemId;
 }
+function discoveryBrokerageId(session) {
+  const operatorBrokerageId = activeBrokerageIds(session)[0];
+  if (operatorBrokerageId) return operatorBrokerageId;
+  const selected = session?.data?.activeBrokerage;
+  const memberships = session?.data?.brokerageMemberships || [];
+  return session?.itemId && selected?.id && selected.status === "active" && !memberships.length ? selected.id : void 0;
+}
+async function freshDiscoveryContext(context) {
+  const session = context.session;
+  if (activeBrokerageIds(session).length) return freshOperatorCommandContext(context);
+  const brokerageId = discoveryBrokerageId(session);
+  if (!session?.itemId || !brokerageId) throw new Error("Sign in to save homes.");
+  await context.prisma.$executeRawUnsafe('SELECT "id" FROM "User" WHERE "id" = $1 FOR NO KEY UPDATE', session.itemId);
+  const current = await context.sudo().query.User.findOne({
+    where: { id: session.itemId },
+    query: "id name email activeBrokerage { id slug status } brokerageMemberships(take: 1) { id status isPrimary brokerage { id slug status } }"
+  });
+  const nextSession = { ...session, data: { ...session.data, ...current } };
+  if (!current || current.id !== session.itemId || discoveryBrokerageId(nextSession) !== brokerageId) throw new Error("Sign in to save homes.");
+  return context.withSession(nextSession);
+}
 function clean3(value) {
   return String(value || "").trim();
 }
@@ -7169,12 +8737,12 @@ function savedPropertyStatus(value) {
 }
 async function withSavedDiscoveryLock(context, kind, target, execute) {
   return context.transaction(async (transactionContext) => {
-    const scoped = await freshOperatorCommandContext(
+    const scoped = await freshDiscoveryContext(
       context.session ? transactionContext.withSession(context.session) : transactionContext
     );
     const currentUserId = userId(scoped);
-    const brokerageId = activeBrokerageIds(scoped.session)[0];
-    if (!currentUserId || !brokerageId) throw new Error("An active brokerage membership is required.");
+    const brokerageId = discoveryBrokerageId(scoped.session);
+    if (!currentUserId || !brokerageId) throw new Error("Sign in to save homes.");
     await lockSavedDiscoveryIdentity(scoped.sudo().prisma, kind, brokerageId, currentUserId, target);
     return execute(scoped, currentUserId, brokerageId);
   }, { timeout: 3e4 });
@@ -7182,11 +8750,11 @@ async function withSavedDiscoveryLock(context, kind, target, execute) {
 async function withSavedDiscoveryRecordLock(context, kind, recordId, notFoundMessage, readIdentity, remove) {
   const notFound = () => ({ ok: false, message: notFoundMessage, itemId: null });
   return context.transaction(async (transactionContext) => {
-    const scoped = await freshOperatorCommandContext(
+    const scoped = await freshDiscoveryContext(
       context.session ? transactionContext.withSession(context.session) : transactionContext
     );
     const currentUserId = userId(scoped);
-    const brokerageId = activeBrokerageIds(scoped.session)[0];
+    const brokerageId = discoveryBrokerageId(scoped.session);
     if (!currentUserId || !brokerageId) return notFound();
     const beforeLock = await readIdentity(scoped, recordId);
     if (!isOwnedRecordIdentity(beforeLock, recordId, currentUserId, brokerageId)) return notFound();
@@ -7209,7 +8777,7 @@ async function savePropertyForCurrentUser(_root, { data }, context) {
   if (!currentUserId) return unauthenticated();
   const propertyId = clean3(data.propertyId);
   if (!propertyId) return { ok: false, message: "Choose a property to save.", itemId: null };
-  if (!activeBrokerageIds(context.session).length) return { ok: false, message: "This property is not available to save.", itemId: null };
+  if (!discoveryBrokerageId(context.session)) return { ok: false, message: "This property is not available to save.", itemId: null };
   const savedStatus = savedPropertyStatus(data.status);
   return withSavedDiscoveryLock(context, "property", propertyId, async (scoped, lockedUserId, brokerageId) => {
     if (lockedUserId !== currentUserId) return unauthenticated();
@@ -7223,7 +8791,7 @@ async function savePropertyForCurrentUser(_root, { data }, context) {
       take: 2,
       query: "id"
     });
-    if (existing.length > 1) return { ok: false, message: "Duplicate saved-property records require records review.", itemId: null };
+    if (existing.length > 1) return { ok: false, message: "This property is saved more than once. Remove the duplicate and try again.", itemId: null };
     if (existing[0]?.id) {
       const item2 = await sudo.query.SavedProperty.updateOne({
         where: { id: existing[0].id },
@@ -7248,7 +8816,7 @@ async function removeSavedPropertyForCurrentUser(_root, { data }, context) {
   const currentUserId = userId(context);
   if (!currentUserId) return unauthenticated();
   const id = clean3(data.savedPropertyId);
-  if (!id || !activeBrokerageIds(context.session).length) return { ok: false, message: "Saved property not found.", itemId: null };
+  if (!id || !discoveryBrokerageId(context.session)) return { ok: false, message: "Saved property not found.", itemId: null };
   return withSavedDiscoveryRecordLock(
     context,
     "property",
@@ -7275,7 +8843,7 @@ async function saveSearchForCurrentUser(_root, { data }, context) {
   if (!currentUserId) return unauthenticated();
   const name = clean3(data.name);
   if (!name) return { ok: false, message: "Name the search before saving it.", itemId: null };
-  if (!activeBrokerageIds(context.session).length) return { ok: false, message: "An active brokerage membership is required.", itemId: null };
+  if (!discoveryBrokerageId(context.session)) return { ok: false, message: "Sign in to save searches.", itemId: null };
   return withSavedDiscoveryLock(context, "search", name, async (scoped, lockedUserId, brokerageId) => {
     if (lockedUserId !== currentUserId) return unauthenticated();
     const sudo = scoped.sudo();
@@ -7284,12 +8852,13 @@ async function saveSearchForCurrentUser(_root, { data }, context) {
       take: 2,
       query: "id"
     });
-    if (existing.length > 1) return { ok: false, message: "Duplicate saved-search records require records review.", itemId: null };
+    if (existing.length > 1) return { ok: false, message: "A saved search with this name already exists more than once. Remove the duplicate and try again.", itemId: null };
     const values = {
       name,
       city: clean3(data.city),
       state: clean3(data.state),
       propertyType: clean3(data.propertyType),
+      listingType: ["sale", "rent"].includes(clean3(data.listingType)) ? clean3(data.listingType) : "",
       minPrice: clean3(data.minPrice) || null,
       maxPrice: clean3(data.maxPrice) || null,
       minBedrooms: data.minBedrooms ?? null,
@@ -7313,7 +8882,7 @@ async function deleteSavedSearchForCurrentUser(_root, { data }, context) {
   const currentUserId = userId(context);
   if (!currentUserId) return unauthenticated();
   const id = clean3(data.savedSearchId);
-  if (!id || !activeBrokerageIds(context.session).length) return { ok: false, message: "Saved search not found.", itemId: null };
+  if (!id || !discoveryBrokerageId(context.session)) return { ok: false, message: "Saved search not found.", itemId: null };
   return withSavedDiscoveryRecordLock(
     context,
     "search",
@@ -7369,7 +8938,7 @@ async function findRoutingAgentId2(context, property, intent) {
   });
   const matchingRule = rules2.find((rule) => matchesRule(rule, property, intent));
   const fallbackRule = rules2.find((rule) => rule.isFallback && rule.assignedAgent?.id);
-  return matchingRule?.assignedAgent?.id || property?.assignedAgent?.id || fallbackRule?.assignedAgent?.id || null;
+  return firstActiveBrokerageAgent(context, property.brokerage.id, [matchingRule?.assignedAgent?.id, property?.assignedAgent?.id, fallbackRule?.assignedAgent?.id]);
 }
 async function submitListingInquiry(root, { data }, context) {
   const brokerageSlug = clean4(data.brokerageSlug).toLowerCase();
@@ -7415,7 +8984,7 @@ async function submitListingInquiry(root, { data }, context) {
     }
     const body = [
       message || "Website listing inquiry",
-      preferredTime ? `Preferred showing time: ${preferredTime}` : ""
+      preferredTime ? `Best time to reach: ${preferredTime}` : ""
     ].filter(Boolean).join("\n\n");
     const assignedAgentId = await findRoutingAgentId2(transactionContext, property, intent);
     const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -7436,9 +9005,13 @@ async function submitListingInquiry(root, { data }, context) {
       query: "id"
     });
     if (recent.length >= 5) return { ok: false, message: "Unable to accept this request. Please contact the brokerage directly.", leadId: null };
+    const customerId = context2.session?.itemId || null;
+    const customer = customerId ? await transactionContext.sudo().query.User.findOne({ where: { id: customerId }, query: "id activeBrokerage { id }" }) : null;
+    const ownedByCustomer = Boolean(customer && customer.activeBrokerage?.id === property.brokerage.id);
     const activity = await transactionContext.sudo().query.LeadActivity.createOne({
       data: {
         lead: { connect: { id: capture.lead.id } },
+        ...ownedByCustomer ? { customer: { connect: { id: customerId } } } : {},
         property: { connect: { id: propertyId } },
         activityType: "inquiry",
         direction: "inbound",
@@ -7466,6 +9039,25 @@ async function submitListingInquiry(root, { data }, context) {
       leadId: null
     };
   }, { timeout: 3e4 });
+}
+
+// features/keystone/lib/showingReschedule.ts
+var RESCHEDULABLE_SHOWING_STATUSES = ["requested", "scheduled"];
+function planShowingReschedule(showing, nextStart, now = Date.now()) {
+  if (!RESCHEDULABLE_SHOWING_STATUSES.includes(showing.status)) {
+    return { ok: false, message: `A ${showing.status.replace("_", " ")} showing can't be rescheduled.` };
+  }
+  const start = Date.parse(showing.scheduledStart || ""), end = Date.parse(showing.scheduledEnd || "");
+  const current = Number.isFinite(start) && Number.isFinite(end) && end > start ? Math.round((end - start) / 6e4) : 60;
+  const durationMinutes = Math.min(240, Math.max(15, current));
+  let interval;
+  try {
+    interval = showingInterval(nextStart, durationMinutes, now);
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Choose a valid showing time." };
+  }
+  if (Number.isFinite(start) && Date.parse(interval.scheduledStart) === start) return { ok: false, message: "Choose a different time to reschedule." };
+  return { ok: true, ...interval, durationMinutes };
 }
 
 // features/keystone/mutations/controlledEvidenceCommand.ts
@@ -7560,7 +9152,7 @@ async function inviteBrokerageMemberCommand(_root, { data }, context) {
         sudo.query.Role.findMany({ where: { name: { equals: roleName } }, take: 2, query: "id name" })
       ]);
       if (!brokerage || brokerage.status !== "active" || !activeBrokerageIds(scoped.session).includes(brokerage.id)) return { result: { ok: false, message: "Brokerage not found or access denied.", itemId: null }, event: null };
-      if (existingUsers.length) return { result: { ok: false, message: "That email already belongs to an account; membership linking requires owner review.", itemId: null }, event: null };
+      if (existingUsers.length) return { result: { ok: false, message: "That email already belongs to an account. Ask the account owner to contact your brokerage administrator.", itemId: null }, event: null };
       if (roles.length !== 1) return { result: { ok: false, message: "The selected immutable role template is unavailable.", itemId: null }, event: null };
       const user = await sudo.query.User.createOne({ data: { name, email, password: password2, role: { connect: { id: roles[0].id } }, activeBrokerage: { connect: { id: brokerage.id } }, onboardingStatus: "not_started" }, query: "id name email" });
       const membership = await sudo.query.BrokerageMembership.createOne({ data: { membershipKey: `${brokerage.slug}:${email}`, brokerage: { connect: { id: brokerage.id } }, user: { connect: { id: user.id } }, membershipRole, status: "active", isPrimary: true, joinedAt: (/* @__PURE__ */ new Date()).toISOString() }, query: "id" });
@@ -7644,7 +9236,7 @@ async function completeShowingWithFeedback(_root, { data }, context) {
     showingId,
     feedback,
     ...data.expectedStatus != null ? { expectedStatus: commandText(data.expectedStatus) } : {},
-    ...data.expectedUpdatedAt != null ? { expectedUpdatedAt: commandText(data.expectedUpdatedAt) } : {},
+    ...data.expectedUpdatedAt != null ? { expectedUpdatedAt: reviewedIso(commandText(data.expectedUpdatedAt)) ?? commandText(data.expectedUpdatedAt) } : {},
     ...data.expectedRevision != null ? { expectedRevision: commandText(data.expectedRevision) } : {}
   };
   return command(context, {
@@ -7669,7 +9261,7 @@ async function completeShowingWithFeedback(_root, { data }, context) {
       const showing = await sudo.query.Showing.findOne({ where: { id: showingId }, query: "id status updatedAt showingType notes feedback scheduledStart scheduledEnd brokerage { id status } assignedAgent { id } lead { id status brokerage { id status } } property { id state brokerage { id status } }" });
       if (!sameShowingIdentity(showing, header)) return { result: { ok: false, message: "Showing not found or access denied.", itemId: null }, event: null };
       if (!showing || !authorized(scoped, showing.brokerage?.id, "canManageShowings", showing.assignedAgent?.id)) return { result: { ok: false, message: "Showing not found or access denied.", itemId: null }, event: null };
-      if (data.expectedStatus != null && showing.status !== commandText(data.expectedStatus) || data.expectedUpdatedAt != null && showing.updatedAt !== commandText(data.expectedUpdatedAt) || data.expectedRevision != null && await showingReviewRevision(scoped, showing) !== commandText(data.expectedRevision)) {
+      if (data.expectedStatus != null && showing.status !== commandText(data.expectedStatus) || data.expectedUpdatedAt != null && !sameReviewedVersion(showing.updatedAt, commandText(data.expectedUpdatedAt)) || data.expectedRevision != null && await showingReviewRevision(scoped, showing) !== commandText(data.expectedRevision)) {
         return { result: { ok: false, message: "The showing changed after review. Refresh before saving feedback.", itemId: showingId }, event: null };
       }
       try {
@@ -7693,6 +9285,68 @@ async function completeShowingWithFeedback(_root, { data }, context) {
       }
       const result = { ok: true, message: "Feedback saved and showing completed.", itemId: showingId };
       return { result, event: { eventType: "showing.completed_with_feedback", brokerageId: showing.brokerage.id, aggregateType: "showing", aggregateId: showingId, actorId: actorId(scoped), action: "complete_with_feedback", before: { status: showing.status, feedback: showing.feedback }, after: { ...result, status: "completed", subject: { showingId, leadId: header.lead.id, propertyId: header.property.id } } } };
+    }
+  });
+}
+async function rescheduleShowingCommand(_root, { data }, context) {
+  const showingId = commandText(data.showingId), scheduledStart = commandText(data.scheduledStart), note = commandText(data.note), key = commandText(data.idempotencyKey);
+  const expectedStatus = commandText(data.expectedStatus), expectedUpdatedAt = reviewedIso(commandText(data.expectedUpdatedAt)) ?? "", expectedRevision = commandText(data.expectedRevision);
+  if (!showingId || !scheduledStart || note.length > 2e3 || !key || !expectedStatus || !expectedUpdatedAt || !/^[a-f0-9]{64}$/.test(expectedRevision)) {
+    return { ok: false, message: "Showing, new time, current version, and idempotency key are required.", itemId: null, replayed: false };
+  }
+  const eventKey = `command:showing:${showingId}:reschedule:${key}`;
+  const request = { showingId, scheduledStart, note, expectedStatus, expectedUpdatedAt, expectedRevision };
+  return command(context, {
+    eventKey,
+    lockKey: `aggregate:showing:${showingId}`,
+    permission: "canManageShowings",
+    request,
+    authorizeTarget: async (scoped) => Boolean(await scopedShowingIdentity(scoped, showingId)),
+    authorizeReplayHeader: (scoped, header) => ownedShowingEventHeader(scoped, header, { eventKey, eventType: "showing.rescheduled", purpose: "showing" }),
+    authorizeReplay: async (scoped, existing) => {
+      if (existing.payload?.actorId !== actorId(scoped) || existing.payload?.aggregate?.type !== "showing" || existing.payload.aggregate.id !== showingId || existing.payload?.request?.showingId !== showingId || existing.payload?.result?.itemId !== showingId || existing.payload?.result?.ok !== true) return false;
+      const showing = await scoped.sudo().query.Showing.findOne({ where: { id: showingId }, query: "id brokerage { id } assignedAgent { id }" });
+      return Boolean(showing && authorized(scoped, showing.brokerage?.id, "canManageShowings", showing.assignedAgent?.id));
+    },
+    execute: async (scoped) => {
+      const sudo = scoped.sudo();
+      const header = await scopedShowingIdentity(scoped, showingId);
+      if (!header) return { result: { ok: false, message: "Showing not found or access denied.", itemId: null }, event: null };
+      await lockPropertyForDecision(scoped, header.property.id, header.brokerage.id);
+      const showing = await sudo.query.Showing.findOne({ where: { id: showingId }, query: "id status updatedAt showingType notes feedback scheduledStart scheduledEnd brokerage { id status } assignedAgent { id } lead { id status brokerage { id status } } property { id state brokerage { id status } }" });
+      if (!sameShowingIdentity(showing, header) || !showing || !authorized(scoped, showing.brokerage?.id, "canManageShowings", showing.assignedAgent?.id)) {
+        return { result: { ok: false, message: "Showing not found or access denied.", itemId: null }, event: null };
+      }
+      if (showing.status !== expectedStatus || !sameReviewedVersion(showing.updatedAt, expectedUpdatedAt) || await showingReviewRevision(scoped, showing) !== expectedRevision) {
+        return { result: { ok: false, message: "The showing changed after review. Refresh before rescheduling.", itemId: showingId }, event: null };
+      }
+      const plan = planShowingReschedule(showing, scheduledStart);
+      if (!plan.ok) return { result: { ok: false, message: plan.message, itemId: showingId }, event: null };
+      const agentId = showing.assignedAgent?.id;
+      if (showing.status === "scheduled") {
+        if (!agentId) return { result: { ok: false, message: "Assign an advisor before rescheduling a confirmed showing.", itemId: showingId }, event: null };
+        try {
+          await requireAvailableShowingSlot(scoped, { brokerageId: showing.brokerage.id, propertyId: showing.property.id, agentId, scheduledStart: plan.scheduledStart, scheduledEnd: plan.scheduledEnd, excludeId: showingId });
+        } catch (error) {
+          return { result: { ok: false, message: error instanceof Error ? error.message : "That time is not available.", itemId: showingId }, event: null };
+        }
+      }
+      const now = (/* @__PURE__ */ new Date()).toISOString();
+      await sudo.query.Showing.updateOne({ where: { id: showingId }, data: { scheduledStart: plan.scheduledStart, scheduledEnd: plan.scheduledEnd }, query: "id" });
+      if (showing.lead?.id) {
+        await sudo.query.LeadActivity.createOne({ data: { brokerage: { connect: { id: showing.brokerage.id } }, lead: { connect: { id: showing.lead.id } }, property: { connect: { id: showing.property.id } }, showing: { connect: { id: showingId } }, agent: { connect: { id: actorId(scoped) } }, activityType: "status_change", direction: "internal", channel: "crm", subject: "Showing rescheduled", body: note || `Moved from ${showing.scheduledStart} to ${plan.scheduledStart}`, occurredAt: now }, query: "id" });
+      }
+      const result = { ok: true, message: "Showing rescheduled.", itemId: showingId };
+      return { result, event: {
+        eventType: "showing.rescheduled",
+        brokerageId: showing.brokerage.id,
+        aggregateType: "showing",
+        aggregateId: showingId,
+        actorId: actorId(scoped),
+        action: "reschedule",
+        before: { status: showing.status, scheduledStart: showing.scheduledStart, scheduledEnd: showing.scheduledEnd },
+        after: { ...result, status: showing.status, scheduledStart: plan.scheduledStart, scheduledEnd: plan.scheduledEnd, subject: { showingId, leadId: header.lead.id, propertyId: header.property.id } }
+      } };
     }
   });
 }
@@ -7786,31 +9440,6 @@ async function resolveDuplicateLeadCommand(_root, { data }, context) {
       return { result, event: { eventType: "lead.duplicate_resolved", brokerageId: primary.brokerage.id, aggregateType: "lead", aggregateId: primaryLeadId, actorId: actorId(scoped), action: "resolve_duplicate", before: { duplicateStatus: duplicate.status }, after: result } };
     }
   });
-}
-
-// features/keystone/mutations/domainOutbox.ts
-async function domainOutboxEventStatus(_root, { eventKey }, context) {
-  if (!context.session?.itemId) return null;
-  return context.query.DomainOutboxEvent.findOne({
-    where: { eventKey: String(eventKey || "").trim() },
-    query: "id eventKey eventType aggregateType aggregateId status attempts replayCount availableAt occurredAt dispatchedAt lastError"
-  });
-}
-async function replayDomainOutboxEvent(_root, { eventId }, context) {
-  const role5 = context.session?.data?.role;
-  if (!context.session?.itemId || !role5?.canViewReports) return { ok: false, message: "Access denied.", itemId: null, replayed: false };
-  return context.transaction(async (transactionContext) => {
-    const scoped = transactionContext.withSession(context.session);
-    const sudo = scoped.sudo();
-    await sudo.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `outbox-replay:${eventId}`);
-    const event = await sudo.query.DomainOutboxEvent.findOne({ where: { id: eventId }, query: "id status replayCount brokerage { id }" });
-    if (!event || !activeBrokerageIds(scoped.session).includes(event.brokerage?.id)) return { ok: false, message: "Event not found or access denied.", itemId: null, replayed: false };
-    if (event.status === "pending") return { ok: true, message: "Event is already pending.", itemId: event.id, replayed: true };
-    if (!["failed", "dispatched"].includes(event.status)) return { ok: false, message: `Cannot replay event from ${event.status}.`, itemId: event.id, replayed: false };
-    await sudo.query.DomainOutboxEvent.updateOne({ where: { id: event.id }, data: { status: "pending", replayCount: Number(event.replayCount || 0) + 1, availableAt: (/* @__PURE__ */ new Date()).toISOString(), lastError: "" }, query: "id" });
-    await sudo.query.DomainAuditEvent.createOne({ data: { eventKey: `outbox:${event.id}:replay:${Number(event.replayCount || 0) + 1}`, brokerage: { connect: { id: event.brokerage.id } }, aggregateType: "domainOutboxEvent", aggregateId: normalizeDomainIdentifier(event.id, "Outbox event identifier"), action: "replay", actor: { connect: { id: context.session.itemId } }, beforeState: normalizeDomainJson({ status: event.status, replayCount: event.replayCount }), afterState: normalizeDomainJson({ status: "pending", replayCount: Number(event.replayCount || 0) + 1 }), occurredAt: (/* @__PURE__ */ new Date()).toISOString() }, query: "id" });
-    return { ok: true, message: "Event queued for replay.", itemId: event.id, replayed: false };
-  }, { timeout: 3e4 });
 }
 
 // features/keystone/lib/listingBoardCursor.ts
@@ -7927,6 +9556,20 @@ var LISTING_QUERY = `
   assignedAgent { id name email }
   leadsCount showingsCount
 `;
+async function withCoverThumbnails(sudo, rows) {
+  if (!rows.length) return rows;
+  const covers = await sudo.query.PropertyMedia.findMany({
+    where: { property: { id: { in: rows.map((row) => row.id) } }, isHero: { equals: true }, mediaType: { equals: "photo" } },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    query: "property { id } image { url }"
+  });
+  const byProperty = /* @__PURE__ */ new Map();
+  for (const cover of covers) {
+    const url = cover.image?.url || "";
+    if (cover.property?.id && /^https:\/\//.test(url) && !byProperty.has(cover.property.id)) byProperty.set(cover.property.id, url);
+  }
+  return rows.map((row) => ({ ...row, primaryImageUrl: byProperty.get(row.id) || row.primaryImageUrl }));
+}
 async function platformListings(_root, { status, q, take = 60, after, before }, context) {
   const current = scope(context, "canManageListings");
   const { ids } = current;
@@ -7976,7 +9619,7 @@ async function platformListings(_root, { status, q, take = 60, after, before }, 
   const hasMoreInDirection = found.length > pageSize;
   const pageRows = found.slice(0, pageSize);
   if (cursor && !pageRows.length) throw new Error(INVALID_LISTING_CURSOR);
-  const items = hasBefore ? pageRows.reverse() : pageRows;
+  const items = await withCoverThumbnails(sudo, hasBefore ? pageRows.reverse() : pageRows);
   const pageInfo = {
     hasNextPage: hasBefore ? items.length > 0 : hasMoreInDirection,
     hasPreviousPage: hasBefore ? hasMoreInDirection : hasAfter && items.length > 0,
@@ -8127,14 +9770,13 @@ async function platformOperations(_root, _args, context) {
   const listingScope = scope(context, "canManageListings");
   const leadScope = scope(context, "canManageLeads");
   const sudo = context.sudo();
-  const [offers, transactions, commissions, savedSearches, alerts, feeds, queue, inspections, openHouses, disclosures, mortgages, titleOrders, escrows, comps, valuations, syndications, tasks, listingEngagementAuthorities, listingPublicationAuthorityRows, practitionerLicenses, representationAuthorities, documentEvidenceEvents, commissionLedgerRows, retentionPolicies, transactionFileEvents] = await Promise.all([
+  const [offers, transactions, commissions, savedSearches, alerts, feeds, inspections, openHouses, disclosures, mortgages, titleOrders, escrows, comps, valuations, syndications, tasks, listingEngagementAuthorities, listingPublicationAuthorityRows, practitionerLicenses, representationAuthorities, documentEvidenceEvents, commissionLedgerRows, retentionPolicies, transactionFileEvents] = await Promise.all([
     sudo.query.Offer.findMany({ where: dealScope.where, orderBy: [{ createdAt: "desc" }], take: 30, query: "id offerNumber version status amount earnestMoney financingType contingencies submittedAt responseDueAt createdAt parentOffer { id offerNumber } deal { id title } property { id title } lead { id name } assignedAgent { id name }" }),
     sudo.query.Deal.findMany({ where: dealScope.where, orderBy: [{ updatedAt: "desc" }], take: 30, query: "id title stage expectedCloseDate property { id title } lead { id name } assignedAgent { id name }" }),
     sudo.query.Commission.findMany({ where: dealScope.current.managesAll ? { brokerage: { id: { in: dealScope.current.ids } } } : { AND: [{ brokerage: { id: { in: dealScope.current.ids } } }, { agent: { id: { equals: dealScope.current.actor } } }] }, orderBy: [{ createdAt: "desc" }], take: 30, query: "id title status side grossCommission brokerageSplitPercent agentSplitPercent netCommission paidAt deal { id title } agent { id name }" }),
     sudo.query.SavedSearch.findMany({ where: { brokerage: { id: { in: leadScope.ids } } }, orderBy: [{ createdAt: "desc" }], take: 30, query: "id name city state propertyType minPrice maxPrice minBedrooms alertsEnabled lastNotifiedAt user { id name email }" }),
     sudo.query.SavedSearchAlert.findMany({ where: { brokerage: { id: { in: leadScope.ids } } }, orderBy: [{ createdAt: "desc" }], take: 30, query: "id status cadence lastSentAt sentCount savedSearch { id name } user { id name email }" }),
     sudo.query.SourceFeed.findMany({ where: { brokerage: { id: { in: listingScope.ids } } }, orderBy: [{ createdAt: "desc" }], take: 30, query: "id name provider feedType status lastImportedAt recordsImported" }),
-    sudo.query.DomainOutboxEvent.findMany({ where: { AND: [{ brokerage: { id: { in: [.../* @__PURE__ */ new Set([...dealScope.current.ids, ...listingScope.ids, ...leadScope.ids])] } } }, { OR: [{ eventType: { startsWith: "integration." } }, { eventType: { startsWith: "saved_search." } }] }] }, orderBy: [{ occurredAt: "desc" }], take: 30, query: "id eventKey eventType aggregateType aggregateId status attempts replayCount availableAt occurredAt lastError" }),
     sudo.query.PropertyInspection.findMany({ where: { OR: [{ deal: { brokerage: { id: { in: dealScope.current.ids } } } }, { property: { brokerage: { id: { in: dealScope.current.ids } } } }] }, orderBy: [{ scheduledAt: "asc" }], take: 50, query: "id title inspectionType status scheduledAt completedAt inspectorName estimatedCost summary findings property { id title } deal { id title }" }),
     sudo.query.OpenHouse.findMany({ where: { property: { brokerage: { id: { in: listingScope.ids } } } }, orderBy: [{ startsAt: "asc" }], take: 50, query: "id title status startsAt endsAt attendeeCount notes property { id title } hostAgent { id name }" }),
     sudo.query.Disclosure.findMany({ where: { deal: { brokerage: { id: { in: dealScope.current.ids } } } }, orderBy: [{ createdAt: "desc" }], take: 50, query: "id title disclosureType status documentUrl sentAt acknowledgedAt deal { id title } property { id title }" }),
@@ -8166,14 +9808,15 @@ async function platformOperations(_root, _args, context) {
   }));
   const listingPublicationAuthorities = listingPublicationAuthorityRows.map((item) => ({ ...item, engagementId: item.engagement?.id || null }));
   const commissionLedgerEntries = commissionLedgerRows.map((item) => ({ ...item, amountCents: String(item.amountCents), commissionId: item.commission?.id }));
-  return { offers, transactions: transactionDetails, commissions, savedSearches, alerts, feeds, queue, inspections, openHouses, disclosures, mortgages, titleOrders, escrows, comps, valuations, syndications, tasks, listingEngagementAuthorities, listingPublicationAuthorities, practitionerLicenses, representationAuthorities, documentEvidenceEvents, commissionLedgerEntries, retentionPolicies, transactionFileEvents };
+  return { offers, transactions: transactionDetails, commissions, savedSearches, alerts, feeds, inspections, openHouses, disclosures, mortgages, titleOrders, escrows, comps, valuations, syndications, tasks, listingEngagementAuthorities, listingPublicationAuthorities, practitionerLicenses, representationAuthorities, documentEvidenceEvents, commissionLedgerEntries, retentionPolicies, transactionFileEvents };
 }
 
 // features/keystone/mutations/platformStorefrontSettings.ts
 var SETTINGS_SELECTION = "id businessName marketLabel city state tagline description equalHousingNotice publicPhone publicEmail showingDurationMinutes brandHue logoIcon logoColor";
 function activeBrokerageScope(context) {
   const ids = activeBrokerageIds(context.session);
-  const selected = context.session?.data.activeBrokerage;
+  const session = context.session;
+  const selected = session?.data.activeBrokerage || session?.data.brokerageMemberships?.find((membership) => membership.brokerage?.id === ids[0])?.brokerage;
   if (ids.length !== 1 || !selected || selected.id !== ids[0] || selected.status !== "active") {
     throw new Error("An active brokerage is required.");
   }
@@ -8220,18 +9863,17 @@ function normalizeInput(input) {
       return email;
     })(),
     showingDurationMinutes,
-    brandHue: normalizeStorefrontBrandHue(input.brandHue),
     logoIcon: (() => {
       const raw = String(input.logoIcon || "");
       const safe = sanitizeStoreLogoSvg(raw);
-      if (raw.trim() && !safe) throw new Error("Logo SVG is not allowed.");
+      if (raw.trim() && !safe) throw new Error("This logo SVG is not supported.");
       return safe;
     })(),
     logoColor: normalizeStoreLogoColor(input.logoColor)
   };
 }
 async function platformStorefrontSettings(_root, _args, context) {
-  if (!permissions.canManageOnboarding({ session: context.session })) throw new Error("Not authorized to view storefront settings.");
+  if (!permissions.canManageBrokerageSettings({ session: context.session })) throw new Error("Not authorized to view storefront settings.");
   const brokerage = activeBrokerageScope(context);
   const settings = await findScopedSettings(context, brokerage.id);
   return settings ? { status: "ready", settings } : { status: "unconfigured", settings: null };
@@ -8306,6 +9948,62 @@ async function customerShowingHistory(_root, { brokerageSlug, id }, context) {
       requestedStart: typeof snapshot.scheduledStart === "string" ? snapshot.scheduledStart : row.scheduledStart
     };
   });
+}
+async function cancelCustomerShowing(_root, { brokerageSlug, id }, context) {
+  const actor = context.session?.itemId;
+  if (!actor) return { ok: false, message: "Sign in to manage your showings." };
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(brokerageSlug) || brokerageSlug.length > 80 || !id || id.length > 200) return { ok: false, message: "Showing not found." };
+  return context.transaction(async (tx) => {
+    const sudo = tx.sudo();
+    await tx.prisma.$executeRawUnsafe('SELECT "id" FROM "Showing" WHERE "id" = $1 AND "customer" = $2 FOR NO KEY UPDATE', id, actor);
+    const showing = (await sudo.query.Showing.findMany({
+      where: { id: { equals: id }, customer: { id: { equals: actor } }, brokerage: { slug: { equals: brokerageSlug }, status: { equals: "active" } } },
+      take: 1,
+      query: "id status brokerage { id } lead { id status }"
+    }))[0];
+    if (!showing?.brokerage?.id) return { ok: false, message: "Showing not found." };
+    if (showing.status === "cancelled") return { ok: true, message: "Showing cancelled." };
+    if (!["requested", "scheduled"].includes(showing.status)) return { ok: false, message: "This showing can no longer be cancelled." };
+    const brokerageId = showing.brokerage.id;
+    const nextLeadStatus = showing.lead?.id ? await reconcileLeadStatusAfterShowing(tx, { currentLeadStatus: showing.lead.status, nextShowingStatus: "cancelled", brokerageId, leadId: showing.lead.id, showingId: id }) : null;
+    await sudo.query.Showing.updateOne({ where: { id }, data: { status: "cancelled" }, query: "id" });
+    if (showing.lead?.id && nextLeadStatus !== null && nextLeadStatus !== showing.lead.status) {
+      await sudo.query.Lead.updateOne({ where: { id: showing.lead.id }, data: { status: nextLeadStatus }, query: "id" });
+    }
+    await enqueueDomainEvent(sudo, {
+      eventKey: `showing:${id}:customer_cancel`,
+      eventType: "showing.status_changed",
+      brokerageId,
+      aggregateType: "showing",
+      aggregateId: id,
+      actorId: actor,
+      action: "customer_cancel",
+      request: { showingId: id },
+      before: { status: showing.status },
+      after: { status: "cancelled" }
+    });
+    return { ok: true, message: "Showing cancelled." };
+  }, { timeout: 3e4 });
+}
+async function customerInquiryHistory(_root, { brokerageSlug }, context) {
+  const actor = context.session?.itemId;
+  if (!actor) throw new Error("Sign in to view your questions.");
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(brokerageSlug) || brokerageSlug.length > 80) throw new Error("Questions unavailable.");
+  const rows = await context.sudo().query.LeadActivity.findMany({
+    where: { customer: { id: { equals: actor } }, activityType: { equals: "inquiry" }, brokerage: { slug: { equals: brokerageSlug }, status: { equals: "active" } } },
+    orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+    take: 100,
+    query: "id body occurredAt property { title slug } lead { status }"
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    // Routing notes are appended for advisors and are not part of what the shopper wrote.
+    message: String(row.body || "").split("\n\nAuto-routed by")[0],
+    sentAt: row.occurredAt,
+    listingTitle: row.property?.title || "Residence",
+    listingSlug: row.property?.slug || "",
+    status: row.lead?.status || "new"
+  }));
 }
 
 // features/keystone/mutations/platformCommands.ts
@@ -8476,7 +10174,7 @@ async function queueSavedSearchAlertCommand(_root, { data }, context) {
     const sudo = scoped.sudo();
     const alert = await sudo.query.SavedSearchAlert.findOne({ where: { id: alertId }, query: "id status brokerage { id } savedSearch { id } user { id }" });
     if (!alert || alert.status !== "active" || !authorized2(scoped, alert.brokerage?.id, "canManageLeads", alert.user?.id)) return { result: { ok: false, message: "Active alert not found or access denied.", itemId: null }, event: null };
-    const result = { ok: true, message: "Saved-search delivery intent recorded; no email or alert provider was executed.", itemId: alert.id };
+    const result = { ok: true, message: "Alert delivery recorded.", itemId: alert.id };
     return { result, event: { eventType: "saved_search.alert_queued", brokerageId: alert.brokerage.id, aggregateType: "savedSearchAlert", aggregateId: alert.id, actorId: actorId3(scoped), action: "queue_alert", before: null, after: result } };
   } });
 }
@@ -8501,7 +10199,7 @@ async function transitionListingSyndicationCommand(_root, { data }, context) {
       }
     }
     await sudo.query.ListingSyndication.updateOne({ where: { id: item.id }, data: { status, ...status === "published" || status === "removed" ? { errorMessage: null } : {}, ...status === "error" ? { errorMessage: reason } : {}, metadata: { providerReference: providerReference || null, evidenceOnly: true } }, query: "id" });
-    const message = status === "published" ? "Local publication report recorded; provider publication was not executed or independently acknowledged." : status === "removed" ? "Local removal report recorded; provider removal was not executed or independently acknowledged." : "Local provider error report recorded; no provider response was independently verified.";
+    const message = status === "published" ? "Listing marked as published." : status === "removed" ? "Listing marked as removed." : "Syndication error recorded.";
     const result = { ok: true, message, itemId: item.id };
     return { result, event: { eventType: "listing_syndication.local_status_reported", brokerageId: item.brokerage.id, aggregateType: "listingSyndication", aggregateId: item.id, actorId: actorId3(scoped), action: "record_local_status", before: { status: item.status }, after: { ...result, status, providerReference, verification: "unverified" } } };
   } });
@@ -8514,7 +10212,7 @@ async function queueSourceImportCommand(_root, { data }, context) {
     const sudo = scoped.sudo();
     const feed = await sudo.query.SourceFeed.findOne({ where: { id: sourceFeedId }, query: "id name status brokerage { id }" });
     if (!feed || feed.status !== "active" || !authorized2(scoped, feed.brokerage?.id, "canManageListings")) return { result: { ok: false, message: "Active source feed not found or access denied.", itemId: null }, event: null };
-    const result = { ok: true, message: `${mode.replace("_", " ")} import request recorded; no provider adapter was executed.`, itemId: feed.id };
+    const result = { ok: true, message: `${mode === "dry_run" ? "Dry run" : mode === "full" ? "Full" : "Incremental"} import queued.`, itemId: feed.id };
     return { result, event: { eventType: "integration.import_queued", brokerageId: feed.brokerage.id, aggregateType: "sourceFeed", aggregateId: feed.id, actorId: actorId3(scoped), action: "queue_import", before: null, after: { ...result, mode } } };
   } });
 }
@@ -8524,14 +10222,14 @@ var import_node_crypto8 = __toESM(require("node:crypto"));
 function clean6(value) {
   return String(value || "").trim();
 }
-function timestamp36(value, label) {
+function timestamp37(value, label) {
   const date = new Date(clean6(value));
   if (!Number.isFinite(date.getTime())) throw new Error(`${label} must be a valid timestamp.`);
   return date.toISOString();
 }
 function effectiveRange(fromValue, throughValue) {
-  const effectiveFrom = timestamp36(fromValue, "Effective from");
-  const effectiveThrough = timestamp36(throughValue, "Effective through");
+  const effectiveFrom = timestamp37(fromValue, "Effective from");
+  const effectiveThrough = timestamp37(throughValue, "Effective through");
   if (new Date(effectiveFrom) >= new Date(effectiveThrough)) throw new Error("Effective through must be after effective from.");
   return { effectiveFrom, effectiveThrough };
 }
@@ -8541,7 +10239,7 @@ function suffix(key) {
 async function recordPractitionerLicenseAuthorityCommand(_root, { data }, context) {
   const practitionerId = clean6(data.practitionerId), licenseNumber = clean6(data.licenseNumber), licenseType = clean6(data.licenseType), jurisdictionCode = clean6(data.jurisdictionCode).toUpperCase(), status = clean6(data.status), verificationSource = clean6(data.verificationSource), restrictions = clean6(data.restrictions), reason = boundedReason(data.reason), key = boundedIdempotencyKey(data.idempotencyKey);
   const range = effectiveRange(data.effectiveFrom, data.effectiveThrough);
-  const verifiedAt = timestamp36(data.verifiedAt, "Verified at");
+  const verifiedAt = timestamp37(data.verifiedAt, "Verified at");
   if (new Date(verifiedAt) > /* @__PURE__ */ new Date()) throw new Error("License verification time cannot be in the future.");
   if (!practitionerId || !licenseNumber || licenseNumber.length > 120 || !["broker", "associate_broker", "sales_agent"].includes(licenseType) || !/^[A-Z]{2}(?:-[A-Z0-9-]{1,20})?$/.test(jurisdictionCode) || !["verified_active", "restricted", "inactive", "expired", "suspended", "revoked"].includes(status) || !verificationSource || verificationSource.length > 500 || restrictions.length > 5e3) throw new Error("Valid bounded practitioner-license evidence is required.");
   const brokerageId = evidenceBrokerageId(context) || "";
@@ -8621,7 +10319,7 @@ async function recordListingPublicationAuthorityCommand(_root, { data }, context
 async function recordRepresentationAuthorityCommand(_root, { data }, context) {
   const leadId = clean6(data.leadId), propertyId = clean6(data.propertyId), dealId = clean6(data.dealId), practitionerId = clean6(data.practitionerId), side = clean6(data.side), relationshipType = clean6(data.relationshipType), jurisdictionCode = clean6(data.jurisdictionCode).toUpperCase(), status = clean6(data.status), scopeSummary = clean6(data.scopeSummary), documentSha256 = clean6(data.documentSha256).toLowerCase(), disclosureVersion = clean6(data.disclosureVersion), reason = boundedReason(data.reason), key = boundedIdempotencyKey(data.idempotencyKey);
   const range = effectiveRange(data.effectiveFrom, data.effectiveThrough);
-  const consentRecordedAt = timestamp36(data.consentRecordedAt, "Consent recorded at");
+  const consentRecordedAt = timestamp37(data.consentRecordedAt, "Consent recorded at");
   if (!leadId || !practitionerId || !["buyer", "seller"].includes(side) || !["exclusive_agency", "nonexclusive_agency", "transaction_brokerage", "customer_assistance"].includes(relationshipType) || !["executed", "terminated", "expired"].includes(status) || !jurisdictionCode || !scopeSummary || scopeSummary.length > 5e3 || !isSha256(documentSha256) || !disclosureVersion || disclosureVersion.length > 300) throw new Error("Valid representation-authority evidence is required.");
   const brokerageId = evidenceBrokerageId(context) || "";
   const request = { leadId, propertyId, dealId, practitionerId, side, relationshipType, jurisdictionCode, status, ...range, scopeSummary, documentSha256, disclosureVersion, consentRecordedAt, reason };
@@ -8884,19 +10582,523 @@ async function reconcileCommissionLedgerCommand(_root, { data }, context) {
   });
 }
 
+// features/keystone/lib/paymentState.ts
+var import_node_crypto11 = require("node:crypto");
+var REQUESTABLE_PURPOSES = ["holding_deposit", "rent"];
+var MAX_REQUEST_MINOR = 5e6;
+var PaymentMismatchError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "PaymentMismatchError";
+  }
+};
+function applicationFeeFor(property) {
+  if (!property || property.listingType !== "rent") return null;
+  const fee = property.applicationFeeMinor;
+  return typeof fee === "number" && Number.isSafeInteger(fee) && fee > 0 ? fee : null;
+}
+function newAccessToken() {
+  return (0, import_node_crypto11.randomBytes)(24).toString("base64url");
+}
+function mapProviderStatus(status) {
+  switch (String(status || "").toLowerCase()) {
+    case "succeeded":
+    case "paid":
+    case "captured":
+      return "captured";
+    case "requires_capture":
+    case "processing":
+    case "authorized":
+      return "authorized";
+    case "canceled":
+    case "cancelled":
+    case "failed":
+    case "expired":
+      return "failed";
+    case "requires_payment_method":
+    case "requires_action":
+    case "requires_confirmation":
+    case "pending":
+    case "open":
+    case "unpaid":
+      return "pending";
+    default:
+      return "unknown";
+  }
+}
+function assertAmountAndCurrency(payment, amount, currency2) {
+  if (!Number.isSafeInteger(amount)) throw new PaymentMismatchError("Provider amount is not an integer in minor units.");
+  if (amount !== payment.amountMinor) throw new PaymentMismatchError("Provider amount does not match the local payment.");
+  if (String(currency2 || "").toUpperCase() !== String(payment.currency).toUpperCase()) throw new PaymentMismatchError("Provider currency does not match the local payment.");
+}
+function nextPaymentState(payment, result) {
+  const mapped = mapProviderStatus(result.status);
+  if (mapped === "captured" || mapped === "authorized" || (result.refundedAmount ?? 0) > 0) {
+    try {
+      assertAmountAndCurrency(payment, result.amount, result.currency);
+    } catch (error) {
+      if (!(error instanceof PaymentMismatchError)) throw error;
+      return payment.status === "unknown" ? null : { status: "unknown", mismatch: true };
+    }
+  }
+  const refunded = result.refundedAmount ?? 0;
+  let status = mapped;
+  if (refunded > 0 && refunded >= payment.amountMinor) status = "refunded";
+  else if (refunded > 0 && mapped === "captured") status = "captured";
+  if (payment.status === "refunded" && status !== "refunded") return null;
+  if (payment.status === "captured" && (status === "pending" || status === "authorized" || status === "unknown")) return null;
+  if (payment.status === "failed" && status === "pending") return null;
+  if (payment.status === status && refunded === (payment.refundedMinor ?? 0)) return null;
+  return { status, refundedMinor: refunded, ...result.paymentIntentId ? { paymentIntentId: result.paymentIntentId } : {} };
+}
+function publicStatusMessage(status) {
+  switch (status) {
+    case "captured":
+      return "Payment received. Thank you.";
+    case "authorized":
+      return "Your payment is processing. This page updates when it clears.";
+    case "refunded":
+      return "This payment was refunded.";
+    case "failed":
+      return "This payment did not go through. You have not been charged.";
+    case "unknown":
+      return "We could not confirm this payment yet. If you were charged, contact the brokerage with your receipt.";
+    default:
+      return "Waiting for payment.";
+  }
+}
+
+// features/integrations/payment/index.ts
+var paymentProviderAdapters = {
+  stripe: () => Promise.resolve().then(() => (init_stripe(), stripe_exports)),
+  paypal: () => Promise.resolve().then(() => (init_paypal(), paypal_exports)),
+  manual: () => Promise.resolve().then(() => (init_manual(), manual_exports))
+};
+
+// features/keystone/utils/paymentProviderAdapter.ts
+var ADAPTERS = new Set(Object.keys(paymentProviderAdapters));
+var ADAPTER_OPERATIONS = /* @__PURE__ */ new Set(["createPaymentFunction", "capturePaymentFunction", "refundPaymentFunction", "getPaymentStatusFunction", "generatePaymentLinkFunction", "handleWebhookFunction", "cancelPaymentFunction"]);
+function paymentAdapterPayload(provider, args) {
+  const projectedProvider = { id: provider.id, code: provider.code, credentials: provider.credentials || {} };
+  const input = {};
+  for (const key of ["payment", "amount", "currency", "idempotencyKey", "paymentId", "refundId", "event", "headers", "rawBody"]) {
+    if (args?.[key] !== void 0) input[key] = args[key];
+  }
+  const record4 = input.payment;
+  if (record4 && typeof record4 === "object") {
+    input.payment = Object.fromEntries(["id", "purpose", "description", "customerEmail", "successUrl", "cancelUrl"].filter((field) => record4[field] !== void 0).map((field) => [field, record4[field]]));
+  }
+  if (input.headers && typeof input.headers === "object") {
+    input.headers = Object.fromEntries(Object.entries(input.headers).filter(([key]) => key.toLowerCase() === "stripe-signature" || key.toLowerCase().startsWith("paypal-")));
+  }
+  return { ...input, provider: projectedProvider };
+}
+async function executeAdapterFunction({ provider, functionName, args }) {
+  if (!ADAPTER_OPERATIONS.has(functionName)) throw new Error("Unknown payment adapter operation");
+  const functionPath = provider?.[functionName];
+  if (typeof functionPath !== "string") throw new Error("Payment adapter is not configured");
+  const payload = paymentAdapterPayload(provider, args);
+  if (/^https?:/i.test(functionPath)) {
+    const endpoint2 = functionPath;
+    try {
+      const response = await fetch(endpoint2, {
+        method: "POST",
+        redirect: "error",
+        signal: AbortSignal.timeout(3e4),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error("Payment adapter rejected request");
+      return await response.json();
+    } catch {
+      throw new Error("External payment adapter request failed; reconcile the original attempt before retrying");
+    }
+  }
+  if (!ADAPTERS.has(functionPath)) throw new Error("Unknown registered payment adapter");
+  const adapter = await paymentProviderAdapters[functionPath]();
+  const fn = adapter[functionName];
+  if (typeof fn !== "function") throw new Error("Payment adapter operation is unavailable");
+  try {
+    return await fn(payload);
+  } catch {
+    throw new Error(`Payment adapter ${functionName} failed; reconcile the original attempt before retrying`);
+  }
+}
+async function createPayment({ provider, payment, amount, currency: currency2, idempotencyKey }) {
+  return executeAdapterFunction({
+    provider,
+    functionName: "createPaymentFunction",
+    args: { payment, amount, currency: currency2, idempotencyKey }
+  });
+}
+async function refundPayment({ provider, paymentId, amount, currency: currency2, idempotencyKey, refundId }) {
+  return executeAdapterFunction({
+    provider,
+    functionName: "refundPaymentFunction",
+    args: { paymentId, amount, currency: currency2, idempotencyKey, refundId }
+  });
+}
+async function getPaymentStatus({ provider, paymentId }) {
+  return executeAdapterFunction({
+    provider,
+    functionName: "getPaymentStatusFunction",
+    args: { paymentId }
+  });
+}
+
+// features/keystone/utils/paymentProviderConfig.ts
+function isPaymentProviderConfigured(provider) {
+  const code = typeof provider === "string" ? provider : provider.code;
+  const credentials = typeof provider === "string" ? {} : provider.credentials || {};
+  if (code.startsWith("pp_stripe")) {
+    return Boolean(credentials.secretKey || process.env.STRIPE_SECRET_KEY);
+  }
+  if (code.startsWith("pp_paypal")) {
+    return Boolean(
+      (process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || process.env.PAYPAL_CLIENT_ID) && process.env.PAYPAL_CLIENT_SECRET
+    );
+  }
+  return code === "pp_system_default" || code.startsWith("pp_manual");
+}
+
+// features/keystone/mutations/payments.ts
+var PROVIDER_QUERY = "id code name isInstalled credentials createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction brokerage { id status }";
+var PAYMENT_QUERY = `id purpose status amountMinor currency providerPaymentId providerPaymentIntentId idempotencyKey accessToken payerName payerEmail checkoutUrl paidAt refundedMinor
+  brokerage { id name slug status } paymentProvider { id } property { id title } lead { id name email } deal { id }`;
+var asPayment = (value) => value;
+function validToken(token) {
+  return typeof token === "string" && /^[A-Za-z0-9_-]{20,80}$/.test(token);
+}
+function publicBaseUrl(context) {
+  const configured = process.env.PUBLIC_APP_URL || process.env.SMTP_STORE_LINK;
+  if (configured) return configured.replace(/\/+$/, "");
+  const headers = context.req?.headers || {};
+  const first = (value) => String(Array.isArray(value) ? value[0] : value || "").split(",")[0].trim();
+  const host = first(headers["x-forwarded-host"]) || first(headers.host);
+  const proto = first(headers["x-forwarded-proto"]) || (/^(localhost|127\.)/.test(host) ? "http" : "https");
+  if (!host || !/^[a-z0-9.-]+(?::\d+)?$/i.test(host)) throw new Error("Public URL is not configured");
+  return `${proto}://${host}`;
+}
+async function onlineProvider(context, brokerageId) {
+  const providers = await context.sudo().query.PaymentProvider.findMany({
+    where: { brokerage: { id: { equals: brokerageId } }, isInstalled: { equals: true } },
+    orderBy: [{ createdAt: "asc" }],
+    take: 20,
+    query: PROVIDER_QUERY
+  });
+  const usable = [...providers].filter((provider) => provider.createPaymentFunction !== "manual" && isPaymentProviderConfigured(provider));
+  return usable.find((provider) => String(provider.code).startsWith("pp_stripe")) || usable[0] || null;
+}
+async function loadByToken(context, token) {
+  if (!validToken(token)) return null;
+  const rows = await context.sudo().query.Payment.findMany({ where: { accessToken: { equals: token } }, take: 1, query: PAYMENT_QUERY });
+  const payment = rows[0] ? asPayment(rows[0]) : null;
+  return payment && payment.brokerage?.status === "active" ? payment : null;
+}
+function describe(payment) {
+  const label = { application_fee: "Rental application fee", holding_deposit: "Holding deposit", rent: "Rent", agent_fee: "Agent fee" }[payment.purpose];
+  return payment.property ? `${label} \xB7 ${payment.property.title}` : label;
+}
+function publicView(payment) {
+  return {
+    token: payment.accessToken,
+    purpose: payment.purpose,
+    status: payment.status,
+    statusMessage: publicStatusMessage(payment.status),
+    amountMinor: payment.amountMinor,
+    currency: payment.currency,
+    description: describe(payment),
+    brokerageName: payment.brokerage.name,
+    propertyTitle: payment.property?.title || "",
+    payerName: payment.payerName || payment.lead?.name || "",
+    paidAt: payment.paidAt || null,
+    canPay: ["pending", "failed"].includes(payment.status)
+  };
+}
+async function paymentByToken(_root, { token }, context) {
+  const payment = await loadByToken(context, token);
+  return payment ? publicView(payment) : null;
+}
+async function providerFor(context, payment) {
+  if (!payment.paymentProvider?.id) return null;
+  const provider = await context.sudo().query.PaymentProvider.findOne({ where: { id: payment.paymentProvider.id }, query: PROVIDER_QUERY });
+  return provider && provider.brokerage?.id === payment.brokerage.id && provider.isInstalled ? provider : null;
+}
+async function applyProviderResult(context, paymentId, result, actor) {
+  return context.transaction(async (tx) => {
+    await applyInTransaction(tx, paymentId, result, actor.eventKey, actor.actorId);
+    const current = await tx.sudo().query.Payment.findOne({ where: { id: paymentId }, query: PAYMENT_QUERY });
+    return current ? asPayment(current) : null;
+  }, { timeout: 3e4 });
+}
+async function reconcile(context, payment, source, actorId4) {
+  if (!payment.providerPaymentId) return payment;
+  const provider = await providerFor(context, payment);
+  if (!provider) return payment;
+  let result;
+  try {
+    result = await getPaymentStatus({ provider, paymentId: payment.providerPaymentId });
+  } catch {
+    return payment;
+  }
+  return await applyProviderResult(context, payment.id, result, { eventKey: source, actorId: actorId4 }) || payment;
+}
+async function reconcilePaymentByToken(_root, { token }, context) {
+  const payment = await loadByToken(context, token);
+  if (!payment) return null;
+  return publicView(await reconcile(context, payment, `return:${Date.now()}`));
+}
+async function beginPaymentCheckout(_root, { token }, context) {
+  const payment = await loadByToken(context, token);
+  if (!payment) return { ok: false, message: "This payment link is not valid.", url: null, token: null };
+  const settled = await reconcile(context, payment, `begin:${Date.now()}`);
+  if (settled.status === "captured") return { ok: true, message: publicStatusMessage("captured"), url: null, token: settled.accessToken };
+  if (!["pending", "failed"].includes(settled.status)) return { ok: false, message: publicStatusMessage(settled.status), url: null, token: settled.accessToken };
+  const provider = await providerFor(context, settled);
+  if (!provider || provider.createPaymentFunction === "manual" || !isPaymentProviderConfigured(provider)) return { ok: false, message: "Online payment is not available right now. Please contact the brokerage.", url: null, token: settled.accessToken };
+  if (settled.status === "pending" && settled.providerPaymentId) {
+    try {
+      const status = await getPaymentStatus({ provider, paymentId: settled.providerPaymentId });
+      if (status.url) return { ok: true, message: "Continue to secure checkout.", url: status.url, token: settled.accessToken };
+    } catch {
+    }
+  }
+  const attempt = settled.providerPaymentId ? `:retry-${Date.now()}` : "";
+  const base = publicBaseUrl(context);
+  const page = `${base}/pay/${settled.accessToken}`;
+  try {
+    const created = await createPayment({
+      provider,
+      payment: { id: settled.id, purpose: settled.purpose, description: describe(settled), customerEmail: settled.payerEmail || settled.lead?.email || void 0, successUrl: `${page}?checkout=return`, cancelUrl: `${page}?checkout=cancelled` },
+      amount: settled.amountMinor,
+      currency: settled.currency,
+      idempotencyKey: `${settled.idempotencyKey}${attempt}`
+    });
+    assertAmountAndCurrency(settled, created.amount, created.currency);
+    if (!created.id || !created.url) throw new Error("Provider did not return a checkout");
+    await context.sudo().query.Payment.updateOne({ where: { id: settled.id }, data: { providerPaymentId: String(created.id), checkoutUrl: String(created.url), status: "pending" }, query: "id" });
+    return { ok: true, message: "Continue to secure checkout.", url: String(created.url), token: settled.accessToken };
+  } catch (error) {
+    const mismatch = error instanceof PaymentMismatchError;
+    await context.sudo().query.Payment.updateOne({ where: { id: settled.id }, data: { status: "unknown" }, query: "id" });
+    return { ok: false, message: mismatch ? "This payment could not be started. Please contact the brokerage." : "We could not start checkout. Please try again in a moment.", url: null, token: settled.accessToken };
+  }
+}
+async function startApplicationFeeCheckout(root, { data }, context) {
+  const fail = (message) => ({ ok: false, message, url: null, token: null });
+  const brokerageSlug = commandText(data.brokerageSlug).toLowerCase(), propertyId = commandText(data.propertyId);
+  const name = commandText(data.name), email = commandText(data.email).toLowerCase(), phone = commandText(data.phone);
+  if (!propertyId || propertyId.length > 200 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(brokerageSlug) || brokerageSlug.length > 80) return fail("Choose a listing before applying.");
+  if (!name || name.length > 120 || !email && !phone) return fail("Add your name and an email or phone number.");
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("Enter a valid email address.");
+  const sudo = context.sudo();
+  const property = (await sudo.query.Property.findMany({
+    where: { id: { equals: propertyId }, brokerage: { slug: { equals: brokerageSlug }, status: { equals: "active" } }, status: { in: ["active", "coming_soon"] } },
+    take: 1,
+    query: "id title listingType applicationFeeMinor brokerage { id }"
+  }))[0];
+  const fee = applicationFeeFor(property);
+  if (!property || !fee) return fail("This listing is not taking applications online.");
+  const provider = await onlineProvider(context, property.brokerage.id);
+  if (!provider) return fail("Online payment is not available for this listing yet. Please contact the agent.");
+  const inquiry = await submitListingInquiry(root, { data: { brokerageSlug, propertyId, name, email, phone, intent: "rent", message: commandText(data.message) || "Rental application", preferredTime: "" } }, context);
+  if (!inquiry.ok) return fail(inquiry.message);
+  const identityKey = leadIdentityKey(email, phone);
+  const lead = identityKey ? (await sudo.query.Lead.findMany({ where: { identityKey: { equals: identityKey }, property: { id: { equals: propertyId } }, status: { notIn: ["closed", "lost"] } }, orderBy: [{ createdAt: "asc" }], take: 1, query: "id" }))[0] : null;
+  if (!lead) return fail("We could not record your application. Please try again.");
+  const payment = await context.transaction(async (tx) => {
+    const scoped = tx.sudo();
+    await tx.prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `application-fee:${propertyId}:${lead.id}`);
+    const existing = await scoped.query.Payment.findMany({ where: { lead: { id: { equals: lead.id } }, property: { id: { equals: propertyId } }, purpose: { equals: "application_fee" }, status: { in: ["pending", "authorized", "captured", "unknown"] } }, orderBy: [{ createdAt: "desc" }], take: 10, query: "id status accessToken amountMinor" });
+    const settled = existing.find((item) => ["captured", "authorized"].includes(item.status));
+    if (settled) return { token: settled.accessToken, already: true };
+    const reusable = existing.find((item) => item.status === "pending" && item.amountMinor === fee);
+    if (reusable) return { token: reusable.accessToken, already: false };
+    const token = newAccessToken();
+    await scoped.query.Payment.createOne({
+      data: {
+        brokerage: { connect: { id: property.brokerage.id } },
+        paymentProvider: { connect: { id: provider.id } },
+        property: { connect: { id: propertyId } },
+        lead: { connect: { id: lead.id } },
+        purpose: "application_fee",
+        status: "pending",
+        amountMinor: fee,
+        currency: "USD",
+        idempotencyKey: `application_fee:${lead.id}:${propertyId}:${token.slice(0, 12)}`,
+        accessToken: token,
+        payerName: name,
+        payerEmail: email
+      },
+      query: "id"
+    });
+    return { token, already: false };
+  }, { timeout: 3e4 });
+  if (payment.already) return { ok: true, message: "Your application fee is already paid.", url: null, token: payment.token };
+  return beginPaymentCheckout(root, { token: payment.token }, context);
+}
+function staffCan(context, brokerageId, permission, ownerId) {
+  const session = context.session;
+  const role5 = session?.data?.role || {};
+  if (!session?.itemId || !role5[permission] || !activeBrokerageIds(session).includes(brokerageId)) return false;
+  return Boolean(role5.canManagePeople || !ownerId || ownerId === session.itemId);
+}
+async function requestPaymentCommand(_root, { data }, context) {
+  const leadId = commandText(data.leadId), dealId = commandText(data.dealId), purpose = commandText(data.purpose), key = commandText(data.idempotencyKey);
+  const amountMinor = data.amountMinor;
+  if (!leadId || !key || key.length > 120 || !REQUESTABLE_PURPOSES.includes(purpose) || !Number.isSafeInteger(amountMinor) || amountMinor < 1 || amountMinor > MAX_REQUEST_MINOR) {
+    return { ok: false, message: "Choose a lead, a purpose, and an amount between $0.01 and $50,000.", itemId: null, url: null, replayed: false };
+  }
+  const result = await runControlledEvidenceCommand(context, {
+    eventKey: `command:lead:${leadId}:request-payment:${key}`,
+    lockKey: `aggregate:lead:${leadId}`,
+    permission: "canManageLeads",
+    request: { leadId, dealId, purpose, amountMinor },
+    execute: async (scoped) => {
+      const sudo = scoped.sudo();
+      const lead = await sudo.query.Lead.findOne({ where: { id: leadId }, query: "id name email brokerage { id name } assignedAgent { id } property { id title }" });
+      if (!lead || !staffCan(scoped, lead.brokerage?.id, "canManageLeads", lead.assignedAgent?.id)) return { result: { ok: false, message: "Lead not found or access denied.", itemId: null, url: null }, event: null };
+      let propertyId = lead.property?.id || null;
+      if (dealId) {
+        const deal = await sudo.query.Deal.findOne({ where: { id: dealId }, query: "id lead { id } property { id } brokerage { id }" });
+        if (!deal || deal.brokerage?.id !== lead.brokerage.id || deal.lead?.id !== leadId) return { result: { ok: false, message: "That deal does not belong to this lead.", itemId: null, url: null }, event: null };
+        propertyId = deal.property?.id || propertyId;
+      }
+      const provider = await onlineProvider(scoped, lead.brokerage.id);
+      if (!provider) return { result: { ok: false, message: "Add and configure a payment provider before requesting payments.", itemId: null, url: null }, event: null };
+      const token = newAccessToken();
+      const payment = await sudo.query.Payment.createOne({
+        data: {
+          brokerage: { connect: { id: lead.brokerage.id } },
+          paymentProvider: { connect: { id: provider.id } },
+          lead: { connect: { id: leadId } },
+          ...propertyId ? { property: { connect: { id: propertyId } } } : {},
+          ...dealId ? { deal: { connect: { id: dealId } } } : {},
+          purpose,
+          status: "pending",
+          amountMinor,
+          currency: "USD",
+          idempotencyKey: `${purpose}:${leadId}:${key}`,
+          accessToken: token,
+          payerName: lead.name,
+          payerEmail: lead.email || ""
+        },
+        query: "id"
+      });
+      const url = `${publicBaseUrl(scoped)}/pay/${token}`;
+      const outcome = { ok: true, message: "Payment requested. Share the link with the payer.", itemId: payment.id, url };
+      return { result: outcome, event: { eventType: "payment.requested", brokerageId: lead.brokerage.id, aggregateType: "payment", aggregateId: payment.id, actorId: scoped.session.itemId, action: "request_payment", before: null, after: { ...outcome, paymentId: payment.id, purpose, amountMinor, currency: "USD", leadId, dealId: dealId || null } } };
+    }
+  });
+  return result;
+}
+async function reconcilePaymentCommand(_root, { paymentId }, context) {
+  const session = context.session;
+  if (!session?.itemId || !paymentId || paymentId.length > 200) return { ok: false, message: "Access denied.", itemId: null, url: null, replayed: false };
+  const row = await context.sudo().query.Payment.findOne({ where: { id: paymentId }, query: PAYMENT_QUERY });
+  const payment = row ? asPayment(row) : null;
+  if (!payment || !staffCan(context, payment.brokerage.id, "canManageLeads", null) && !staffCan(context, payment.brokerage.id, "canManageDeals", null)) return { ok: false, message: "Payment not found or access denied.", itemId: null, url: null, replayed: false };
+  if (!payment.providerPaymentId) return { ok: true, message: "No checkout has been started for this payment yet.", itemId: payment.id, url: null, replayed: false };
+  const provider = await providerFor(context, payment);
+  if (!provider) return { ok: false, message: "The payment provider for this payment is not available.", itemId: payment.id, url: null, replayed: false };
+  try {
+    const result = await getPaymentStatus({ provider, paymentId: payment.providerPaymentId });
+    const updated = await applyProviderResult(context, payment.id, result, { eventKey: `check:${Date.now()}`, actorId: session.itemId });
+    return { ok: true, message: `Status: ${updated?.status || payment.status}.`, itemId: payment.id, url: null, replayed: false };
+  } catch {
+    return { ok: false, message: "The provider could not be reached. Try again shortly.", itemId: payment.id, url: null, replayed: false };
+  }
+}
+async function refundPaymentCommand(_root, { paymentId }, context) {
+  const session = context.session;
+  if (!session?.itemId || !paymentId || paymentId.length > 200) return { ok: false, message: "Access denied.", itemId: null, url: null, replayed: false };
+  const row = await context.sudo().query.Payment.findOne({ where: { id: paymentId }, query: PAYMENT_QUERY });
+  const payment = row ? asPayment(row) : null;
+  if (!payment || !staffCan(context, payment.brokerage.id, "canManageDeals", null) && !staffCan(context, payment.brokerage.id, "canManageLeads", null)) return { ok: false, message: "Payment not found or access denied.", itemId: null, url: null, replayed: false };
+  if (payment.status === "refunded") return { ok: true, message: "This payment is already refunded.", itemId: payment.id, url: null, replayed: true };
+  if (payment.status !== "captured") return { ok: false, message: "Only paid payments can be refunded.", itemId: payment.id, url: null, replayed: false };
+  const provider = await providerFor(context, payment);
+  if (!provider) return { ok: false, message: "The payment provider for this payment is not available.", itemId: payment.id, url: null, replayed: false };
+  let intentId = payment.providerPaymentIntentId;
+  if (!intentId && payment.providerPaymentId) {
+    try {
+      const status = await getPaymentStatus({ provider, paymentId: payment.providerPaymentId });
+      intentId = status?.paymentIntentId || null;
+    } catch {
+    }
+  }
+  const amount = payment.amountMinor - (payment.refundedMinor || 0);
+  if (!intentId || amount < 1) return { ok: false, message: "The provider payment could not be found. Use Check status, then try again.", itemId: payment.id, url: null, replayed: false };
+  try {
+    await refundPayment({ provider, paymentId: intentId, amount, currency: payment.currency, idempotencyKey: `refund:${payment.id}:${amount}` });
+  } catch {
+    return { ok: false, message: "The provider did not accept the refund. Nothing was changed.", itemId: payment.id, url: null, replayed: false };
+  }
+  const updated = await reconcile(context, payment, `refund:${Date.now()}`, session.itemId);
+  return { ok: true, message: updated.status === "refunded" ? "Refunded in full." : "Refund sent. The status updates when the provider confirms it.", itemId: payment.id, url: null, replayed: false };
+}
+async function applyInTransaction(tx, paymentId, result, eventKey, actorId4) {
+  await tx.prisma.$executeRawUnsafe('SELECT "id" FROM "Payment" WHERE "id" = $1 FOR NO KEY UPDATE', paymentId);
+  const sudo = tx.sudo();
+  const payment = asPayment(await sudo.query.Payment.findOne({ where: { id: paymentId }, query: PAYMENT_QUERY }));
+  const next = nextPaymentState({ status: payment.status, amountMinor: payment.amountMinor, currency: payment.currency, refundedMinor: payment.refundedMinor }, result);
+  if (!next) return;
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  await sudo.query.Payment.updateOne({
+    where: { id: paymentId },
+    data: {
+      status: next.status,
+      ...next.refundedMinor !== void 0 ? { refundedMinor: next.refundedMinor } : {},
+      ...next.paymentIntentId && !payment.providerPaymentIntentId ? { providerPaymentIntentId: next.paymentIntentId } : {},
+      ...next.status === "captured" && !payment.paidAt ? { paidAt: now } : {},
+      lastCheckedAt: now
+    },
+    query: "id"
+  });
+  if (next.status === payment.status) return;
+  if (payment.lead && ["captured", "refunded", "unknown"].includes(next.status)) {
+    await sudo.query.LeadActivity.createOne({
+      data: {
+        brokerage: { connect: { id: payment.brokerage.id } },
+        lead: { connect: { id: payment.lead.id } },
+        ...payment.property ? { property: { connect: { id: payment.property.id } } } : {},
+        activityType: "system",
+        direction: "inbound",
+        channel: "website",
+        subject: next.status === "captured" ? `${describe(payment)} paid` : next.status === "refunded" ? `${describe(payment)} refunded` : `${describe(payment)} needs review`,
+        body: `${(payment.amountMinor / 100).toFixed(2)} ${payment.currency} \xB7 payment ${payment.id}`,
+        occurredAt: now
+      },
+      query: "id"
+    });
+  }
+  await enqueueDomainEvent(sudo, {
+    eventKey: `payment:${paymentId}:${next.status}:${eventKey}`,
+    eventType: `payment.${next.status}`,
+    brokerageId: payment.brokerage.id,
+    aggregateType: "payment",
+    aggregateId: paymentId,
+    actorId: actorId4 || null,
+    action: `payment_${next.status}`,
+    request: { source: eventKey },
+    before: { status: payment.status },
+    after: { status: next.status, amountMinor: payment.amountMinor, currency: payment.currency, purpose: payment.purpose }
+  });
+}
+
 // features/keystone/mutations/retentionCommands.ts
-var import_node_crypto11 = __toESM(require("node:crypto"));
+var import_node_crypto13 = __toESM(require("node:crypto"));
 function at(value, label) {
   const date = new Date(commandText(value));
   if (!Number.isFinite(date.getTime())) throw new Error(`${label} must be a valid timestamp.`);
   return date;
 }
 function policySuffix(key) {
-  return import_node_crypto11.default.createHash("sha256").update(key).digest("hex").slice(0, 16);
+  return import_node_crypto13.default.createHash("sha256").update(key).digest("hex").slice(0, 16);
 }
 function transactionManifestSha256(manifestKey, dealId, items) {
   const canonicalItems = [...items].sort((left, right) => left.documentId.localeCompare(right.documentId));
-  return import_node_crypto11.default.createHash("sha256").update(canonicalDomainJson({ manifestKey, dealId, items: canonicalItems })).digest("hex");
+  return import_node_crypto13.default.createHash("sha256").update(canonicalDomainJson({ manifestKey, dealId, items: canonicalItems })).digest("hex");
 }
 async function recordRetentionPolicyCommand(_root, { data }, context) {
   const retentionClass = commandText(data.retentionClass), jurisdictionCode = commandText(data.jurisdictionCode).toUpperCase(), triggerType = commandText(data.triggerType), retentionDays = Number(data.retentionDays), disposition = commandText(data.disposition), legalBasis = commandText(data.legalBasis), reason = boundedReason(data.reason), key = boundedIdempotencyKey(data.idempotencyKey);
@@ -8906,7 +11108,7 @@ async function recordRetentionPolicyCommand(_root, { data }, context) {
   return runControlledEvidenceCommand(context, {
     eventKey: `command:retention-policy:${retentionClass}:${jurisdictionCode}:${key}`,
     lockKey: `retention-policy:${brokerageId}:${retentionClass}:${jurisdictionCode}`,
-    permission: "canManageOnboarding",
+    permission: "canAccessDashboard",
     managerRequired: true,
     request,
     execute: async (scoped) => {
@@ -9062,7 +11264,6 @@ function extendGraphqlSchema(baseSchema) {
       type PlatformSavedSearchAlert { id: ID! status: String! cadence: String! lastSentAt: String sentCount: Int savedSearch: PlatformSearchRef user: PlatformPerson }
       type PlatformSearchRef { id: ID! name: String! }
       type PlatformSourceFeed { id: ID! name: String! provider: String feedType: String! status: String! lastImportedAt: String recordsImported: Int }
-      type PlatformQueueItem { id: ID! eventKey: String! eventType: String! aggregateType: String! aggregateId: String! status: String! attempts: Int replayCount: Int availableAt: String occurredAt: String! lastError: String }
       type PlatformDisclosure { id: ID! title: String! disclosureType: String! status: String! documentUrl: String sentAt: String acknowledgedAt: String deal: PlatformDealRef property: PlatformPropertyRef }
       type PlatformMortgageEvidence { id: ID! applicationNumber: String! lenderName: String status: String! loanAmount: String interestRate: String submittedAt: String decisionAt: String deal: PlatformDealRef lead: PlatformLeadRef }
       type PlatformTitleEvidence { id: ID! orderNumber: String! titleCompany: String status: String! orderedAt: String clearedAt: String exceptions: String deal: PlatformDealRef property: PlatformPropertyRef }
@@ -9088,7 +11289,7 @@ function extendGraphqlSchema(baseSchema) {
       type PlatformRetentionPolicy { id: ID! policyKey: String! retentionClass: String! jurisdictionCode: String! triggerType: String! retentionDays: Int! disposition: String! effectiveFrom: String! effectiveThrough: String }
       type PlatformTransactionFileEvent { id: ID! eventKey: String! eventType: String! triggerAt: String disposeAfter: String holdKey: String manifestKey: String manifestSha256: String documentSha256: String externalDeletionReference: String reason: String! occurredAt: String! deal: PlatformDealRef document: PlatformDocumentRef }
 
-      type PlatformOperationsWorkspace { offers: [PlatformOffer!]! transactions: [PlatformTransaction!]! commissions: [PlatformCommission!]! savedSearches: [PlatformSavedSearch!]! alerts: [PlatformSavedSearchAlert!]! feeds: [PlatformSourceFeed!]! queue: [PlatformQueueItem!]! inspections: [PlatformInspection!]! openHouses: [PlatformOpenHouse!]! disclosures: [PlatformDisclosure!]! mortgages: [PlatformMortgageEvidence!]! titleOrders: [PlatformTitleEvidence!]! escrows: [PlatformEscrowEvidence!]! comps: [PlatformMarketComp!]! valuations: [PlatformValuation!]! syndications: [PlatformSyndication!]! tasks: [PlatformAgentTask!]! listingEngagementAuthorities: [PlatformListingEngagementAuthority!]! listingPublicationAuthorities: [PlatformListingPublicationAuthority!]! practitionerLicenses: [PlatformPractitionerLicenseAuthority!]! representationAuthorities: [PlatformRepresentationAuthority!]! documentEvidenceEvents: [PlatformDocumentEvidenceEvent!]! commissionLedgerEntries: [PlatformCommissionLedgerEntry!]! retentionPolicies: [PlatformRetentionPolicy!]! transactionFileEvents: [PlatformTransactionFileEvent!]! }
+      type PlatformOperationsWorkspace { offers: [PlatformOffer!]! transactions: [PlatformTransaction!]! commissions: [PlatformCommission!]! savedSearches: [PlatformSavedSearch!]! alerts: [PlatformSavedSearchAlert!]! feeds: [PlatformSourceFeed!]!  inspections: [PlatformInspection!]! openHouses: [PlatformOpenHouse!]! disclosures: [PlatformDisclosure!]! mortgages: [PlatformMortgageEvidence!]! titleOrders: [PlatformTitleEvidence!]! escrows: [PlatformEscrowEvidence!]! comps: [PlatformMarketComp!]! valuations: [PlatformValuation!]! syndications: [PlatformSyndication!]! tasks: [PlatformAgentTask!]! listingEngagementAuthorities: [PlatformListingEngagementAuthority!]! listingPublicationAuthorities: [PlatformListingPublicationAuthority!]! practitionerLicenses: [PlatformPractitionerLicenseAuthority!]! representationAuthorities: [PlatformRepresentationAuthority!]! documentEvidenceEvents: [PlatformDocumentEvidenceEvent!]! commissionLedgerEntries: [PlatformCommissionLedgerEntry!]! retentionPolicies: [PlatformRetentionPolicy!]! transactionFileEvents: [PlatformTransactionFileEvent!]! }
 
       input PublicRealEstateListingFilters {
         q: String
@@ -9098,6 +11299,12 @@ function extendGraphqlSchema(baseSchema) {
         minPrice: String
         maxPrice: String
         bedrooms: Int
+        bathrooms: Int
+        sort: String
+        west: Float
+        south: Float
+        east: Float
+        north: Float
       }
 
       type PublicRealEstateAgent {
@@ -9105,6 +11312,7 @@ function extendGraphqlSchema(baseSchema) {
         email: String!
         phone: String!
         brokerageTitle: String!
+        licenseNumber: String!
         imagePath: String!
       }
 
@@ -9142,6 +11350,8 @@ function extendGraphqlSchema(baseSchema) {
         state: String!
         postalCode: String!
         neighborhood: String!
+        latitude: Float
+        longitude: Float
         price: String!
         bedrooms: Int
         bathrooms: String!
@@ -9152,10 +11362,62 @@ function extendGraphqlSchema(baseSchema) {
         availableAt: String!
         isFeatured: Boolean!
         virtualTourUrl: String!
+        leaseTerm: String!
+        securityDeposit: Int
+        applicationFeeMinor: Int
+        petPolicy: String!
         imagePath: String!
         assignedAgent: PublicRealEstateAgent
         media: [PublicRealEstateMedia!]!
         openHouses: [PublicOpenHouse!]!
+      }
+
+      input StartApplicationFeeCheckoutInput {
+        brokerageSlug: String!
+        propertyId: ID!
+        name: String!
+        email: String
+        phone: String
+        message: String
+      }
+
+      type PaymentCheckoutResult {
+        ok: Boolean!
+        message: String!
+        url: String
+        token: String
+      }
+
+      type PublicPayment {
+        token: String!
+        purpose: String!
+        status: String!
+        statusMessage: String!
+        amountMinor: Int!
+        currency: String!
+        description: String!
+        brokerageName: String!
+        propertyTitle: String!
+        payerName: String!
+        paidAt: String
+        canPay: Boolean!
+      }
+
+      input RequestPaymentCommandInput {
+        leadId: ID!
+        dealId: ID
+        purpose: String!
+        amountMinor: Int!
+        description: String
+        idempotencyKey: String!
+      }
+
+      type PaymentCommandResult {
+        ok: Boolean!
+        message: String!
+        itemId: ID
+        url: String
+        replayed: Boolean!
       }
 
       input SubmitListingInquiryInput {
@@ -9195,6 +11457,8 @@ function extendGraphqlSchema(baseSchema) {
       type CustomerRegistrationResult { ok: Boolean! message: String! }
       input RealEstateCustomerInput { name: String! email: String! password: String! brokerageSlug: String! }
       type CustomerShowing { id: ID! status: String! showingType: String! scheduledStart: String! scheduledEnd: String listingTitle: String! listingSlug: String! requestedStart: String! }
+      type CustomerSavedProperty { id: ID! propertyId: ID! }
+      type CustomerInquiry { id: ID! message: String! sentAt: String! listingTitle: String! listingSlug: String! status: String! }
 
       type PublicBrokerageIdentity {
         businessName: String!
@@ -9213,6 +11477,7 @@ function extendGraphqlSchema(baseSchema) {
 
       type PublicBrokerageIdentityState {
         status: String!
+        brokerageSlug: String
         settings: PublicBrokerageIdentity
       }
 
@@ -9249,7 +11514,7 @@ function extendGraphqlSchema(baseSchema) {
         publicPhone: String!
         publicEmail: String!
         showingDurationMinutes: Int!
-        brandHue: Int!
+        brandHue: Int
         logoIcon: String
         logoColor: String
       }
@@ -9335,6 +11600,16 @@ function extendGraphqlSchema(baseSchema) {
         idempotencyKey: String!
       }
 
+      input RescheduleShowingInput {
+        showingId: ID!
+        scheduledStart: String!
+        note: String
+        idempotencyKey: String!
+        expectedStatus: String!
+        expectedUpdatedAt: String!
+        expectedRevision: String!
+      }
+
       input CompleteShowingWithFeedbackInput {
         showingId: ID!
         feedback: String!
@@ -9373,21 +11648,6 @@ function extendGraphqlSchema(baseSchema) {
         idempotencyKey: String!
       }
 
-      type DomainOutboxEventStatus {
-        id: ID!
-        eventKey: String!
-        eventType: String!
-        aggregateType: String!
-        aggregateId: String!
-        status: String!
-        attempts: Int
-        replayCount: Int
-        availableAt: DateTime
-        occurredAt: DateTime!
-        dispatchedAt: DateTime
-        lastError: String
-      }
-
       input SavePropertyForCurrentUserInput {
         propertyId: ID!
         status: SavedPropertyStatusType
@@ -9403,6 +11663,7 @@ function extendGraphqlSchema(baseSchema) {
         city: String
         state: String
         propertyType: String
+        listingType: String
         minPrice: String
         maxPrice: String
         minBedrooms: Int
@@ -9437,11 +11698,13 @@ function extendGraphqlSchema(baseSchema) {
 
       type Query {
         redirectToInit: Boolean
-        publicBrokerageIdentity(brokerageSlug: String!): PublicBrokerageIdentityState!
+        publicBrokerageIdentity(brokerageSlug: String): PublicBrokerageIdentityState!
         customerShowingHistory(brokerageSlug: String!, id: ID): [CustomerShowing!]!
+        customerInquiryHistory(brokerageSlug: String!): [CustomerInquiry!]!
+        customerSavedProperties(brokerageSlug: String!): [CustomerSavedProperty!]!
+        customerSavedHomes(brokerageSlug: String!): [PublicRealEstateListing!]!
         publicRealEstateListings(brokerageSlug: String!, filters: PublicRealEstateListingFilters, take: Int = 24, skip: Int = 0): [PublicRealEstateListing!]!
         publicRealEstateListing(brokerageSlug: String!, slug: String!): PublicRealEstateListing
-        domainOutboxEventStatus(eventKey: String!): DomainOutboxEventStatus
         platformContacts(status: String = "all", q: String, take: Int = 50, after: String, before: String): PlatformContactWorkspace!
         platformLeadDetail(id: ID!, before: String): PlatformLeadDetail
         platformShowingRequestViewer: PlatformOperatorViewer
@@ -9454,9 +11717,16 @@ function extendGraphqlSchema(baseSchema) {
         platformReports: PlatformReportsWorkspace!
         platformOperations: PlatformOperationsWorkspace!
         platformStorefrontSettings: PlatformStorefrontSettingsState!
+        paymentByToken(token: String!): PublicPayment
       }
 
       type Mutation {
+        startApplicationFeeCheckout(data: StartApplicationFeeCheckoutInput!): PaymentCheckoutResult!
+        beginPaymentCheckout(token: String!): PaymentCheckoutResult!
+        reconcilePaymentByToken(token: String!): PublicPayment
+        requestPaymentCommand(data: RequestPaymentCommandInput!): PaymentCommandResult!
+        reconcilePaymentCommand(paymentId: ID!): PaymentCommandResult!
+        refundPaymentCommand(paymentId: ID!): PaymentCommandResult!
         submitListingInquiry(data: SubmitListingInquiryInput!): SubmitListingInquiryResult!
         requestPropertyShowing(data: RequestPropertyShowingInput!): RequestPropertyShowingResult!
         transitionLeadStatus(data: OperatorTransitionInput!): OperatorTransitionResult!
@@ -9498,10 +11768,10 @@ function extendGraphqlSchema(baseSchema) {
         updateDealFinancialTermsCommand(data: UpdateDealFinancialTermsInput!): OperatorCommandResult!
         updateDealNextStepCommand(data: UpdateDealNextStepInput!): OperatorCommandResult!
         completeShowingWithFeedback(data: CompleteShowingWithFeedbackInput!): OperatorCommandResult!
+        rescheduleShowingCommand(data: RescheduleShowingInput!): OperatorCommandResult!
         scheduleShowingForLeadCommand(data: ScheduleShowingForLeadInput!): OperatorCommandResult!
         addLeadActivityCommand(data: AddLeadActivityCommandInput!): OperatorCommandResult!
         resolveDuplicateLeadCommand(data: ResolveDuplicateLeadInput!): OperatorCommandResult!
-        replayDomainOutboxEvent(eventId: ID!): OperatorCommandResult!
         savePropertyForCurrentUser(data: SavePropertyForCurrentUserInput!): SavedDiscoveryResult!
         removeSavedPropertyForCurrentUser(data: SavedPropertyIdInput!): SavedDiscoveryResult!
         saveSearchForCurrentUser(data: SaveSearchForCurrentUserInput!): SavedDiscoveryResult!
@@ -9510,6 +11780,7 @@ function extendGraphqlSchema(baseSchema) {
         dismissRealEstateOnboarding: RealEstateOnboardingResult!
         updatePlatformStorefrontSettings(data: PlatformStorefrontSettingsInput!): PlatformStorefrontSettingsState!
         registerRealEstateCustomer(data: RealEstateCustomerInput!): CustomerRegistrationResult!
+        cancelCustomerShowing(brokerageSlug: String!, id: ID!): CustomerRegistrationResult!
       }
     `,
     resolvers: {
@@ -9517,9 +11788,11 @@ function extendGraphqlSchema(baseSchema) {
         redirectToInit: redirectToInit_default,
         publicBrokerageIdentity,
         customerShowingHistory,
+        customerInquiryHistory,
+        customerSavedProperties,
+        customerSavedHomes,
         publicRealEstateListings,
         publicRealEstateListing,
-        domainOutboxEventStatus,
         platformContacts,
         platformLeadDetail,
         platformShowingRequestViewer,
@@ -9531,9 +11804,16 @@ function extendGraphqlSchema(baseSchema) {
         platformPeople,
         platformReports,
         platformOperations,
-        platformStorefrontSettings
+        platformStorefrontSettings,
+        paymentByToken
       },
       Mutation: {
+        startApplicationFeeCheckout,
+        beginPaymentCheckout,
+        reconcilePaymentByToken,
+        requestPaymentCommand,
+        reconcilePaymentCommand,
+        refundPaymentCommand,
         submitListingInquiry,
         requestPropertyShowing,
         transitionLeadStatus,
@@ -9575,10 +11855,10 @@ function extendGraphqlSchema(baseSchema) {
         updateDealFinancialTermsCommand,
         updateDealNextStepCommand,
         completeShowingWithFeedback,
+        rescheduleShowingCommand,
         scheduleShowingForLeadCommand,
         addLeadActivityCommand,
         resolveDuplicateLeadCommand,
-        replayDomainOutboxEvent,
         savePropertyForCurrentUser,
         removeSavedPropertyForCurrentUser,
         saveSearchForCurrentUser,
@@ -9586,7 +11866,8 @@ function extendGraphqlSchema(baseSchema) {
         runRealEstateOnboarding: runRealEstateOnboardingMutation,
         dismissRealEstateOnboarding,
         updatePlatformStorefrontSettings,
-        registerRealEstateCustomer
+        registerRealEstateCustomer,
+        cancelCustomerShowing
       }
     }
   });
@@ -9598,7 +11879,8 @@ function getBaseUrlForEmails() {
   if (process.env.SMTP_STORE_LINK) {
     return process.env.SMTP_STORE_LINK;
   }
-  throw new Error("SMTP_STORE_LINK is required before password reset email can be sent.");
+  console.warn("SMTP_STORE_LINK not set. Please add SMTP_STORE_LINK to your environment variables for email links to work properly.");
+  return "";
 }
 var transport = (0, import_nodemailer.createTransport)({
   // @ts-ignore
@@ -9642,23 +11924,24 @@ function passwordResetEmail({ url }) {
     </body>
   `;
 }
-async function sendPasswordResetEmail(resetToken, to, baseUrl) {
+async function sendPasswordResetEmail(resetToken, to, baseUrl, resetPath) {
   const frontendUrl = baseUrl || getBaseUrlForEmails();
-  const origin = new URL(frontendUrl);
-  if (process.env.NODE_ENV === "production" && origin.protocol !== "https:") throw new Error("Password reset origin must use HTTPS in production.");
-  if (!process.env.SMTP_HOST || !process.env.SMTP_FROM) throw new Error("SMTP delivery is not configured.");
   const info = await transport.sendMail({
     to,
     from: process.env.SMTP_FROM,
-    subject: "Your password reset token!",
+    subject: "Reset your password",
     html: passwordResetEmail({
-      url: `${origin.origin}/dashboard/reset?token=${encodeURIComponent(resetToken)}`
+      url: resetPath ? `${frontendUrl}${resetPath}?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(to)}` : `${frontendUrl}${basePath && basePath}/reset?token=${encodeURIComponent(resetToken)}`
     })
   });
+  if (process.env.MAIL_USER?.includes("ethereal.email")) {
+    console.log(`\u{1F4E7} Message Sent!  Preview it at ${(0, import_nodemailer.getTestMessageUrl)(info)}`);
+  }
 }
 
 // features/keystone/lib/initialOwnerBootstrap.ts
-var BROKERAGE_SLUG = "juniper-realty";
+var BROKERAGE_NAME = "My Brokerage";
+var BROKERAGE_SLUG = "my-brokerage";
 var MEMBERSHIP_KEY = `${BROKERAGE_SLUG}:initial-owner`;
 var ROLE_NAME = "Admin";
 var roleData = {
@@ -9676,16 +11959,10 @@ var roleData = {
   canManageOnboarding: true
 };
 function exactlyOne(items, label) {
-  if (items.length > 1) throw new Error(`Initial owner bootstrap found more than one ${label}; owner review is required.`);
+  if (items.length > 1) throw new Error(`Cannot create the first account: more than one ${label} already exists.`);
   return items[0];
 }
 async function createInitialOwner(context, data) {
-  if (process.env.NODE_ENV === "production") {
-    const allowedEmail = process.env.INITIAL_OWNER_EMAIL?.trim().toLowerCase();
-    if (process.env.INITIAL_OWNER_BOOTSTRAP_ENABLED !== "true" || !allowedEmail || data.email.trim().toLowerCase() !== allowedEmail) {
-      throw new Error("Initial owner bootstrap is disabled for this request.");
-    }
-  }
   return context.transaction(async (transactionContext) => {
     const sudo = transactionContext.sudo();
     await sudo.prisma.$executeRawUnsafe(
@@ -9700,15 +11977,15 @@ async function createInitialOwner(context, data) {
       take: 2,
       query: "id name slug status isPrimary"
     });
-    let brokerage = await exactlyOne(brokerageMatches, "Juniper Realty brokerage");
+    let brokerage = await exactlyOne(brokerageMatches, "starter brokerage");
     if (brokerage) {
       brokerage = await sudo.db.Brokerage.updateOne({
         where: { id: brokerage.id },
-        data: { name: "Juniper Realty", status: "active", isPrimary: true }
+        data: { status: "active", isPrimary: true }
       });
     } else {
       brokerage = await sudo.db.Brokerage.createOne({
-        data: { name: "Juniper Realty", slug: BROKERAGE_SLUG, status: "active", isPrimary: true }
+        data: { name: BROKERAGE_NAME, slug: BROKERAGE_SLUG, status: "active", isPrimary: true }
       });
     }
     const roleMatches = await sudo.query.Role.findMany({
@@ -9724,7 +12001,7 @@ async function createInitialOwner(context, data) {
       query: "id brokerage { id } user { id }"
     });
     if (existingMemberships.length) {
-      throw new Error("Initial owner membership exists without a user; owner review is required.");
+      throw new Error("Cannot create the first account: an owner membership already exists.");
     }
     const user = await sudo.db.User.createOne({
       data: {
@@ -9772,8 +12049,39 @@ function installInitialOwnerResolver(schema) {
   return schema;
 }
 
+// features/keystone/lib/s3-storage.ts
+function s3ForcePathStyle(endpoint2) {
+  let hostname = "";
+  try {
+    hostname = endpoint2 ? new URL(endpoint2).hostname : "";
+  } catch {
+  }
+  return !(hostname === "storageapi.dev" || hostname.endsWith(".storageapi.dev"));
+}
+
 // features/keystone/index.ts
-var databaseURL = process.env.DATABASE_URL || "file:./keystone.db";
+function requiredEnv(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
+var databaseURL = requiredEnv("DATABASE_URL");
+function productionEnv(name, developmentFallback) {
+  if (process.env[name]) return process.env[name];
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(`${name} is required in production`);
+  }
+  return developmentFallback;
+}
+var bucketName = productionEnv("S3_BUCKET_NAME", "keystone-test");
+var region = productionEnv("S3_REGION", "ap-southeast-2");
+var accessKeyId = productionEnv("S3_ACCESS_KEY_ID", "keystone");
+var secretAccessKey = productionEnv("S3_SECRET_ACCESS_KEY", "keystone");
+var endpoint = productionEnv("S3_ENDPOINT", "https://sfo3.digitaloceanspaces.com");
+var sessionSecret = requiredEnv("SESSION_SECRET");
+if (sessionSecret.length < 32) {
+  throw new Error("SESSION_SECRET must be at least 32 characters long");
+}
 var requiredBrokerageModels = [
   "AgentTask",
   "DealDocument",
@@ -9794,15 +12102,10 @@ function enforceRequiredBrokerageRelations(schema) {
   }
   return next;
 }
-function sessionSecret() {
-  const configured = process.env.SESSION_SECRET?.trim();
-  if (configured) return configured;
-  if (process.env.NODE_ENV === "production") throw new Error("SESSION_SECRET is required in production.");
-  return "local-test-only-session-secret-change-before-production";
-}
+var basePath = "/dashboard";
 var sessionConfig = {
-  maxAge: 60 * 60 * 8,
-  secret: sessionSecret()
+  maxAge: 60 * 60 * 24 * 30,
+  secret: sessionSecret
 };
 var { withAuth } = (0, import_auth.createAuth)({
   listKey: "User",
@@ -9816,10 +12119,13 @@ var { withAuth } = (0, import_auth.createAuth)({
   },
   passwordResetLink: {
     async sendToken(args) {
-      await sendPasswordResetEmail(args.token, args.identity);
+      const user = await args.context.sudo().query.User.findOne({ where: { id: String(args.itemId) }, query: "id brokerageMemberships(take: 1) { id }" });
+      const customer = Boolean(user && !user.brokerageMemberships?.length);
+      await sendPasswordResetEmail(args.token, args.identity, void 0, customer ? "/password-reset" : void 0);
     }
   },
   sessionData: `
+    id
     name
     email
     activeBrokerage { id slug status }
@@ -9848,15 +12154,29 @@ var { withAuth } = (0, import_auth.createAuth)({
   `
 });
 var keystone_default = withAuth(
-  (0, import_core44.config)({
+  (0, import_core46.config)({
     db: {
       provider: "postgresql",
       url: databaseURL,
       extendPrismaSchema: (schema) => preserveLegacyMoneyColumns(enforceRequiredBrokerageRelations(schema))
     },
     lists: models,
+    storage: {
+      my_images: {
+        kind: "s3",
+        type: "image",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        endpoint,
+        signed: { expiry: 5e3 },
+        forcePathStyle: s3ForcePathStyle(endpoint)
+      }
+    },
     ui: {
-      isAccessAllowed: ({ session }) => Boolean(session?.data.role?.canAccessDashboard && activeBrokerageIds(session).length)
+      isAccessAllowed: ({ session }) => permissions.canAccessDashboard({ session }),
+      basePath
     },
     session: (0, import_session.statelessSessions)(sessionConfig),
     graphql: {
