@@ -1,7 +1,7 @@
 import type { BaseListTypeInfo, FieldTypeFunc } from '@keystone-6/core/types';
 import { staticFieldUi } from '../lib/staticFieldUi';
 import { DomainAuditEvent } from './DomainAuditEvent';
-import { DomainOutboxEvent } from './DomainOutboxEvent';
+import { CommandReceipt } from './CommandReceipt';
 import { Brokerage } from './Brokerage';
 import { BrokerageMembership } from './BrokerageMembership';
 import { BrokerageSettings } from './BrokerageSettings';
@@ -48,7 +48,7 @@ import { Payment, PaymentWebhookReceipt } from './Payment';
 
 export const models = {
   DomainAuditEvent,
-  DomainOutboxEvent,
+  CommandReceipt,
   Brokerage,
   BrokerageMembership,
   BrokerageSettings,

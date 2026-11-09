@@ -101,7 +101,7 @@ The [model registry](features/keystone/models/index.ts) and [Prisma schema](sche
 - Brokerages, memberships, settings, users, and roles.
 - Properties, media, neighborhoods, inspections, valuations, and publication authority.
 - Leads, activities, routing, showing requests, saved searches, and alerts.
-- Offers, deals, documents, milestones, commissions, audit events, and outbox records.
+- Offers, deals, documents, milestones, commissions, audit events, and command receipts.
 
 ## Getting Started
 

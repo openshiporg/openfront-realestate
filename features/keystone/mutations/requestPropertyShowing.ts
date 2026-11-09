@@ -95,7 +95,7 @@ export async function requestPropertyShowing(
   const eventKey = key ? `public-showing-intent:${brokerages[0].id}:${domainPayloadHash(key)}` : null
   const requestReference = eventKey ? domainPayloadHash(eventKey) : null
   if (eventKey) {
-    const existing = await context.sudo().query.DomainOutboxEvent.findOne({ where: { eventKey }, query: 'id requestHash brokerage { id }' })
+    const existing = await context.sudo().query.CommandReceipt.findOne({ where: { eventKey }, query: 'id requestHash brokerage { id }' })
     if (existing) {
       if (existing.brokerage?.id !== brokerages[0].id || existing.requestHash !== domainPayloadHash(request)) {
         return { ok: false, message: 'This request key was already used with different details. Contact the brokerage about the original request.', leadId: null, showingId: null }

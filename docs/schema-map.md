@@ -56,7 +56,7 @@ Source: `features/keystone/models/**` (44 lists), `features/keystone/mutations/*
 | SourceFeed | Listing import feed (RETS, RESO, CSV) | provider, feedType, status, lastImportedAt, recordsImported | brokerage | Merchant | active / paused / error (`queueSourceImportCommand`) |
 | RetentionPolicy | Record-retention rule per class | retentionClass, triggerType, retentionDays, disposition | approvedBy, supersedes | Merchant (`recordRetentionPolicyCommand`) | append-only |
 | TransactionFileEvent | Retention, hold and export events on a deal file | eventType, triggerAt, disposeAfter, holdKey, manifest | deal, document, policy | Merchant (retention, hold and export commands) | append-only |
-| DomainOutboxEvent | Outbox for side effects and receipts | eventType, status, attempts, lastError | brokerage | System | pending → processing → dispatched / failed (`replayDomainOutboxEvent`) |
+| CommandReceipt | Idempotency ledger: one immutable receipt per command | eventKey, eventType, requestHash, payload | brokerage | System | Immutable once written |
 | DomainAuditEvent | Audit trail of CRUD and commands | aggregateType, action, before/after | brokerage, actor | System | append-only |
 
 ## Merchant workflows
@@ -68,7 +68,7 @@ Source: `features/keystone/models/**` (44 lists), `features/keystone/mutations/*
 5. **Get paid.** Create a Commission (projected), then use the CommissionLedgerEntry allocation, approval, receipt and reconciliation commands, and mark it approved → paid.
 6. **Run the team.** Invite and suspend BrokerageMemberships, manage AgentTeams and PractitionerLicenseAuthority, create AgentTasks and set up LeadRoutingRules.
 7. **Price and market.** Add MarketComps and PropertyValuations, look after Neighborhood facts, and manage SourceFeed imports and SavedSearchAlerts.
-8. **Keep records.** Use RetentionPolicy and TransactionFileEvent (retention, legal hold, export). The DomainOutboxEvent queue and its replay sit alongside them.
+8. **Keep records.** Use RetentionPolicy and TransactionFileEvent (retention, legal hold, export). The CommandReceipt idempotency ledger sits alongside them.
 9. **Brand the storefront.** Edit BrokerageSettings in Store Settings, and run onboarding.
 
 ## Customer workflows
@@ -105,7 +105,7 @@ Source: `features/keystone/models/**` (44 lists), `features/keystone/mutations/*
 | MarketComp / PropertyValuation | operations ("Comparables and valuations") | also shown on listing detail |
 | Neighborhood | **MISSING**: no page; not brokerage-scoped (no `brokerage` field) | Left to the generic list. It's a cross-tenant list, so it can't get a brokerage-scoped page without a schema change. |
 | SavedSearch / SavedSearchAlert / SourceFeed | operations ("Saved search alerts", "Imports") | unchanged |
-| RetentionPolicy / TransactionFileEvent / DomainOutboxEvent | operations ("Record retention", queue) | unchanged |
+| RetentionPolicy / TransactionFileEvent / CommandReceipt | operations ("Record retention") | unchanged |
 | DomainAuditEvent | system log; parent: the record pages | unchanged |
 | BrokerageSettings | `/platform/store-settings` | unchanged |
 | Role | generic `/roles` (nav entry) | unchanged (shared shell) |

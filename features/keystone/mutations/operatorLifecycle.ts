@@ -151,8 +151,8 @@ async function transitionInContext(context: Context, domain: Domain, data: Trans
   const sudo = context.sudo() as any
   // Aggregate locks and outbox idempotency are mandatory; refuse before any read, lock, or write without them.
   const supportsEvents = typeof sudo.prisma?.$executeRawUnsafe === 'function'
-    && typeof sudo.query?.DomainOutboxEvent?.findOne === 'function'
-    && typeof sudo.query?.DomainOutboxEvent?.createOne === 'function'
+    && typeof sudo.query?.CommandReceipt?.findOne === 'function'
+    && typeof sudo.query?.CommandReceipt?.createOne === 'function'
     && typeof sudo.query?.DomainAuditEvent?.createOne === 'function'
   if (!supportsEvents) return { ok: false, message: 'Transitions are temporarily unavailable.', itemId: null, status: null, replayed: false }
   let showingReplay: any = null
@@ -161,10 +161,10 @@ async function transitionInContext(context: Context, domain: Domain, data: Trans
 
   if (supportsEvents) {
     await sudo.prisma.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', `aggregate:${domain}:${id}`)
-    const candidate = await sudo.query.DomainOutboxEvent.findOne({ where: { eventKey }, query: domain === 'showing' ? SHOWING_EVENT_HEADER_QUERY : 'id requestHash payload brokerage { id }' })
+    const candidate = await sudo.query.CommandReceipt.findOne({ where: { eventKey }, query: domain === 'showing' ? SHOWING_EVENT_HEADER_QUERY : 'id requestHash payload brokerage { id }' })
     if (candidate && domain === 'showing' && !await ownedShowingEventHeader(context, candidate, { eventKey, eventType: 'showing.status_changed', purpose: 'showing' })) return { ok: false, message: 'Showing not found or access denied.', itemId: null, status: null, replayed: false }
     if (candidate && domain === 'showing' && candidate.requestHash !== domainPayloadHash(request)) return { ok: false, message: 'This idempotency key was already used with different transition input.', itemId: null, status: null, replayed: false }
-    const existing = candidate && domain === 'showing' ? await sudo.query.DomainOutboxEvent.findOne({ where: { eventKey }, query: 'id requestHash payloadHash payload brokerage { id }' }) : candidate
+    const existing = candidate && domain === 'showing' ? await sudo.query.CommandReceipt.findOne({ where: { eventKey }, query: 'id requestHash payloadHash payload brokerage { id }' }) : candidate
     if (candidate && (!existing || existing.id !== candidate.id || existing.requestHash !== candidate.requestHash
       || (domain === 'showing' && !showingEventPayloadMatches(candidate, existing)))) return { ok: false, message: 'Showing not found or access denied.', itemId: null, status: null, replayed: false }
     if (existing) {

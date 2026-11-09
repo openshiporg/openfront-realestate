@@ -166,7 +166,7 @@ input UserRelateToOneForCreateInput {
   connect: UserWhereUniqueInput
 }
 
-type DomainOutboxEvent {
+type CommandReceipt {
   id: ID!
   eventKey: String
   eventType: String
@@ -176,33 +176,20 @@ type DomainOutboxEvent {
   requestHash: String
   payloadHash: String
   payload: JSON
-  status: DomainOutboxEventStatusType
-  attempts: Int
-  replayCount: Int
-  availableAt: DateTime
   occurredAt: DateTime
-  dispatchedAt: DateTime
-  lastError: String
   createdAt: DateTime
   updatedAt: DateTime
 }
 
-enum DomainOutboxEventStatusType {
-  pending
-  processing
-  dispatched
-  failed
-}
-
-input DomainOutboxEventWhereUniqueInput {
+input CommandReceiptWhereUniqueInput {
   id: ID
   eventKey: String
 }
 
-input DomainOutboxEventWhereInput {
-  AND: [DomainOutboxEventWhereInput!]
-  OR: [DomainOutboxEventWhereInput!]
-  NOT: [DomainOutboxEventWhereInput!]
+input CommandReceiptWhereInput {
+  AND: [CommandReceiptWhereInput!]
+  OR: [CommandReceiptWhereInput!]
+  NOT: [CommandReceiptWhereInput!]
   id: IDFilter
   eventKey: StringFilter
   eventType: StringFilter
@@ -211,47 +198,12 @@ input DomainOutboxEventWhereInput {
   aggregateId: StringFilter
   requestHash: StringFilter
   payloadHash: StringFilter
-  status: DomainOutboxEventStatusTypeNullableFilter
-  attempts: IntNullableFilter
-  replayCount: IntNullableFilter
-  availableAt: DateTimeNullableFilter
   occurredAt: DateTimeFilter
-  dispatchedAt: DateTimeNullableFilter
-  lastError: StringFilter
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
 }
 
-input DomainOutboxEventStatusTypeNullableFilter {
-  equals: DomainOutboxEventStatusType
-  in: [DomainOutboxEventStatusType!]
-  notIn: [DomainOutboxEventStatusType!]
-  not: DomainOutboxEventStatusTypeNullableFilter
-}
-
-input IntNullableFilter {
-  equals: Int
-  in: [Int!]
-  notIn: [Int!]
-  lt: Int
-  lte: Int
-  gt: Int
-  gte: Int
-  not: IntNullableFilter
-}
-
-input DateTimeNullableFilter {
-  equals: DateTime
-  in: [DateTime!]
-  notIn: [DateTime!]
-  lt: DateTime
-  lte: DateTime
-  gt: DateTime
-  gte: DateTime
-  not: DateTimeNullableFilter
-}
-
-input DomainOutboxEventOrderByInput {
+input CommandReceiptOrderByInput {
   id: OrderDirection
   eventKey: OrderDirection
   eventType: OrderDirection
@@ -259,18 +211,12 @@ input DomainOutboxEventOrderByInput {
   aggregateId: OrderDirection
   requestHash: OrderDirection
   payloadHash: OrderDirection
-  status: OrderDirection
-  attempts: OrderDirection
-  replayCount: OrderDirection
-  availableAt: OrderDirection
   occurredAt: OrderDirection
-  dispatchedAt: OrderDirection
-  lastError: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
 
-input DomainOutboxEventUpdateInput {
+input CommandReceiptUpdateInput {
   eventKey: String
   eventType: String
   brokerage: BrokerageRelateToOneForUpdateInput
@@ -279,23 +225,17 @@ input DomainOutboxEventUpdateInput {
   requestHash: String
   payloadHash: String
   payload: JSON
-  status: DomainOutboxEventStatusType
-  attempts: Int
-  replayCount: Int
-  availableAt: DateTime
   occurredAt: DateTime
-  dispatchedAt: DateTime
-  lastError: String
   createdAt: DateTime
   updatedAt: DateTime
 }
 
-input DomainOutboxEventUpdateArgs {
-  where: DomainOutboxEventWhereUniqueInput!
-  data: DomainOutboxEventUpdateInput!
+input CommandReceiptUpdateArgs {
+  where: CommandReceiptWhereUniqueInput!
+  data: CommandReceiptUpdateInput!
 }
 
-input DomainOutboxEventCreateInput {
+input CommandReceiptCreateInput {
   eventKey: String
   eventType: String
   brokerage: BrokerageRelateToOneForCreateInput
@@ -304,13 +244,7 @@ input DomainOutboxEventCreateInput {
   requestHash: String
   payloadHash: String
   payload: JSON
-  status: DomainOutboxEventStatusType
-  attempts: Int
-  replayCount: Int
-  availableAt: DateTime
   occurredAt: DateTime
-  dispatchedAt: DateTime
-  lastError: String
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -369,8 +303,8 @@ type Brokerage {
   paymentsCount(where: PaymentWhereInput! = {}): Int
   auditEvents(where: DomainAuditEventWhereInput! = {}, orderBy: [DomainAuditEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: DomainAuditEventWhereUniqueInput): [DomainAuditEvent!]
   auditEventsCount(where: DomainAuditEventWhereInput! = {}): Int
-  outboxEvents(where: DomainOutboxEventWhereInput! = {}, orderBy: [DomainOutboxEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: DomainOutboxEventWhereUniqueInput): [DomainOutboxEvent!]
-  outboxEventsCount(where: DomainOutboxEventWhereInput! = {}): Int
+  commandReceipts(where: CommandReceiptWhereInput! = {}, orderBy: [CommandReceiptOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CommandReceiptWhereUniqueInput): [CommandReceipt!]
+  commandReceiptsCount(where: CommandReceiptWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -419,7 +353,7 @@ input BrokerageWhereInput {
   paymentProviders: PaymentProviderManyRelationFilter
   payments: PaymentManyRelationFilter
   auditEvents: DomainAuditEventManyRelationFilter
-  outboxEvents: DomainOutboxEventManyRelationFilter
+  commandReceipts: CommandReceiptManyRelationFilter
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
 }
@@ -580,10 +514,10 @@ input DomainAuditEventManyRelationFilter {
   none: DomainAuditEventWhereInput
 }
 
-input DomainOutboxEventManyRelationFilter {
-  every: DomainOutboxEventWhereInput
-  some: DomainOutboxEventWhereInput
-  none: DomainOutboxEventWhereInput
+input CommandReceiptManyRelationFilter {
+  every: CommandReceiptWhereInput
+  some: CommandReceiptWhereInput
+  none: CommandReceiptWhereInput
 }
 
 input BrokerageOrderByInput {
@@ -625,7 +559,7 @@ input BrokerageUpdateInput {
   paymentProviders: PaymentProviderRelateToManyForUpdateInput
   payments: PaymentRelateToManyForUpdateInput
   auditEvents: DomainAuditEventRelateToManyForUpdateInput
-  outboxEvents: DomainOutboxEventRelateToManyForUpdateInput
+  commandReceipts: CommandReceiptRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -798,11 +732,11 @@ input DomainAuditEventRelateToManyForUpdateInput {
   connect: [DomainAuditEventWhereUniqueInput!]
 }
 
-input DomainOutboxEventRelateToManyForUpdateInput {
-  disconnect: [DomainOutboxEventWhereUniqueInput!]
-  set: [DomainOutboxEventWhereUniqueInput!]
-  create: [DomainOutboxEventCreateInput!]
-  connect: [DomainOutboxEventWhereUniqueInput!]
+input CommandReceiptRelateToManyForUpdateInput {
+  disconnect: [CommandReceiptWhereUniqueInput!]
+  set: [CommandReceiptWhereUniqueInput!]
+  create: [CommandReceiptCreateInput!]
+  connect: [CommandReceiptWhereUniqueInput!]
 }
 
 input BrokerageUpdateArgs {
@@ -839,7 +773,7 @@ input BrokerageCreateInput {
   paymentProviders: PaymentProviderRelateToManyForCreateInput
   payments: PaymentRelateToManyForCreateInput
   auditEvents: DomainAuditEventRelateToManyForCreateInput
-  outboxEvents: DomainOutboxEventRelateToManyForCreateInput
+  commandReceipts: CommandReceiptRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -964,9 +898,9 @@ input DomainAuditEventRelateToManyForCreateInput {
   connect: [DomainAuditEventWhereUniqueInput!]
 }
 
-input DomainOutboxEventRelateToManyForCreateInput {
-  create: [DomainOutboxEventCreateInput!]
-  connect: [DomainOutboxEventWhereUniqueInput!]
+input CommandReceiptRelateToManyForCreateInput {
+  create: [CommandReceiptCreateInput!]
+  connect: [CommandReceiptWhereUniqueInput!]
 }
 
 type BrokerageMembership {
@@ -1030,6 +964,17 @@ input BrokerageMembershipStatusTypeNullableFilter {
   in: [BrokerageMembershipStatusType!]
   notIn: [BrokerageMembershipStatusType!]
   not: BrokerageMembershipStatusTypeNullableFilter
+}
+
+input DateTimeNullableFilter {
+  equals: DateTime
+  in: [DateTime!]
+  notIn: [DateTime!]
+  lt: DateTime
+  lte: DateTime
+  gt: DateTime
+  gte: DateTime
+  not: DateTimeNullableFilter
 }
 
 input BrokerageMembershipOrderByInput {
@@ -1120,6 +1065,17 @@ input BrokerageSettingsWhereInput {
   logoColor: StringFilter
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
+}
+
+input IntNullableFilter {
+  equals: Int
+  in: [Int!]
+  notIn: [Int!]
+  lt: Int
+  lte: Int
+  gt: Int
+  gte: Int
+  not: IntNullableFilter
 }
 
 input IntFilter {
@@ -6930,12 +6886,12 @@ type Mutation {
   updateDomainAuditEvents(data: [DomainAuditEventUpdateArgs!]!): [DomainAuditEvent]
   deleteDomainAuditEvent(where: DomainAuditEventWhereUniqueInput!): DomainAuditEvent
   deleteDomainAuditEvents(where: [DomainAuditEventWhereUniqueInput!]!): [DomainAuditEvent]
-  createDomainOutboxEvent(data: DomainOutboxEventCreateInput!): DomainOutboxEvent
-  createDomainOutboxEvents(data: [DomainOutboxEventCreateInput!]!): [DomainOutboxEvent]
-  updateDomainOutboxEvent(where: DomainOutboxEventWhereUniqueInput!, data: DomainOutboxEventUpdateInput!): DomainOutboxEvent
-  updateDomainOutboxEvents(data: [DomainOutboxEventUpdateArgs!]!): [DomainOutboxEvent]
-  deleteDomainOutboxEvent(where: DomainOutboxEventWhereUniqueInput!): DomainOutboxEvent
-  deleteDomainOutboxEvents(where: [DomainOutboxEventWhereUniqueInput!]!): [DomainOutboxEvent]
+  createCommandReceipt(data: CommandReceiptCreateInput!): CommandReceipt
+  createCommandReceipts(data: [CommandReceiptCreateInput!]!): [CommandReceipt]
+  updateCommandReceipt(where: CommandReceiptWhereUniqueInput!, data: CommandReceiptUpdateInput!): CommandReceipt
+  updateCommandReceipts(data: [CommandReceiptUpdateArgs!]!): [CommandReceipt]
+  deleteCommandReceipt(where: CommandReceiptWhereUniqueInput!): CommandReceipt
+  deleteCommandReceipts(where: [CommandReceiptWhereUniqueInput!]!): [CommandReceipt]
   createBrokerage(data: BrokerageCreateInput!): Brokerage
   createBrokerages(data: [BrokerageCreateInput!]!): [Brokerage]
   updateBrokerage(where: BrokerageWhereUniqueInput!, data: BrokerageUpdateInput!): Brokerage
@@ -7299,9 +7255,9 @@ type Query {
   domainAuditEvent(where: DomainAuditEventWhereUniqueInput!): DomainAuditEvent
   domainAuditEvents(where: DomainAuditEventWhereInput! = {}, orderBy: [DomainAuditEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: DomainAuditEventWhereUniqueInput): [DomainAuditEvent!]
   domainAuditEventsCount(where: DomainAuditEventWhereInput! = {}): Int
-  domainOutboxEvent(where: DomainOutboxEventWhereUniqueInput!): DomainOutboxEvent
-  domainOutboxEvents(where: DomainOutboxEventWhereInput! = {}, orderBy: [DomainOutboxEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: DomainOutboxEventWhereUniqueInput): [DomainOutboxEvent!]
-  domainOutboxEventsCount(where: DomainOutboxEventWhereInput! = {}): Int
+  commandReceipt(where: CommandReceiptWhereUniqueInput!): CommandReceipt
+  commandReceipts(where: CommandReceiptWhereInput! = {}, orderBy: [CommandReceiptOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CommandReceiptWhereUniqueInput): [CommandReceipt!]
+  commandReceiptsCount(where: CommandReceiptWhereInput! = {}): Int
   brokerage(where: BrokerageWhereUniqueInput!): Brokerage
   brokerages(where: BrokerageWhereInput! = {}, orderBy: [BrokerageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BrokerageWhereUniqueInput): [Brokerage!]
   brokeragesCount(where: BrokerageWhereInput! = {}): Int

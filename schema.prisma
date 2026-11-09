@@ -35,33 +35,25 @@ model DomainAuditEvent {
   @@index([occurredAt])
 }
 
-model DomainOutboxEvent {
-  id            String                      @id @default(cuid())
-  eventKey      String                      @unique @default("")
-  eventType     String                      @default("")
-  brokerage     Brokerage?                  @relation("DomainOutboxEvent_brokerage", fields: [brokerageId], references: [id])
-  brokerageId   String?                     @map("brokerage")
-  aggregateType String                      @default("")
-  aggregateId   String                      @default("")
-  requestHash   String                      @default("")
-  payloadHash   String                      @default("")
+model CommandReceipt {
+  id            String     @id @default(cuid())
+  eventKey      String     @unique @default("")
+  eventType     String     @default("")
+  brokerage     Brokerage? @relation("CommandReceipt_brokerage", fields: [brokerageId], references: [id])
+  brokerageId   String?    @map("brokerage")
+  aggregateType String     @default("")
+  aggregateId   String     @default("")
+  requestHash   String     @default("")
+  payloadHash   String     @default("")
   payload       Json?
-  status        DomainOutboxEventStatusType @default(pending)
-  attempts      Int?                        @default(0)
-  replayCount   Int?                        @default(0)
-  availableAt   DateTime?                   @default(now())
   occurredAt    DateTime
-  dispatchedAt  DateTime?
-  lastError     String                      @default("")
-  createdAt     DateTime                    @default(now())
-  updatedAt     DateTime                    @default(now()) @updatedAt
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @default(now()) @updatedAt
 
   @@index([eventType])
   @@index([brokerageId])
   @@index([aggregateType])
   @@index([aggregateId])
-  @@index([status])
-  @@index([availableAt])
   @@index([occurredAt])
 }
 
@@ -95,7 +87,7 @@ model Brokerage {
   paymentProviders                    PaymentProvider[]              @relation("PaymentProvider_brokerage")
   payments                            Payment[]                      @relation("Payment_brokerage")
   auditEvents                         DomainAuditEvent[]             @relation("DomainAuditEvent_brokerage")
-  outboxEvents                        DomainOutboxEvent[]            @relation("DomainOutboxEvent_brokerage")
+  commandReceipts                     CommandReceipt[]               @relation("CommandReceipt_brokerage")
   createdAt                           DateTime                       @default(now())
   updatedAt                           DateTime                       @default(now()) @updatedAt
   from_DealDocument_brokerage         DealDocument[]                 @relation("DealDocument_brokerage")
@@ -1360,13 +1352,6 @@ model PaymentWebhookReceipt {
   outcome   String   @default("")
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
-}
-
-enum DomainOutboxEventStatusType {
-  pending
-  processing
-  dispatched
-  failed
 }
 
 enum BrokerageStatusType {

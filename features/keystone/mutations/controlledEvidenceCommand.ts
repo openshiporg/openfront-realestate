@@ -48,10 +48,10 @@ export async function runControlledEvidenceCommand(context: Context, options: {
     await sudo.prisma.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', options.lockKey)
     await lockCommandAggregate(scoped, options.lockKey, evidenceBrokerageId(scoped)!)
     if (options.authorizeTarget && !await options.authorizeTarget(scoped)) return { ok: false, message: 'Access denied.', itemId: null, replayed: false }
-    const candidate = await sudo.query.DomainOutboxEvent.findOne({ where: { eventKey: options.eventKey }, query: options.authorizeReplayHeader ? SHOWING_EVENT_HEADER_QUERY : 'id requestHash payload brokerage { id }' })
+    const candidate = await sudo.query.CommandReceipt.findOne({ where: { eventKey: options.eventKey }, query: options.authorizeReplayHeader ? SHOWING_EVENT_HEADER_QUERY : 'id requestHash payload brokerage { id }' })
     if (candidate && options.authorizeReplayHeader && !await options.authorizeReplayHeader(scoped, candidate)) return { ok: false, message: 'Access denied.', itemId: null, replayed: false }
     if (candidate && options.authorizeReplayHeader && candidate.requestHash !== domainPayloadHash(options.request)) throw new Error('Domain command idempotency key was reused with different input')
-    const existing = candidate && options.authorizeReplayHeader ? await sudo.query.DomainOutboxEvent.findOne({ where: { eventKey: options.eventKey }, query: 'id requestHash payloadHash payload brokerage { id }' }) : candidate
+    const existing = candidate && options.authorizeReplayHeader ? await sudo.query.CommandReceipt.findOne({ where: { eventKey: options.eventKey }, query: 'id requestHash payloadHash payload brokerage { id }' }) : candidate
     if (candidate && (!existing || existing.id !== candidate.id || existing.requestHash !== candidate.requestHash
       || (options.authorizeReplayHeader && !showingEventPayloadMatches(candidate, existing)))) return { ok: false, message: 'Access denied.', itemId: null, replayed: false }
     if (existing) {
