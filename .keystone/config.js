@@ -953,6 +953,10 @@ var Brokerage = (0, import_core3.list)({
 var import_core4 = require("@keystone-6/core");
 var import_fields5 = require("@keystone-6/core/fields");
 var BrokerageMembership = (0, import_core4.list)({
+  // One row per pair; the generated index name matches migration 20261107120000.
+  db: { extendPrismaSchema: (schema) => schema.replace(/\n\}\s*$/, `
+  @@unique([brokerageId, userId])
+}`) },
   access: {
     operation: {
       query: isOperator,
@@ -1217,6 +1221,10 @@ function minorFilter(value) {
   }
   return moneyToMinor(value);
 }
+function moneyLabel(fieldKey) {
+  const words = fieldKey.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+  return words[0].toUpperCase() + words.slice(1);
+}
 var legacyColumns = /* @__PURE__ */ new Map();
 function normalizeMoneyRecord(listKey, record4) {
   if (!record4) return record4;
@@ -1252,10 +1260,10 @@ function money(config3 = {}) {
       ...config3.defaultValue === void 0 ? {} : { defaultValue: moneyToMinor(config3.defaultValue) }
     })(meta);
     const convert = (value) => {
-      const minor = moneyToMinor(value);
+      const minor2 = moneyToMinor(value);
       const maximum = 10n ** BigInt(config3.precision || 18) - 1n;
-      if (minor > maximum || minor < -maximum) throw new Error("Money exceeds the field precision.");
-      return minor;
+      if (minor2 > maximum || minor2 < -maximum) throw new Error("Money exceeds the field precision.");
+      return minor2;
     };
     const validate = base.hooks?.validate;
     const input = base.input;
@@ -1267,9 +1275,11 @@ function money(config3 = {}) {
       dbField: storage.dbField,
       hooks: {
         ...base.hooks,
-        validate: typeof validate === "function" ? (args) => {
-          if (args.operation === "delete") return validate(args);
+        validate: typeof validate === "function" || !config3.allowNegative ? (args) => {
+          if (args.operation === "delete") return typeof validate === "function" ? validate(args) : void 0;
           const value = args.resolvedData[meta.fieldKey];
+          if (!config3.allowNegative && typeof value === "bigint" && value < 0n) args.addValidationError(`${moneyLabel(meta.fieldKey)} cannot be negative.`);
+          if (typeof validate !== "function") return;
           return validate({ ...args, resolvedData: {
             ...args.resolvedData,
             [meta.fieldKey]: typeof value === "bigint" ? minorToMoney(value) : value
@@ -1956,13 +1966,131 @@ var Disclosure = (0, import_core7.list)({
 // features/keystone/models/PropertyValuation.ts
 var import_core8 = require("@keystone-6/core");
 var import_fields10 = require("@keystone-6/core/fields");
+
+// features/keystone/lib/recordInvariants.ts
+function after(item, resolvedData) {
+  return { ...item || {}, ...resolvedData || {} };
+}
+function minor(value) {
+  if (value === null || value === void 0 || value === "") return null;
+  if (typeof value === "bigint") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return BigInt(Math.round(value));
+  return null;
+}
+function decimalNumber(value) {
+  if (value === null || value === void 0 || value === "") return null;
+  const number = Number(String(value));
+  return Number.isFinite(number) ? number : null;
+}
+function time(value) {
+  if (value === null || value === void 0 || value === "") return null;
+  const parsed = value instanceof Date ? value.getTime() : Date.parse(String(value));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+function moneyOrder(low, high, message) {
+  return (row) => {
+    const a = minor(row[low]), b = minor(row[high]);
+    return a !== null && b !== null && a > b ? message : null;
+  };
+}
+function timeOrder(start, end, message) {
+  return (row) => {
+    const a = time(row[start]), b = time(row[end]);
+    return a !== null && b !== null && b <= a ? message : null;
+  };
+}
+var commissionSplit = (row) => {
+  const brokerage = decimalNumber(row.brokerageSplitPercent), agent = decimalNumber(row.agentSplitPercent);
+  for (const [label, value] of [["Brokerage split", brokerage], ["Agent split", agent]]) {
+    if (value !== null && (value < 0 || value > 100)) return `${label} must be between 0 and 100 percent.`;
+  }
+  if ((brokerage ?? 0) + (agent ?? 0) > 100) return "Brokerage and agent splits cannot add up to more than 100 percent.";
+  const gross = minor(row.grossCommission), net = minor(row.netCommission);
+  if (gross !== null && net !== null && net > gross) return "Net commission cannot be more than the gross commission.";
+  return null;
+};
+function agentNetMinor(grossMinor, agentSplitPercent) {
+  const text46 = String(agentSplitPercent ?? "").trim();
+  const match = /^(\d{1,3})(?:\.(\d{1,2}))?$/.exec(text46);
+  if (!match) return null;
+  const basisPoints = BigInt(match[1]) * 100n + BigInt((match[2] || "").padEnd(2, "0") || "0");
+  if (basisPoints > 10000n || grossMinor < 0n) return null;
+  return (grossMinor * basisPoints + 5000n) / 10000n;
+}
+function withRecordInvariants(hooks, rules2) {
+  const inner = hooks.validateInput;
+  return {
+    ...hooks,
+    async validateInput(args) {
+      if (inner) await inner.call(hooks, args);
+      const { operation, resolvedData, item, addValidationError } = args;
+      if (operation !== "create" && operation !== "update") return;
+      const row = after(item, resolvedData);
+      for (const rule of rules2) {
+        const problem = rule(row, operation);
+        if (problem) addValidationError(problem);
+      }
+    }
+  };
+}
+function withDerivedCommissionNet(hooks) {
+  const resolve = hooks.resolveInput;
+  const validate = hooks.validateInput;
+  return {
+    ...hooks,
+    async resolveInput(args) {
+      const resolved = resolve ? await resolve.call(hooks, args) : args.resolvedData;
+      if (args.operation !== "create" || args.inputData?.netCommission !== void 0) return resolved;
+      const gross = minor(resolved?.grossCommission);
+      const net = gross === null ? null : agentNetMinor(gross, resolved?.agentSplitPercent);
+      return net === null ? resolved : { ...resolved, netCommission: net };
+    },
+    async validateInput(args) {
+      if (validate) await validate.call(hooks, args);
+      if (args.operation !== "create" || args.inputData?.netCommission === void 0) return;
+      const row = after(args.item, args.resolvedData);
+      const gross = minor(row.grossCommission), net = minor(row.netCommission);
+      const expected = gross === null ? null : agentNetMinor(gross, row.agentSplitPercent);
+      if (expected !== null && net !== null && expected > 0n && net !== expected) {
+        args.addValidationError("Net commission must equal the gross commission times the agent split.");
+      }
+    }
+  };
+}
+var OPEN_ESCROW = ["opened", "pending"];
+function withSingleOpenEscrow(hooks) {
+  const inner = hooks.validateInput;
+  return {
+    ...hooks,
+    async validateInput(args) {
+      if (inner) await inner.call(hooks, args);
+      const { operation, resolvedData, item, inputData, context, addValidationError } = args;
+      if (operation !== "create" && operation !== "update") return;
+      const status = String(resolvedData?.status ?? item?.status ?? "opened");
+      if (!OPEN_ESCROW.includes(status)) return;
+      if (operation === "update" && resolvedData?.status === void 0) return;
+      const dealId = item?.dealId || inputData?.deal?.connect?.id;
+      if (!dealId) return;
+      const open = await context.sudo().db.Escrow.count({
+        where: { deal: { id: { equals: dealId } }, status: { in: OPEN_ESCROW }, ...item?.id ? { id: { not: { equals: item.id } } } : {} }
+      });
+      if (open) addValidationError("This deal already has an open escrow. Close or cancel it before opening another.");
+    }
+  };
+}
+
+// features/keystone/models/PropertyValuation.ts
 var PropertyValuation = (0, import_core8.list)({
   access: {
     operation: { query: permissions.canViewMarketIntelligence, create: permissions.canManageListings, update: permissions.canManageListings, delete: () => false },
     filter: { query: rules.canReadPropertyChildren, update: rules.canManagePropertyChildren },
     item: { create: canCreateForManagedProperty }
   },
-  hooks: createTenantOwnedHooks({ listKey: "PropertyValuation", parents: { property: "Property" }, users: ["performedBy"], required: ["property"], deriveOnly: true, protectDelete: true }),
+  hooks: withRecordInvariants(createTenantOwnedHooks({ listKey: "PropertyValuation", parents: { property: "Property" }, users: ["performedBy"], required: ["property"], deriveOnly: true, protectDelete: true }), [
+    moneyOrder("lowValue", "estimatedValue", "The low value cannot be more than the estimated value."),
+    moneyOrder("estimatedValue", "highValue", "The estimated value cannot be more than the high value."),
+    moneyOrder("lowValue", "highValue", "The low value cannot be more than the high value.")
+  ]),
   ui: {
     hideDelete: true,
     listView: { initialColumns: ["valuationNumber", "property", "valuationType", "estimatedValue"] }
@@ -2019,13 +2147,62 @@ var TransactionMilestone = (0, import_core9.list)({
 // features/keystone/models/MortgageApplication.ts
 var import_core10 = require("@keystone-6/core");
 var import_fields12 = require("@keystone-6/core/fields");
+
+// features/keystone/lib/closingRecordState.ts
+var ESCROW_TRANSITIONS = {
+  opened: ["pending", "closed", "cancelled"],
+  pending: ["opened", "closed", "cancelled"],
+  closed: [],
+  cancelled: []
+};
+var TITLE_ORDER_TRANSITIONS = {
+  ordered: ["in_review", "clear", "exception"],
+  in_review: ["clear", "exception"],
+  exception: ["in_review", "clear"],
+  clear: []
+};
+var MORTGAGE_TRANSITIONS = {
+  started: ["preapproved", "underwriting", "denied"],
+  preapproved: ["underwriting", "denied"],
+  underwriting: ["approved", "denied"],
+  approved: [],
+  denied: ["started"]
+};
+function canTransition(map, from, to) {
+  return from === to || Boolean(map[from]?.includes(to));
+}
+function guardStatusField(hooks, map, label, stamps = {}, field = "status") {
+  const inner = hooks.validateInput;
+  const resolve = hooks.resolveInput;
+  return {
+    ...hooks,
+    async resolveInput(args) {
+      const resolved = resolve ? await resolve.call(hooks, args) : args.resolvedData;
+      const to = resolved?.[field];
+      const stampField = typeof to === "string" ? stamps[to] : void 0;
+      if (!stampField) return resolved;
+      const existing = args.item?.[stampField];
+      return existing || resolved[stampField] !== void 0 ? resolved : { ...resolved, [stampField]: /* @__PURE__ */ new Date() };
+    },
+    async validateInput(args) {
+      if (inner) await inner.call(hooks, args);
+      const { operation, resolvedData, item, addValidationError } = args;
+      if (operation !== "update" || !item || resolvedData?.[field] === void 0) return;
+      const from = String(item[field] ?? "");
+      const to = String(resolvedData[field]);
+      if (!canTransition(map, from, to)) addValidationError(`Cannot change ${label} from ${from.replaceAll("_", " ")} to ${to.replaceAll("_", " ")}.`);
+    }
+  };
+}
+
+// features/keystone/models/MortgageApplication.ts
 var MortgageApplication = (0, import_core10.list)({
   access: {
     operation: { query: permissions.canReadSensitiveDeals, create: permissions.canManageBrokerageDeals, update: permissions.canManageBrokerageDeals, delete: () => false },
     filter: { query: rules.canReadDealChildren, update: rules.canReadDealChildren },
     item: { create: canCreateForActiveDeal }
   },
-  hooks: createTenantOwnedHooks({ listKey: "MortgageApplication", parents: { deal: "Deal", lead: "Lead" }, required: ["deal", "lead"], coherentWith: { field: "deal", listKey: "Deal", matches: { lead: "lead" } }, deriveOnly: true, protectDelete: true }),
+  hooks: guardStatusField(createTenantOwnedHooks({ listKey: "MortgageApplication", parents: { deal: "Deal", lead: "Lead" }, required: ["deal", "lead"], coherentWith: { field: "deal", listKey: "Deal", matches: { lead: "lead" } }, deriveOnly: true, protectDelete: true }), MORTGAGE_TRANSITIONS, "financing application", { approved: "decisionAt", denied: "decisionAt" }),
   ui: {
     hideDelete: true,
     hideCreate: (args) => !permissions.canManageBrokerageDeals(args),
@@ -2055,7 +2232,7 @@ var TitleOrder = (0, import_core11.list)({
     filter: { query: rules.canReadDealChildren, update: rules.canReadDealChildren },
     item: { create: canCreateForActiveDeal }
   },
-  hooks: createTenantOwnedHooks({ listKey: "TitleOrder", parents: { deal: "Deal", property: "Property" }, required: ["deal", "property"], coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property" } }, deriveOnly: true, protectDelete: true }),
+  hooks: guardStatusField(createTenantOwnedHooks({ listKey: "TitleOrder", parents: { deal: "Deal", property: "Property" }, required: ["deal", "property"], coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property" } }, deriveOnly: true, protectDelete: true }), TITLE_ORDER_TRANSITIONS, "title order", { clear: "clearedAt" }),
   ui: {
     hideDelete: true,
     hideCreate: (args) => !permissions.canManageBrokerageDeals(args),
@@ -2084,7 +2261,7 @@ var Escrow = (0, import_core12.list)({
     filter: { query: rules.canReadDealChildren, update: rules.canReadDealChildren },
     item: { create: canCreateForActiveDeal }
   },
-  hooks: createTenantOwnedHooks({ listKey: "Escrow", parents: { deal: "Deal", property: "Property" }, required: ["deal", "property"], coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property" } }, deriveOnly: true, protectDelete: true }),
+  hooks: withSingleOpenEscrow(guardStatusField(createTenantOwnedHooks({ listKey: "Escrow", parents: { deal: "Deal", property: "Property" }, required: ["deal", "property"], coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property" } }, deriveOnly: true, protectDelete: true }), ESCROW_TRANSITIONS, "escrow", { closed: "closedAt" })),
   ui: {
     hideDelete: true,
     hideCreate: (args) => !permissions.canManageBrokerageDeals(args),
@@ -2144,7 +2321,7 @@ var OpenHouse = (0, import_core14.list)({
     filter: { query: rules.canReadPropertyChildren, update: rules.canReadPropertyChildren },
     item: { create: canCreateForActiveProperty }
   },
-  hooks: createTenantOwnedHooks({ listKey: "OpenHouse", parents: { property: "Property" }, users: ["hostAgent"], required: ["property"], deriveOnly: true, protectDelete: true }),
+  hooks: withRecordInvariants(createTenantOwnedHooks({ listKey: "OpenHouse", parents: { property: "Property" }, users: ["hostAgent"], required: ["property"], deriveOnly: true, protectDelete: true }), [timeOrder("startsAt", "endsAt", "The open house must end after it starts.")]),
   ui: {
     hideDelete: true,
     listView: { initialColumns: ["title", "property", "status", "startsAt"] }
@@ -2605,13 +2782,13 @@ var Lead = (0, import_core20.list)({
     },
     item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage }
   },
-  hooks: createTenantOwnedHooks({
+  hooks: withRecordInvariants(createTenantOwnedHooks({
     listKey: "Lead",
     parents: { property: "Property" },
     users: ["assignedAgent"],
     teams: ["assignedTeam"],
     protectDelete: true
-  }),
+  }), [moneyOrder("budgetMin", "budgetMax", "The minimum budget cannot be more than the maximum budget.")]),
   ui: {
     hideDelete: true,
     hideCreate: (args) => !permissions.canManageBrokerageTasks(args),
@@ -2712,13 +2889,13 @@ var Showing = (0, import_core21.list)({
     },
     item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage }
   },
-  hooks: createTenantOwnedHooks({
+  hooks: withRecordInvariants(createTenantOwnedHooks({
     listKey: "Showing",
     parents: { property: "Property", lead: "Lead" },
     users: ["assignedAgent"],
     required: ["property", "lead"],
     protectDelete: true
-  }),
+  }), [timeOrder("scheduledStart", "scheduledEnd", "The showing must end after it starts.")]),
   ui: {
     hideDelete: true,
     hideCreate: (args) => !permissions.canManageBrokerageShowings(args),
@@ -2867,6 +3044,10 @@ var Deal = (0, import_core22.list)({
 var import_core23 = require("@keystone-6/core");
 var import_fields25 = require("@keystone-6/core/fields");
 var SavedProperty = (0, import_core23.list)({
+  // One row per pair; the generated index name matches migration 20261107120000.
+  db: { extendPrismaSchema: (schema) => schema.replace(/\n\}\s*$/, `
+  @@unique([userId, propertyId])
+}`) },
   access: {
     operation: {
       query: isSignedIn,
@@ -3112,6 +3293,23 @@ function withMediaSource(hooks) {
     }
   };
 }
+function withSingleHero(hooks) {
+  return {
+    ...hooks,
+    async beforeOperation(args) {
+      await hooks.beforeOperation?.(args);
+      const { operation, resolvedData, item, inputData, context } = args;
+      if (operation !== "create" && operation !== "update" || resolvedData?.isHero !== true) return;
+      const propertyId = item?.propertyId || inputData?.property?.connect?.id;
+      if (!propertyId) return;
+      const sudo = context.sudo();
+      const others = await sudo.db.PropertyMedia.findMany({
+        where: { property: { id: { equals: propertyId } }, isHero: { equals: true }, ...item?.id ? { id: { not: { equals: item.id } } } : {} }
+      });
+      for (const other of others) await sudo.db.PropertyMedia.updateOne({ where: { id: String(other.id) }, data: { isHero: false } });
+    }
+  };
+}
 var PropertyMedia = (0, import_core26.list)({
   access: {
     operation: {
@@ -3123,7 +3321,7 @@ var PropertyMedia = (0, import_core26.list)({
     filter: { query: rules.canReadPropertyChildren, update: rules.canManagePropertyChildren, delete: rules.canManagePropertyChildren },
     item: { create: canCreateForManagedProperty }
   },
-  hooks: withMediaSource(createTenantOwnedHooks({ listKey: "PropertyMedia", parents: { property: "Property" }, required: ["property"], deriveOnly: true })),
+  hooks: withSingleHero(withMediaSource(createTenantOwnedHooks({ listKey: "PropertyMedia", parents: { property: "Property" }, required: ["property"], deriveOnly: true }))),
   ui: { listView: { initialColumns: ["image", "title", "mediaType", "property", "sortOrder", "isHero"] } },
   fields: {
     title: (0, import_fields28.text)({ validation: { isRequired: true } }),
@@ -3220,14 +3418,14 @@ var Offer = (0, import_core28.list)({
     },
     filter: { query: rules.canReadDeals }
   },
-  hooks: createTenantOwnedHooks({
+  hooks: withRecordInvariants(createTenantOwnedHooks({
     listKey: "Offer",
     parents: { deal: "Deal", property: "Property", lead: "Lead", parentOffer: "Offer" },
     users: ["assignedAgent"],
     required: ["deal", "property", "lead"],
     coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property", lead: "lead" } },
     protectDelete: true
-  }),
+  }), [moneyOrder("earnestMoney", "amount", "Earnest money cannot be more than the offer amount.")]),
   ui: {
     hideDelete: true,
     hideCreate: true,
@@ -3359,14 +3557,14 @@ var Commission = (0, import_core30.list)({
     filter: { query: rules.canReadDeals },
     item: { create: canCreateForActiveDeal }
   },
-  hooks: createTenantOwnedHooks({
+  hooks: withDerivedCommissionNet(withRecordInvariants(createTenantOwnedHooks({
     listKey: "Commission",
     parents: { deal: "Deal", property: "Property" },
     users: ["agent"],
     required: ["deal", "property", "agent"],
     coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property" } },
     protectDelete: true
-  }),
+  }), [commissionSplit])),
   ui: {
     hideDelete: true,
     hideCreate: (args) => !permissions.canManageBrokerageDeals(args),
@@ -3422,7 +3620,7 @@ var SavedSearch = (0, import_core31.list)({
     },
     filter: { query: rules.canReadSavedSearches }
   },
-  hooks: createTenantOwnedHooks({ listKey: "SavedSearch", users: ["user"], required: ["user"], allowCustomers: true }),
+  hooks: withRecordInvariants(createTenantOwnedHooks({ listKey: "SavedSearch", users: ["user"], required: ["user"], allowCustomers: true }), [moneyOrder("minPrice", "maxPrice", "The minimum price cannot be more than the maximum price.")]),
   ui: {
     hideDelete: true,
     hideCreate: true,
@@ -4963,8 +5161,8 @@ function commandText(value) {
 }
 function explicitDateTimeToIso(value) {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return "";
-  const time = Date.parse(value);
-  return Number.isFinite(time) ? new Date(time).toISOString() : "";
+  const time2 = Date.parse(value);
+  return Number.isFinite(time2) ? new Date(time2).toISOString() : "";
 }
 var STATE_TIME_ZONES = {
   AL: "America/Chicago",
@@ -5024,7 +5222,7 @@ var SHOWING_HOURS = { first: 8, last: 20 };
 function stateTimeZone(state) {
   return STATE_TIME_ZONES[String(state || "").trim().toUpperCase()] || null;
 }
-function zonedParts(time, timeZone) {
+function zonedParts(time2, timeZone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
     timeZone,
     hourCycle: "h23",
@@ -5033,12 +5231,12 @@ function zonedParts(time, timeZone) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit"
-  }).formatToParts(new Date(time)).map((part) => [part.type, part.value]));
+  }).formatToParts(new Date(time2)).map((part) => [part.type, part.value]));
   return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day), hour: Number(parts.hour), minute: Number(parts.minute) };
 }
-function withinShowingHours(time, timeZone) {
-  const p = zonedParts(time, timeZone);
-  const minutes = p.hour * 60 + p.minute;
+function withinShowingHours(time2, timeZone) {
+  const p2 = zonedParts(time2, timeZone);
+  const minutes = p2.hour * 60 + p2.minute;
   return minutes >= SHOWING_HOURS.first * 60 && minutes <= SHOWING_HOURS.last * 60;
 }
 function timeZoneLabel(timeZone) {
@@ -5781,8 +5979,8 @@ async function leadWorkspace(args, context) {
     const scoped = await freshOperatorCommandContext(tx.withSession(context.session));
     const scope2 = actorScope(scoped), status = (args.status || "all").trim(), term = (args.q || "").trim();
     if (!["all", "new", "attempted_contact", "qualified", "tour_scheduled", "offer", "closed", "lost"].includes(status)) throw new Error("Lead workspace unavailable.");
-    const after = args.after ?? void 0, before = args.before ?? void 0;
-    if (term.length > 120 || after !== void 0 && before !== void 0) throw new Error(INVALID_LEAD_CURSOR);
+    const after2 = args.after ?? void 0, before = args.before ?? void 0;
+    if (term.length > 120 || after2 !== void 0 && before !== void 0) throw new Error(INVALID_LEAD_CURSOR);
     const take = Math.min(Math.max(Number(args.take) || 50, 1), 100);
     const filters = [leadWhere(scoped)];
     if (status !== "all") filters.push({ status: { equals: status } });
@@ -5794,7 +5992,7 @@ async function leadWorkspace(args, context) {
     ] });
     const binding = leadCursorBinding({ purpose: "lead_board", actor: scope2.actorId, brokerage: scope2.brokerageId, managesAll: scope2.managesAll, status, term, take });
     const backward = before !== void 0;
-    const encoded = after ?? before;
+    const encoded = after2 ?? before;
     const cursor = encoded === void 0 ? null : decodeLeadCursor(encoded, binding);
     if (cursor) {
       const anchor = (await scoped.sudo().query.Lead.findMany({ where: { AND: [...filters, { id: { equals: cursor.id }, createdAt: { equals: cursor.at } }] }, take: 1, query: HEADER }))[0];
@@ -8608,6 +8806,12 @@ async function transitionInContext(context, domain, data) {
   if (domain === "showing" && item.lead?.id && nextLeadStatus !== null && nextLeadStatus !== item.lead.status) {
     await sudo.query.Lead.updateOne({ where: { id: item.lead.id }, data: { status: nextLeadStatus }, query: "id" });
   }
+  if (domain === "deal" && next === "closed_lost") {
+    const openEscrows = await sudo.query.Escrow.findMany({ where: { deal: { id: { equals: id } }, status: { in: ["opened", "pending"] } }, query: "id" });
+    for (const escrow of openEscrows) await sudo.query.Escrow.updateOne({ where: { id: escrow.id }, data: { status: "cancelled" }, query: "id" });
+    const liveOffers = await sudo.query.Offer.findMany({ where: { deal: { id: { equals: id } }, status: { in: ["draft", "submitted", "countered"] } }, query: "id status" });
+    for (const offer of liveOffers) await sudo.query.Offer.updateOne({ where: { id: offer.id }, data: { status: "withdrawn" }, query: "id" });
+  }
   if (domain === "offer" && next === "accepted" && item.deal?.id) {
     await sudo.query.Deal.updateOne({ where: { id: item.deal.id }, data: { offerAmount: item.amount }, query: "id" });
   }
@@ -8823,6 +9027,8 @@ async function saveSearchForCurrentUser(_root, { data }, context) {
   const name = clean3(data.name);
   if (!name) return { ok: false, message: "Name the search before saving it.", itemId: null };
   if (!discoveryBrokerageId(context.session)) return { ok: false, message: "Sign in to save searches.", itemId: null };
+  const minPrice = clean3(data.minPrice), maxPrice = clean3(data.maxPrice);
+  if (minPrice && maxPrice && /^\d+(\.\d{1,2})?$/.test(minPrice) && /^\d+(\.\d{1,2})?$/.test(maxPrice) && moneyToMinor(minPrice) > moneyToMinor(maxPrice)) return { ok: false, message: "The minimum price cannot be more than the maximum price.", itemId: null };
   return withSavedDiscoveryLock(context, "search", name, async (scoped, lockedUserId, brokerageId) => {
     if (lockedUserId !== currentUserId) return unauthenticated();
     const sudo = scoped.sudo();
@@ -9549,7 +9755,7 @@ async function withCoverThumbnails(sudo, rows) {
   }
   return rows.map((row) => ({ ...row, primaryImageUrl: byProperty.get(row.id) || row.primaryImageUrl }));
 }
-async function platformListings(_root, { status, q, take = 60, after, before }, context) {
+async function platformListings(_root, { status, q, take = 60, after: after2, before }, context) {
   const current = scope(context, "canManageListings");
   const { ids } = current;
   const pageSize = Math.min(Math.max(Number(take) || 60, 1), 100);
@@ -9558,7 +9764,7 @@ async function platformListings(_root, { status, q, take = 60, after, before }, 
   if (normalizedStatus && normalizedStatus !== "all") filters.push({ status: { equals: normalizedStatus } });
   const search = textFilter(term, ["title", "addressLine1", "city", "postalCode"]);
   if (search) filters.push(search);
-  const hasAfter = after !== void 0 && after !== null;
+  const hasAfter = after2 !== void 0 && after2 !== null;
   const hasBefore = before !== void 0 && before !== null;
   if (hasAfter && hasBefore) throw new Error(INVALID_LISTING_CURSOR);
   const fingerprint = listingCursorFingerprint({
@@ -9569,7 +9775,7 @@ async function platformListings(_root, { status, q, take = 60, after, before }, 
     search: term,
     pageSize
   });
-  const cursorValue = hasAfter ? after : hasBefore ? before : null;
+  const cursorValue = hasAfter ? after2 : hasBefore ? before : null;
   const cursor = cursorValue === null ? null : decodeListingCursor(cursorValue, fingerprint);
   if (cursorValue !== null && !cursor) throw new Error(INVALID_LISTING_CURSOR);
   const sudo = context.sudo();
@@ -9611,10 +9817,10 @@ async function platformListings(_root, { status, q, take = 60, after, before }, 
   const count = (value) => scoped.filter((item) => item.status === value).length;
   return { items, pageInfo, stats: { total: scoped.length, active: count("active"), comingSoon: count("coming_soon"), pending: count("pending"), sold: count("sold"), offMarket: count("off_market") } };
 }
-async function platformShowings(_root, { status, range, q, take, after, before }, context) {
-  return context.transaction(async (tx) => showingWorkspace({ status, range, q, take, after, before }, await freshOperatorCommandContext(tx.withSession(context.session))), { timeout: 3e4 });
+async function platformShowings(_root, { status, range, q, take, after: after2, before }, context) {
+  return context.transaction(async (tx) => showingWorkspace({ status, range, q, take, after: after2, before }, await freshOperatorCommandContext(tx.withSession(context.session))), { timeout: 3e4 });
 }
-async function showingWorkspace({ status, range, q, take = 80, after, before }, context) {
+async function showingWorkspace({ status, range, q, take = 80, after: after2, before }, context) {
   const { where: brokerageWhere, current } = assignmentWhere(context, "canManageShowings");
   const filters = [brokerageWhere];
   const normalizedStatus = clean5(status), normalizedRange = clean5(range) || "upcoming", term = clean5(q);
@@ -9624,7 +9830,7 @@ async function showingWorkspace({ status, range, q, take = 80, after, before }, 
   if (date) filters.push({ scheduledStart: date });
   const search = textFilter(term, ["property.title", "property.addressLine1", "property.city", "lead.name", "lead.email", "assignedAgent.name"]);
   if (search) filters.push(search);
-  const hasAfter = after !== void 0 && after !== null;
+  const hasAfter = after2 !== void 0 && after2 !== null;
   const hasBefore = before !== void 0 && before !== null;
   if (hasAfter && hasBefore) throw new Error(INVALID_SHOWING_CURSOR);
   const fingerprint = showingCursorFingerprint({
@@ -9637,7 +9843,7 @@ async function showingWorkspace({ status, range, q, take = 80, after, before }, 
     search: term,
     pageSize
   });
-  const cursorValue = hasAfter ? after : hasBefore ? before : null;
+  const cursorValue = hasAfter ? after2 : hasBefore ? before : null;
   const cursor = cursorValue === null ? null : decodeShowingCursor(cursorValue, fingerprint);
   if (cursorValue !== null && !cursor) throw new Error(INVALID_SHOWING_CURSOR);
   const sudo = context.sudo();
@@ -10009,6 +10215,7 @@ async function createOfferCommand(_root, { data }, context) {
   const dealId = commandText(data.dealId), amount = commandText(data.amount), earnestMoney = commandText(data.earnestMoney), financingType = commandText(data.financingType) || "conventional", contingencies = commandText(data.contingencies), responseDueAt = commandText(data.responseDueAt), key = commandText(data.idempotencyKey);
   if (!dealId || !validMoney2(amount) || !["cash", "conventional", "fha", "va", "other"].includes(financingType) || contingencies.length > 1e4 || responseDueAt && !Number.isFinite(new Date(responseDueAt).getTime()) || !validKey(key)) return { ok: false, message: "Deal, valid amount, and bounded idempotency key are required.", itemId: null, replayed: false };
   if (earnestMoney && !validMoney2(earnestMoney)) return { ok: false, message: "Earnest money must be a valid amount.", itemId: null, replayed: false };
+  if (earnestMoney && moneyToMinor(earnestMoney) > moneyToMinor(amount)) return { ok: false, message: "Earnest money cannot be more than the offer amount.", itemId: null, replayed: false };
   const request = { dealId, amount, earnestMoney, financingType, contingencies, responseDueAt };
   return runCommand(context, {
     eventKey: `command:deal:${dealId}:create-offer:${key}`,
@@ -11854,6 +12061,95 @@ function extendGraphqlSchema(baseSchema) {
 
 // features/keystone/lib/mail.ts
 var import_nodemailer = require("nodemailer");
+
+// features/keystone/lib/email-layout.ts
+var SUPPORT_EMAIL = "hello@real-estate.openship.org";
+var FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+var C = {
+  canvas: "#f4f4f5",
+  card: "#ffffff",
+  text: "#18181b",
+  muted: "#52525b",
+  subtle: "#71717a",
+  line: "#e4e4e7",
+  panel: "#fafafa",
+  button: "#18181b",
+  buttonText: "#ffffff",
+  link: "#18181b"
+};
+var escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+function storeNameFromEnv(fallback = "Real Estate") {
+  const match = /^\s*"?([^"<]+?)"?\s*</.exec(process.env.SMTP_FROM || "");
+  return match?.[1]?.trim() || fallback;
+}
+var p = (html, style = "") => `<p class="em-text" style="margin:0 0 16px;font-family:${FONT};font-size:16px;line-height:24px;color:${C.text};${style}">${html}</p>`;
+var emailParagraph = p;
+var emailMuted = (html) => `<p class="em-muted" style="margin:0 0 16px;font-family:${FONT};font-size:14px;line-height:22px;color:${C.muted};">${html}</p>`;
+function emailButton(label, href) {
+  return `<table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin:8px 0 24px;">
+<tr><td class="em-btn" align="center" bgcolor="${C.button}" style="border-radius:8px;background:${C.button};">
+<a class="em-btn-a" href="${escapeHtml(href)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:${FONT};font-size:16px;font-weight:600;line-height:20px;color:${C.buttonText};text-decoration:none;border-radius:8px;">${escapeHtml(label)}</a>
+</td></tr></table>`;
+}
+function emailLayout(input) {
+  const store = escapeHtml(input.storeName || storeNameFromEnv());
+  const support = escapeHtml(input.supportEmail || SUPPORT_EMAIL);
+  return `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>${escapeHtml(input.title)}</title>
+<style>
+:root { color-scheme: light dark; supported-color-schemes: light dark; }
+body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+a { color:${C.link}; }
+@media (max-width: 620px) { .em-pad { padding-left:20px !important; padding-right:20px !important; } }
+@media (prefers-color-scheme: dark) {
+  .em-canvas { background:#09090b !important; }
+  .em-card { background:#18181b !important; border-color:#27272a !important; }
+  .em-text { color:#fafafa !important; }
+  .em-muted { color:#a1a1aa !important; }
+  .em-line { border-color:#3f3f46 !important; }
+  .em-panel { background:#27272a !important; border-color:#3f3f46 !important; color:#fafafa !important; }
+  .em-btn { background:#fafafa !important; }
+  .em-btn-a { color:#18181b !important; }
+  .em-link { color:#fafafa !important; }
+}
+[data-ogsc] .em-text { color:#fafafa !important; }
+[data-ogsc] .em-muted { color:#a1a1aa !important; }
+[data-ogsb] .em-canvas { background:#09090b !important; }
+[data-ogsb] .em-card { background:#18181b !important; }
+</style>
+</head>
+<body class="em-canvas" style="margin:0;padding:0;background:${C.canvas};">
+${input.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${escapeHtml(input.preheader)}</div>` : ""}
+<table role="presentation" class="em-canvas" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="${C.canvas}" style="background:${C.canvas};">
+<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:600px;">
+<tr><td class="em-pad" style="padding:8px 32px 20px;font-family:${FONT};font-size:18px;line-height:24px;font-weight:700;letter-spacing:-0.01em;"><span class="em-text" style="color:${C.text};">${store}</span></td></tr>
+<tr><td class="em-card" bgcolor="${C.card}" style="background:${C.card};border:1px solid ${C.line};border-radius:12px;">
+<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr><td class="em-pad" style="padding:32px 32px 16px;">
+<h1 class="em-text" style="margin:0 0 16px;font-family:${FONT};font-size:24px;line-height:32px;font-weight:700;letter-spacing:-0.02em;color:${C.text};">${escapeHtml(input.title)}</h1>
+${input.body}
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="em-pad" style="padding:20px 32px 8px;font-family:${FONT};font-size:13px;line-height:20px;color:${C.subtle};">
+<span class="em-muted" style="color:${C.subtle};">${input.footerNote ? `${input.footerNote}<br>` : ""}Questions? Email <a class="em-link" href="mailto:${support}" style="color:${C.muted};text-decoration:underline;">${support}</a>.<br>${store}</span>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+// features/keystone/lib/mail.ts
 function getBaseUrlForEmails() {
   if (process.env.SMTP_STORE_LINK) {
     return process.env.SMTP_STORE_LINK;
@@ -11871,37 +12167,13 @@ var transport = (0, import_nodemailer.createTransport)({
   }
 });
 function passwordResetEmail({ url }) {
-  const backgroundColor = "#f9f9f9";
-  const textColor = "#444444";
-  const mainBackgroundColor = "#ffffff";
-  const buttonBackgroundColor = "#346df1";
-  const buttonBorderColor = "#346df1";
-  const buttonTextColor = "#ffffff";
-  return `
-    <body style="background: ${backgroundColor};">
-      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: ${mainBackgroundColor}; max-width: 600px; margin: auto; border-radius: 10px;">
-        <tr>
-          <td align="center" style="padding: 10px 0px 0px 0px; font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
-            Please click below to reset your password
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 20px 0;">
-            <table border="0" cellspacing="0" cellpadding="0">
-              <tr>
-                <td align="center" style="border-radius: 5px;" bgcolor="${buttonBackgroundColor}"><a href="${url}" target="_blank" style="font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${buttonTextColor}; text-decoration: none; border-radius: 5px; padding: 10px 20px; border: 1px solid ${buttonBorderColor}; display: inline-block; font-weight: bold;">Reset Password</a></td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 0px 0px 10px 0px; font-size: 16px; line-height: 22px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
-            If you did not request this email you can safely ignore it.
-          </td>
-        </tr>
-      </table>
-    </body>
-  `;
+  return emailLayout({
+    preheader: "Use this link to choose a new password.",
+    title: "Reset your password",
+    body: `${emailParagraph("We received a request to reset the password for your account. Use the button below to choose a new one.")}
+${emailButton("Reset password", url)}
+${emailMuted("If you did not request this, you can safely ignore this email. Your password will not change.")}`
+  });
 }
 async function sendPasswordResetEmail(resetToken, to, baseUrl, resetPath) {
   const frontendUrl = baseUrl || getBaseUrlForEmails();
@@ -11957,6 +12229,13 @@ async function createInitialOwner(context, data) {
       query: "id name slug status isPrimary"
     });
     let brokerage = await exactlyOne(brokerageMatches, "starter brokerage");
+    const otherPrimaries = await sudo.query.Brokerage.findMany({
+      where: { isPrimary: { equals: true }, slug: { not: { equals: BROKERAGE_SLUG } } },
+      query: "id"
+    });
+    for (const other of otherPrimaries) {
+      await sudo.db.Brokerage.updateOne({ where: { id: String(other.id) }, data: { isPrimary: false } });
+    }
     if (brokerage) {
       brokerage = await sudo.db.Brokerage.updateOne({
         where: { id: brokerage.id },
@@ -12036,6 +12315,86 @@ function s3ForcePathStyle(endpoint2) {
   } catch {
   }
   return !(hostname === "storageapi.dev" || hostname.endsWith(".storageapi.dev"));
+}
+
+// features/keystone/database-url.ts
+var POOL_SIZES = { web: 15, worker: 5 };
+var OVERRIDE_ENV = {
+  web: "DATABASE_CONNECTION_LIMIT",
+  worker: "DATABASE_CONNECTION_LIMIT_WORKER"
+};
+function pooledDatabaseUrl(url, role5 = "web") {
+  if (!url || !/^postgres(ql)?:\/\//.test(url)) return url;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsed.searchParams.has("connection_limit")) return url;
+  const override = Number(process.env[OVERRIDE_ENV[role5]]);
+  parsed.searchParams.set("connection_limit", String(Number.isInteger(override) && override > 0 ? override : POOL_SIZES[role5]));
+  return parsed.toString();
+}
+
+// features/keystone/lib/keystonePrismaErrors.ts
+var RAW_METHOD = /^\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe|queryRawTyped|runCommandRaw)$/;
+var clients = /* @__PURE__ */ new WeakMap();
+var delegates = /* @__PURE__ */ new WeakMap();
+function isKeystonePrismaError(value) {
+  return value instanceof Error && value.extensions?.code === "KS_PRISMA_ERROR";
+}
+function rethrowKeystonePrismaError(value) {
+  if (!isKeystonePrismaError(value)) return value;
+  const prisma = value.extensions.prisma ?? {};
+  throw Object.assign(value, { code: prisma.code, meta: prisma.meta, clientVersion: prisma.clientVersion });
+}
+function throwing(result) {
+  if (!result || typeof result.then !== "function") return rethrowKeystonePrismaError(result);
+  const settled = () => result.then(rethrowKeystonePrismaError);
+  return new Proxy(result, {
+    get(target, key) {
+      if (key === "then") return (ok, fail) => settled().then(ok, fail);
+      if (key === "catch") return (fail) => settled().catch(fail);
+      if (key === "finally") return (done) => settled().finally(done);
+      const value = Reflect.get(target, key, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    }
+  });
+}
+function throwingDelegate(delegate) {
+  const cached = delegates.get(delegate);
+  if (cached) return cached;
+  const wrapped = new Proxy(delegate, {
+    get(target, key) {
+      const value = Reflect.get(target, key, target);
+      return typeof value === "function" ? (...args) => throwing(value.apply(target, args)) : value;
+    }
+  });
+  delegates.set(delegate, wrapped);
+  return wrapped;
+}
+function throwKeystonePrismaErrors(client) {
+  const cached = clients.get(client);
+  if (cached) return cached;
+  const wrapped = new Proxy(client, {
+    get(target, key) {
+      const value = Reflect.get(target, key, target);
+      if (key === "$transaction" && typeof value === "function") {
+        return (work, ...options) => {
+          if (typeof work === "function") return value.call(target, (tx) => work(throwKeystonePrismaErrors(tx)), ...options);
+          return Promise.resolve(value.call(target, work, ...options)).then((results) => Array.isArray(results) ? results.map(rethrowKeystonePrismaError) : results);
+        };
+      }
+      if (key === "$extends" && typeof value === "function") return (...args) => throwKeystonePrismaErrors(value.apply(target, args));
+      if (typeof key === "string" && RAW_METHOD.test(key) && typeof value === "function") return (...args) => throwing(value.apply(target, args));
+      if (typeof value === "function") return value.bind(target);
+      if (typeof key === "string" && !key.startsWith("$") && value && typeof value === "object" && typeof value.findFirst === "function") return throwingDelegate(value);
+      return value;
+    }
+  });
+  clients.set(client, wrapped);
+  return wrapped;
 }
 
 // features/keystone/index.ts
@@ -12136,7 +12495,9 @@ var keystone_default = withAuth(
   (0, import_core46.config)({
     db: {
       provider: "postgresql",
-      url: databaseURL,
+      url: pooledDatabaseUrl(databaseURL),
+      // Keystone returns failed queries as values; this makes them throw so transactions roll back.
+      extendPrismaClient: throwKeystonePrismaErrors,
       extendPrismaSchema: (schema) => preserveLegacyMoneyColumns(enforceRequiredBrokerageRelations(schema))
     },
     lists: models,

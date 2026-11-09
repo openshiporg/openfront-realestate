@@ -133,7 +133,7 @@ function webhookHarness(payment) {
 
 function paymentsModule() {
   const real = sandbox({ env: { STRIPE_WEBHOOK_SECRET: 'whsec_x' }, mocks: {
-    '.keystone/types': {}, '../lib/mail': { sendPaymentRequestEmail: async () => true },
+    '.keystone/types': {},
     './submitListingInquiry': { submitListingInquiry: async () => ({ ok: true }) },
     './leadCapture': { leadIdentityKey: () => null },
     './controlledEvidenceCommand': { runControlledEvidenceCommand: async () => ({}) },
