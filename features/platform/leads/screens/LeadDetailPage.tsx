@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, Phone } from 'lucide-react'
 import { formatMoney as exactMoney, moneyToMinor } from '@/features/lib/money'
@@ -29,6 +30,7 @@ export async function LeadDetailPage({ params, searchParams }: PageProps) {
   const query = await searchParams
   const before = typeof query.before === 'string' ? query.before : query.before ? 'invalid-cursor' : undefined
   const [{ detail, error }, viewer] = await Promise.all([getPlatformLeadDetail(id, before), getShowingRequestViewer()])
+  if (!detail && error === 'Lead not found.') notFound()
   const href = `/dashboard/platform/leads/${encodeURIComponent(id)}`
   const lead = detail?.lead
   const failed = !detail || !lead || error

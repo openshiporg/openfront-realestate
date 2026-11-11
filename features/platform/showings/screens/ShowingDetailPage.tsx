@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { formatMoney } from '@/features/lib/money'
 import { ErrorBanner, Meta, Panel, PlatformPage, TitleLine, trackItemClass } from '../../components/PlatformUI'
@@ -18,6 +19,7 @@ export async function ShowingDetailPage({ params, searchParams }: PageProps) {
   const query = await searchParams
   const before = typeof query.before === 'string' ? query.before : query.before ? 'invalid-history-cursor' : undefined
   const { detail, error } = await getShowingDetail(id, before)
+  if (!detail && error === 'Showing not found.') notFound()
   const href = `/dashboard/platform/showings/${encodeURIComponent(id)}`
   const title = detail?.showing.property?.title || 'Showing'
   const showing = detail && !error ? detail.showing : null
