@@ -167,6 +167,10 @@ test('sidebar shows only lists and platform pages the session can see', () => {
   assert.equal(access.visibleSidebarLists(lists, customer).length, 0);
   assert.equal(access.visiblePlatformItems(items, lists, customer).length, 0);
   assert.equal(access.visibleSidebarLists(lists, null).length, 1);
+  const gated = [{ href: '/dashboard/platform/leads', requires: ['canManageLeads'] }, { href: '/dashboard/platform/payments', requires: ['canManageLeads', 'canManageDeals'] }, { href: '/dashboard/platform/open' }];
+  const analyst = { role: { canAccessDashboard: true, canManageLeads: false, canManageDeals: false } };
+  assert.deepEqual(plain(access.visiblePlatformItems(gated, [], analyst)).map(item => item.href), ['/dashboard/platform/open']);
+  assert.equal(access.visiblePlatformItems(gated, [], { role: { canAccessDashboard: true, canManageDeals: true, canManageLeads: false } }).length, 2);
 });
 
 test('formatInZone: viewer zone by default, explicit zone when given, labelled', () => {

@@ -121,6 +121,8 @@ export async function platformShowingRequestViewer(_root: unknown, _args: unknow
 }
 
 export async function platformLeadDetail(_root: unknown, { id, before }: { id: string; before?: string }, context: Context) {
+  // A role that cannot manage leads cannot read any lead: same answer as a missing record.
+  if (!(context.session as Session | undefined)?.data?.role?.canManageLeads) return null
   return context.transaction(async tx => {
     const scoped = await freshOperatorCommandContext(tx.withSession(context.session))
     const scope = actorScope(scoped)
