@@ -6,7 +6,7 @@ const scriptJson = (value: unknown) => (JSON.stringify(value) ?? 'null').replace
 
 /**
  * A small HTML document per MCP card. The data travels as inert JSON; the TuffUI runtime
- * (public/images/mcp-ui/runtime.{js,css}, built by scripts/build-mcp-ui.mjs) renders it in the sandboxed iframe.
+ * (public/images/mcp-ui/runtime.{js,css}, built by scripts/build-mcp-ui.mjs) renders it in the isolated iframe.
  */
 export function renderMcpCard(payload: CardPayload, title: string, origin: string): string {
   const base = escapeHtml(origin.replace(/\/$/, ''));

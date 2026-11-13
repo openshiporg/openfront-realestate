@@ -1,11 +1,6 @@
 import { currencyMinorUnitDigits, majorToMinorUnits, minorToMajorUnits } from "../../lib/currency-units"
 
-const getPayPalBaseUrl = () => {
-  const isSandbox = process.env.NEXT_PUBLIC_PAYPAL_SANDBOX !== "false";
-  return isSandbox
-    ? "https://api-m.sandbox.paypal.com"
-    : "https://api-m.paypal.com";
-};
+const getPayPalBaseUrl = () => "https://api-m.paypal.com";
 
 export const formatPayPalAmount = (amount: number, currency: string): string => {
   const digits = currencyMinorUnitDigits(currency);
