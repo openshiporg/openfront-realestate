@@ -392,7 +392,7 @@ async function applyInTransaction(tx: Context, paymentId: string, result: Parame
         ...(payment.property ? { property: { connect: { id: payment.property.id } } } : {}),
         activityType: 'system', direction: 'inbound', channel: 'website',
         subject: next.status === 'captured' ? `${describe(payment)} paid` : next.status === 'refunded' ? `${describe(payment)} refunded` : `${describe(payment)} needs review`,
-        body: `${(payment.amountMinor / 100).toFixed(2)} ${payment.currency} · payment ${payment.id}`,
+        body: payment.currency === 'USD' ? formatMinorUsd(payment.amountMinor) : `${(payment.amountMinor / 100).toFixed(2)} ${payment.currency}`,
         occurredAt: now,
       },
       query: 'id',

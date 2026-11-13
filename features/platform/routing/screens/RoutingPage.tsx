@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { RoutingRuleActions, RoutingRuleDrawer } from '../components/RoutingForms'
 import { intentOptions, sourceOptions } from '../lib/options'
 import { getRoutingOptions, getRoutingRules, type RoutingRule } from '../lib/rules'
+import { roleHasAll } from '../../lib/requireAccess'
 
 const optionLabel = (options: Array<[string, string]>, value: string) => options.find(([key]) => key === value)?.[1] || value
 
@@ -42,7 +43,8 @@ function coverage(routable: RoutingRule[], fallback: RoutingRule | undefined): C
 }
 
 export async function RoutingPage() {
-  const [{ rules, error }, options] = await Promise.all([getRoutingRules(), getRoutingOptions()])
+  // Rules are written by people managers with lead access (LeadRoutingRule create/update).
+  const [{ rules, error }, options, canEdit] = await Promise.all([getRoutingRules(), getRoutingOptions(), roleHasAll(['canManageLeads', 'canManagePeople'])])
   const active = rules.filter(rule => rule.status === 'active')
   const routable = active.filter(rule => rule.assignedAgent)
   const fallback = routable.find(rule => rule.isFallback)
@@ -56,7 +58,7 @@ export async function RoutingPage() {
       crumbs={[{ label: 'Lead Routing' }]}
       title="Lead Routing"
       meta={!error && rules.length ? `${rules.length} ${rules.length === 1 ? 'rule' : 'rules'} · ${active.length} active${paused ? ` · ${paused} paused` : ''}` : null}
-      actions={<RoutingRuleDrawer options={options} nextPriority={nextPriority} />}
+      actions={canEdit ? <RoutingRuleDrawer options={options} nextPriority={nextPriority} /> : null}
     >
       {error ? <ErrorBanner>Rules could not be loaded. {error}</ErrorBanner> : (
         <div className="space-y-6 pb-16">
@@ -110,9 +112,9 @@ export async function RoutingPage() {
                           <span className="md:hidden"> · {to || 'Nobody'}</span>
                         </p>
                         <span className="mt-1 flex md:hidden"><StatusCell tone={rule.status === 'active' ? 'emerald' : 'zinc'}>{rule.status === 'active' ? 'Active' : 'Paused'}</StatusCell></span>
-                        <div className={rowActionLineClass}>
+                        {canEdit ? <div className={rowActionLineClass}>
                           <div className={cn('flex items-center gap-1.5', rowActionsBlockClass)}><RoutingRuleDrawer rule={rule} options={options} /><RoutingRuleActions rule={rule} /></div>
-                        </div>
+                        </div> : null}
                       </Td>
                       <Td className="hidden whitespace-nowrap md:table-cell">{optionLabel(intentOptions, rule.intent)}</Td>
                       <Td className="hidden whitespace-nowrap xl:table-cell">{optionLabel(sourceOptions, rule.source)}</Td>

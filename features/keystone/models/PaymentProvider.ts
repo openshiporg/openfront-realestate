@@ -26,7 +26,7 @@ export const PaymentProvider = list({
     item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage },
   },
   hooks: createTenantOwnedHooks({ listKey: 'PaymentProvider', protectDelete: true }),
-  ui: { hideDelete: true, listView: { initialColumns: ['name', 'code', 'isInstalled'] } },
+  ui: { hideCreate: args => !permissions.canManageBrokerageSettings(args), hideDelete: true, listView: { initialColumns: ['name', 'code', 'isInstalled'] } },
   fields: {
     brokerage: relationship({ ref: 'Brokerage.paymentProviders', access: { update: () => false } }),
     name: text({ validation: { isRequired: true } }),

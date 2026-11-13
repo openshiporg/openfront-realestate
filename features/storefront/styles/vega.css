@@ -853,4 +853,18 @@
   @media (prefers-reduced-motion: reduce) {
     .sf-card__media img, .sf-gallery__lead img, .sf-gallery__side img, .sf-area > img, .sf-stickybar { transition: none; }
   }
+
+  /* Tap floor (design rule: 44px). Last in the layer so it wins over the compact phone and
+   * desktop calibrations above; only heights and hit areas change, not type sizes. */
+  .sf-header__icon, .sf-header__toggle,
+  .sf-card__save, .sf-card--row .sf-card__save { width: 2.75rem; height: 2.75rem; }
+  .sf-card__book, .sf-card--row .sf-card__book,
+  .sf-split[data-variant="results"] .sf-card__book,
+  .sf-agent .sf-btn,
+  .sf-track__item,
+  .sf-agent-card__links a,
+  .sf-footer ul a, .sf-footer address > a,
+  .sf-form > .sf-link, .sf-prose__after .sf-link { min-height: 2.75rem; }
+  .sf-agent-card__links a[aria-label^="Email"] { min-width: 2.75rem; justify-content: center; }
+  .sf-sheet__handle { height: 2.75rem; }
 }

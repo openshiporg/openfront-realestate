@@ -551,7 +551,7 @@ function staticFieldUi(field) {
 
 // features/keystone/models/DomainAuditEvent.ts
 var import_core = require("@keystone-6/core");
-var import_access = require("@keystone-6/core/access");
+var import_access2 = require("@keystone-6/core/access");
 var import_fields2 = require("@keystone-6/core/fields");
 
 // features/keystone/access.ts
@@ -811,6 +811,84 @@ var rules = {
   }
 };
 
+// features/keystone/lib/auditScope.ts
+var leads = (r) => Boolean(r.canManageLeads && r.canManagePeople);
+var showings = (r) => Boolean(r.canManageShowings && r.canManagePeople);
+var deals = (r) => Boolean(r.canManageDeals && r.canManagePeople);
+var listings = (r) => Boolean(r.canManageListings);
+var market = (r) => Boolean(r.canManageListings || r.canViewReports);
+var payments = (r) => Boolean(r.canManageLeads || r.canManageDeals || r.canManagePeople);
+var people = (r) => Boolean(r.canManagePeople);
+var settings = (r) => Boolean(r.canManagePeople && r.canAccessDashboard);
+var AUDIT_AGGREGATE_READERS = {
+  lead: leads,
+  leadActivity: leads,
+  leadRoutingRule: leads,
+  agentTask: leads,
+  savedSearch: leads,
+  savedSearchAlert: leads,
+  savedProperty: leads,
+  showing: showings,
+  showingFeedback: showings,
+  openHouse: showings,
+  deal: deals,
+  transactionMilestone: deals,
+  disclosure: deals,
+  propertyInspection: deals,
+  offer: deals,
+  commission: deals,
+  commissionLedgerEntry: deals,
+  dealDocument: deals,
+  documentEvidenceEvent: deals,
+  escrow: deals,
+  mortgageApplication: deals,
+  titleOrder: deals,
+  representationAuthority: deals,
+  transactionFileEvent: deals,
+  property: listings,
+  propertyMedia: listings,
+  listingEngagementAuthority: listings,
+  listingPublicationAuthority: listings,
+  listingSyndication: listings,
+  sourceFeed: listings,
+  marketComp: market,
+  propertyValuation: market,
+  neighborhood: market,
+  payment: payments,
+  paymentProvider: payments,
+  agentTeam: people,
+  practitionerLicenseAuthority: people,
+  brokerageMembership: people,
+  user: people,
+  brokerageSettings: settings,
+  retentionPolicy: settings
+};
+function readableAggregateTypes(session) {
+  const role5 = session?.data.role || {};
+  return Object.keys(AUDIT_AGGREGATE_READERS).filter((type) => AUDIT_AGGREGATE_READERS[type](role5));
+}
+function canReadAggregateType(session, aggregateType) {
+  const type = String(aggregateType || "");
+  const reader = AUDIT_AGGREGATE_READERS[type];
+  const role5 = session?.data.role || {};
+  return reader ? reader(role5) : Boolean(role5.canManagePeople);
+}
+function auditRowFilter({ session }) {
+  const brokerageIds = activeBrokerageIds(session);
+  if (!brokerageIds.length) return false;
+  const brokerage = { brokerage: { id: { in: brokerageIds } } };
+  if (session?.data.role?.canManagePeople) return brokerage;
+  return { AND: [brokerage, { aggregateType: { in: readableAggregateTypes(session) } }] };
+}
+function canReadAuditPayload({ session, item }) {
+  return canReadAggregateType(session, item?.aggregateType);
+}
+var gatedPayloadField = {
+  access: { read: canReadAuditPayload, create: () => false, update: () => false },
+  isFilterable: false,
+  isOrderable: false
+};
+
 // features/keystone/models/trackingFields.ts
 var import_fields = require("@keystone-6/core/fields");
 var trackingFields = {
@@ -838,8 +916,8 @@ var trackingFields = {
 // features/keystone/models/DomainAuditEvent.ts
 var DomainAuditEvent = (0, import_core.list)({
   access: {
-    operation: { query: permissions.canViewReports, create: import_access.denyAll, update: import_access.denyAll, delete: import_access.denyAll },
-    filter: { query: rules.canAccessBrokerageRecords }
+    operation: { query: permissions.canViewReports, create: import_access2.denyAll, update: import_access2.denyAll, delete: import_access2.denyAll },
+    filter: { query: auditRowFilter }
   },
   ui: {
     hideCreate: true,
@@ -853,8 +931,8 @@ var DomainAuditEvent = (0, import_core.list)({
     aggregateId: (0, import_fields2.text)({ validation: { isRequired: true }, isIndexed: true }),
     action: (0, import_fields2.text)({ validation: { isRequired: true }, isIndexed: true }),
     actor: (0, import_fields2.relationship)({ ref: "User" }),
-    beforeState: (0, import_fields2.json)({ access: { create: import_access.denyAll, update: import_access.denyAll } }),
-    afterState: (0, import_fields2.json)({ access: { create: import_access.denyAll, update: import_access.denyAll } }),
+    beforeState: (0, import_fields2.json)({ ...gatedPayloadField }),
+    afterState: (0, import_fields2.json)({ ...gatedPayloadField }),
     occurredAt: (0, import_fields2.timestamp)({ validation: { isRequired: true }, isIndexed: true }),
     ...trackingFields
   }
@@ -862,12 +940,12 @@ var DomainAuditEvent = (0, import_core.list)({
 
 // features/keystone/models/CommandReceipt.ts
 var import_core2 = require("@keystone-6/core");
-var import_access3 = require("@keystone-6/core/access");
+var import_access4 = require("@keystone-6/core/access");
 var import_fields3 = require("@keystone-6/core/fields");
 var CommandReceipt = (0, import_core2.list)({
   access: {
-    operation: { query: permissions.canViewReports, create: import_access3.denyAll, update: import_access3.denyAll, delete: import_access3.denyAll },
-    filter: { query: rules.canAccessBrokerageRecords }
+    operation: { query: permissions.canViewReports, create: import_access4.denyAll, update: import_access4.denyAll, delete: import_access4.denyAll },
+    filter: { query: auditRowFilter }
   },
   ui: {
     hideCreate: true,
@@ -882,7 +960,7 @@ var CommandReceipt = (0, import_core2.list)({
     aggregateId: (0, import_fields3.text)({ validation: { isRequired: true }, isIndexed: true }),
     requestHash: (0, import_fields3.text)({ validation: { isRequired: true } }),
     payloadHash: (0, import_fields3.text)({ validation: { isRequired: true } }),
-    payload: (0, import_fields3.json)({ access: { create: import_access3.denyAll, update: import_access3.denyAll } }),
+    payload: (0, import_fields3.json)({ ...gatedPayloadField }),
     occurredAt: (0, import_fields3.timestamp)({ validation: { isRequired: true }, isIndexed: true }),
     ...trackingFields
   }
@@ -1861,6 +1939,7 @@ var BrokerageSettings = (0, import_core5.list)({
     plural: "BrokerageSettingsItems"
   },
   ui: {
+    hideCreate: (args) => !permissions.canManageBrokerageSettings(args),
     hideDelete: true,
     listView: {
       initialColumns: ["businessName", "marketLabel", "city", "state"]
@@ -1941,6 +2020,7 @@ var Disclosure = (0, import_core7.list)({
   },
   hooks: createTenantOwnedHooks({ listKey: "Disclosure", parents: { deal: "Deal", property: "Property" }, required: ["deal", "property"], coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property" } }, deriveOnly: true, protectDelete: true }),
   ui: {
+    hideCreate: (args) => !permissions.canManageBrokerageDeals(args),
     hideDelete: true,
     listView: { initialColumns: ["title", "property", "disclosureType", "status"] }
   },
@@ -2092,6 +2172,7 @@ var PropertyValuation = (0, import_core8.list)({
     moneyOrder("lowValue", "highValue", "The low value cannot be more than the high value.")
   ]),
   ui: {
+    hideCreate: (args) => !permissions.canManageListings(args),
     hideDelete: true,
     listView: { initialColumns: ["valuationNumber", "property", "valuationType", "estimatedValue"] }
   },
@@ -2295,6 +2376,7 @@ var ShowingFeedback = (0, import_core13.list)({
   },
   hooks: createTenantOwnedHooks({ listKey: "ShowingFeedback", parents: { showing: "Showing", lead: "Lead", property: "Property" }, required: ["showing", "lead", "property"], coherentWith: { field: "showing", listKey: "Showing", matches: { lead: "lead", property: "property" } }, deriveOnly: true, protectDelete: true }),
   ui: {
+    hideCreate: (args) => !permissions.canManageBrokerageShowings(args),
     hideDelete: true,
     listView: { initialColumns: ["showing", "lead", "rating", "interestLevel"] }
   },
@@ -2323,6 +2405,7 @@ var OpenHouse = (0, import_core14.list)({
   },
   hooks: withRecordInvariants(createTenantOwnedHooks({ listKey: "OpenHouse", parents: { property: "Property" }, users: ["hostAgent"], required: ["property"], deriveOnly: true, protectDelete: true }), [timeOrder("startsAt", "endsAt", "The open house must end after it starts.")]),
   ui: {
+    hideCreate: (args) => !permissions.canManageBrokerageShowings(args),
     hideDelete: true,
     listView: { initialColumns: ["title", "property", "status", "startsAt"] }
   },
@@ -2412,7 +2495,7 @@ var ListingSyndication = (0, import_core16.list)({
 
 // features/keystone/models/User.ts
 var import_core17 = require("@keystone-6/core");
-var import_access19 = require("@keystone-6/core/access");
+var import_access20 = require("@keystone-6/core/access");
 var import_fields19 = require("@keystone-6/core/fields");
 var User = (0, import_core17.list)({
   hooks: {
@@ -2463,7 +2546,7 @@ var User = (0, import_core17.list)({
     avatarUrl: (0, import_fields19.text)(),
     password: (0, import_fields19.password)({
       access: {
-        read: import_access19.denyAll,
+        read: import_access20.denyAll,
         update: ({ session, item }) => session?.itemId === item.id
       },
       validation: {
@@ -2477,7 +2560,7 @@ var User = (0, import_core17.list)({
       // Role managers who can edit people may re-role members of their active
       // brokerage (the list update filter scopes the target user).
       access: {
-        create: import_access19.denyAll,
+        create: import_access20.denyAll,
         update: ({ session, item }) => permissions.canManageRoles({ session }) && Boolean(session?.data?.role?.canEditOtherPeople) && session?.itemId !== item.id
       },
       ui: {
@@ -2488,28 +2571,28 @@ var User = (0, import_core17.list)({
     }),
     // Inverse writes bypass the related list's update access and hooks in Keystone.
     // Assignments and immutable evidence may only be linked by controlled commands.
-    assignedProperties: (0, import_fields19.relationship)({ ref: "Property.assignedAgent", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    assignedLeads: (0, import_fields19.relationship)({ ref: "Lead.assignedAgent", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    assignedShowings: (0, import_fields19.relationship)({ ref: "Showing.assignedAgent", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    assignedDeals: (0, import_fields19.relationship)({ ref: "Deal.assignedAgent", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    leadRoutingRules: (0, import_fields19.relationship)({ ref: "LeadRoutingRule.assignedAgent", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    customerShowings: (0, import_fields19.relationship)({ ref: "Showing.customer", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    customerInquiries: (0, import_fields19.relationship)({ ref: "LeadActivity.customer", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    savedProperties: (0, import_fields19.relationship)({ ref: "SavedProperty.user", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    practitionerLicenseAuthorities: (0, import_fields19.relationship)({ ref: "PractitionerLicenseAuthority.practitioner", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    verifiedPractitionerLicenses: (0, import_fields19.relationship)({ ref: "PractitionerLicenseAuthority.verifiedBy", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    listingEngagementAuthorities: (0, import_fields19.relationship)({ ref: "ListingEngagementAuthority.assignedPractitioner", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    recordedListingEngagementAuthorities: (0, import_fields19.relationship)({ ref: "ListingEngagementAuthority.recordedBy", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    recordedListingPublicationAuthorities: (0, import_fields19.relationship)({ ref: "ListingPublicationAuthority.recordedBy", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    representationAuthorities: (0, import_fields19.relationship)({ ref: "RepresentationAuthority.practitioner", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    recordedRepresentationAuthorities: (0, import_fields19.relationship)({ ref: "RepresentationAuthority.recordedBy", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    recordedDocumentEvidenceEvents: (0, import_fields19.relationship)({ ref: "DocumentEvidenceEvent.actor", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    commissionLedgerEntries: (0, import_fields19.relationship)({ ref: "CommissionLedgerEntry.payeeUser", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    preparedCommissionLedgerEntries: (0, import_fields19.relationship)({ ref: "CommissionLedgerEntry.preparedBy", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    approvedCommissionLedgerEntries: (0, import_fields19.relationship)({ ref: "CommissionLedgerEntry.approvedBy", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    approvedRetentionPolicies: (0, import_fields19.relationship)({ ref: "RetentionPolicy.approvedBy", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    recordedTransactionFileEvents: (0, import_fields19.relationship)({ ref: "TransactionFileEvent.actor", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
-    approvedTransactionFileEvents: (0, import_fields19.relationship)({ ref: "TransactionFileEvent.approvedBy", many: true, access: { create: import_access19.denyAll, update: import_access19.denyAll } }),
+    assignedProperties: (0, import_fields19.relationship)({ ref: "Property.assignedAgent", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    assignedLeads: (0, import_fields19.relationship)({ ref: "Lead.assignedAgent", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    assignedShowings: (0, import_fields19.relationship)({ ref: "Showing.assignedAgent", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    assignedDeals: (0, import_fields19.relationship)({ ref: "Deal.assignedAgent", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    leadRoutingRules: (0, import_fields19.relationship)({ ref: "LeadRoutingRule.assignedAgent", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    customerShowings: (0, import_fields19.relationship)({ ref: "Showing.customer", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    customerInquiries: (0, import_fields19.relationship)({ ref: "LeadActivity.customer", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    savedProperties: (0, import_fields19.relationship)({ ref: "SavedProperty.user", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    practitionerLicenseAuthorities: (0, import_fields19.relationship)({ ref: "PractitionerLicenseAuthority.practitioner", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    verifiedPractitionerLicenses: (0, import_fields19.relationship)({ ref: "PractitionerLicenseAuthority.verifiedBy", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    listingEngagementAuthorities: (0, import_fields19.relationship)({ ref: "ListingEngagementAuthority.assignedPractitioner", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    recordedListingEngagementAuthorities: (0, import_fields19.relationship)({ ref: "ListingEngagementAuthority.recordedBy", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    recordedListingPublicationAuthorities: (0, import_fields19.relationship)({ ref: "ListingPublicationAuthority.recordedBy", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    representationAuthorities: (0, import_fields19.relationship)({ ref: "RepresentationAuthority.practitioner", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    recordedRepresentationAuthorities: (0, import_fields19.relationship)({ ref: "RepresentationAuthority.recordedBy", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    recordedDocumentEvidenceEvents: (0, import_fields19.relationship)({ ref: "DocumentEvidenceEvent.actor", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    commissionLedgerEntries: (0, import_fields19.relationship)({ ref: "CommissionLedgerEntry.payeeUser", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    preparedCommissionLedgerEntries: (0, import_fields19.relationship)({ ref: "CommissionLedgerEntry.preparedBy", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    approvedCommissionLedgerEntries: (0, import_fields19.relationship)({ ref: "CommissionLedgerEntry.approvedBy", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    approvedRetentionPolicies: (0, import_fields19.relationship)({ ref: "RetentionPolicy.approvedBy", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    recordedTransactionFileEvents: (0, import_fields19.relationship)({ ref: "TransactionFileEvent.actor", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
+    approvedTransactionFileEvents: (0, import_fields19.relationship)({ ref: "TransactionFileEvent.approvedBy", many: true, access: { create: import_access20.denyAll, update: import_access20.denyAll } }),
     activeBrokerage: (0, import_fields19.relationship)({
       ref: "Brokerage.activeUsers",
       access: { create: () => false, update: () => false },
@@ -2649,6 +2732,7 @@ var Property = (0, import_core19.list)({
   },
   hooks: createTenantOwnedHooks({ listKey: "Property", users: ["assignedAgent"], protectDelete: true }),
   ui: {
+    hideCreate: (args) => !permissions.canManageBrokerageListings(args),
     hideDelete: true,
     listView: {
       initialColumns: ["title", "status", "listingType", "city", "price", "assignedAgent"]
@@ -2975,6 +3059,7 @@ var Deal = (0, import_core22.list)({
     protectDelete: true
   }),
   ui: {
+    hideCreate: (args) => !permissions.canManageBrokerageDeals(args),
     hideDelete: true,
     listView: {
       initialColumns: ["title", "stage", "property", "lead", "assignedAgent", "expectedCloseDate"]
@@ -3198,6 +3283,7 @@ var LeadRoutingRule = (0, import_core25.list)({
     requiredAny: ["assignedAgent", "assignedTeam"]
   }),
   ui: {
+    hideCreate: (args) => !permissions.canManageBrokerageTasks(args),
     listView: {
       initialColumns: ["name", "status", "priority", "intent", "city", "assignedAgent"]
     }
@@ -3322,7 +3408,7 @@ var PropertyMedia = (0, import_core26.list)({
     item: { create: canCreateForManagedProperty }
   },
   hooks: withSingleHero(withMediaSource(createTenantOwnedHooks({ listKey: "PropertyMedia", parents: { property: "Property" }, required: ["property"], deriveOnly: true }))),
-  ui: { listView: { initialColumns: ["image", "title", "mediaType", "property", "sortOrder", "isHero"] } },
+  ui: { hideCreate: (args) => !permissions.canManageListings(args), listView: { initialColumns: ["image", "title", "mediaType", "property", "sortOrder", "isHero"] } },
   fields: {
     title: (0, import_fields28.text)({ validation: { isRequired: true } }),
     mediaType: (0, import_fields28.select)({
@@ -3365,6 +3451,7 @@ var PropertyInspection = (0, import_core27.list)({
   },
   hooks: createTenantOwnedHooks({ listKey: "PropertyInspection", parents: { deal: "Deal", property: "Property" }, required: ["deal", "property"], coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property" } }, deriveOnly: true, protectDelete: true }),
   ui: {
+    hideCreate: (args) => !permissions.canManageBrokerageDeals(args),
     hideDelete: true,
     listView: { initialColumns: ["title", "inspectionType", "status", "property", "scheduledAt"] }
   },
@@ -3498,6 +3585,7 @@ var DealDocument = (0, import_core29.list)({
   },
   hooks: createTenantOwnedHooks({ listKey: "DealDocument", parents: { deal: "Deal", property: "Property" }, users: ["uploadedBy"], required: ["deal"], coherentWith: { field: "deal", listKey: "Deal", matches: { property: "property" } }, protectDelete: true }),
   ui: {
+    hideCreate: (args) => !permissions.canManageBrokerageDeals(args),
     hideDelete: true,
     listView: { initialColumns: ["title", "documentType", "status", "deal", "requiresSignature"] }
   },
@@ -3663,6 +3751,7 @@ var MarketComp = (0, import_core32.list)({
   },
   hooks: createTenantOwnedHooks({ listKey: "MarketComp", parents: { subjectProperty: "Property" }, required: ["subjectProperty"], deriveOnly: true, protectDelete: true }),
   ui: {
+    hideCreate: (args) => !permissions.canManageListings(args),
     hideDelete: true,
     listView: { initialColumns: ["addressLine1", "status", "salePrice", "soldAt", "subjectProperty"] }
   },
@@ -3768,6 +3857,7 @@ var AgentTeam = (0, import_core34.list)({
     afterOperation: teamHooks.afterOperation
   },
   ui: {
+    hideCreate: (args) => !permissions.canManagePeople(args),
     hideDelete: true,
     listView: { initialColumns: ["name", "teamType", "status", "leadAgent"] }
   },
@@ -3820,6 +3910,7 @@ var AgentTask = (0, import_core35.list)({
   },
   hooks: createTenantOwnedHooks({ listKey: "AgentTask", parents: { property: "Property", lead: "Lead", deal: "Deal" }, users: ["assignedAgent"], protectDelete: true }),
   ui: {
+    hideCreate: (args) => !permissions.canManageBrokerageTasks(args),
     hideDelete: true,
     listView: { initialColumns: ["title", "status", "priority", "dueAt", "assignedAgent"] }
   },
@@ -4360,7 +4451,7 @@ var import_core44 = require("@keystone-6/core");
 var import_fields46 = require("@keystone-6/core/fields");
 var adapterField = (description) => (0, import_fields46.text)({
   validation: { isRequired: true },
-  ui: { description }
+  ui: { description, hideCreate: (args) => !permissions.canManageBrokerageSettings(args) }
 });
 var PaymentProvider = (0, import_core44.list)({
   access: {
@@ -4425,7 +4516,7 @@ var Payment = (0, import_core45.list)({
     required: ["paymentProvider"],
     protectDelete: true
   }),
-  ui: { hideCreate: true, hideDelete: true, listView: { initialColumns: ["purpose", "status", "amountMinor", "currency", "property", "lead"] } },
+  ui: { hideCreate: true, hideDelete: true, listView: { initialColumns: ["purpose", "status", "amount", "property", "lead"] } },
   fields: {
     brokerage: (0, import_fields47.relationship)({ ref: "Brokerage.payments" }),
     purpose: (0, import_fields47.select)({
@@ -4451,7 +4542,18 @@ var Payment = (0, import_core45.list)({
       defaultValue: "pending",
       validation: { isRequired: true }
     }),
-    amountMinor: (0, import_fields47.integer)({ validation: { isRequired: true, min: 1 } }),
+    amountMinor: (0, import_fields47.integer)({ label: "Amount (cents)", validation: { isRequired: true, min: 1 } }),
+    // The amount as people read it ($75.00); amountMinor stays the stored integer.
+    amount: (0, import_fields47.virtual)({
+      field: import_core45.graphql.field({
+        type: import_core45.graphql.String,
+        resolve(item) {
+          const minor2 = Number(item.amountMinor || 0);
+          const value = (minor2 / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          return item.currency && item.currency !== "USD" ? `${value} ${item.currency}` : `$${value}`;
+        }
+      })
+    }),
     currency: (0, import_fields47.text)({ validation: { isRequired: true, length: { min: 3, max: 3 } }, defaultValue: "USD" }),
     // Nullable so that payments that have not reached the provider yet do not collide on the unique index.
     providerPaymentId: (0, import_fields47.text)({ isIndexed: "unique", db: { isNullable: true }, defaultValue: void 0 }),
@@ -4558,13 +4660,13 @@ async function resolvePublicBrokerage(context, brokerageSlug) {
 async function publicBrokerageIdentity(_root, { brokerageSlug }, context) {
   const brokerage = await resolvePublicBrokerage(context, brokerageSlug);
   if (!brokerage) return { status: "unconfigured", brokerageSlug: null, settings: null };
-  const settings = await context.sudo().query.BrokerageSettings.findMany({
+  const settings2 = await context.sudo().query.BrokerageSettings.findMany({
     where: { brokerage: { id: { equals: brokerage.id } } },
     orderBy: [{ id: "asc" }],
     take: 1,
     query: "businessName marketLabel city state tagline description equalHousingNotice publicPhone publicEmail brandHue logoIcon logoColor"
   });
-  const identity = settings[0];
+  const identity = settings2[0];
   if (!identity) return { status: "unconfigured", brokerageSlug: brokerage.slug, settings: null };
   const requiredIdentity = [identity.businessName, identity.marketLabel, identity.city, identity.state, identity.tagline];
   if (requiredIdentity.some((value) => !String(value || "").trim())) return { status: "unconfigured", brokerageSlug: brokerage.slug, settings: null };
@@ -5060,15 +5162,15 @@ async function publicRealEstateListings(_root, { brokerageSlug, filters = {}, ta
     }),
     isEligible: (property) => hasPublicListingAuthority(context, property)
   });
-  const listings = [];
+  const listings2 = [];
   for (const property of page.items) {
     const [media, openHouses] = await Promise.all([
       findPublicMedia(context, property.id),
       findPublicOpenHouses(context, property.id, property.brokerage.id)
     ]);
-    listings.push(toPublicListing(property, media, openHouses));
+    listings2.push(toPublicListing(property, media, openHouses));
   }
-  return listings;
+  return listings2;
 }
 async function publicRealEstateListing(_root, { brokerageSlug, slug }, context) {
   const properties = await context.sudo().query.Property.findMany({
@@ -5114,7 +5216,7 @@ async function customerSavedHomes(_root, { brokerageSlug }, context) {
     take: 100,
     query: "id property { id }"
   });
-  const listings = [];
+  const listings2 = [];
   for (const row of rows) {
     if (!row.property?.id) continue;
     const property = (await context.sudo().query.Property.findMany({
@@ -5127,9 +5229,9 @@ async function customerSavedHomes(_root, { brokerageSlug }, context) {
       findPublicMedia(context, property.id),
       findPublicOpenHouses(context, property.id, property.brokerage.id)
     ]);
-    listings.push(toPublicListing(property, media, openHouses));
+    listings2.push(toPublicListing(property, media, openHouses));
   }
-  return listings;
+  return listings2;
 }
 
 // features/keystone/mutations/redirectToInit.ts
@@ -5671,13 +5773,13 @@ async function requestPropertyShowing(_root, { data }, context) {
     } catch {
       return { ok: false, message: "This listing is not currently authorized for public showing requests.", leadId: null, showingId: null };
     }
-    const settings = await context2.sudo().query.BrokerageSettings.findMany({
+    const settings2 = await context2.sudo().query.BrokerageSettings.findMany({
       where: { brokerage: { id: { equals: property.brokerage.id } } },
       orderBy: [{ createdAt: "asc" }],
       take: 1,
       query: "showingDurationMinutes"
     });
-    const duration = Math.min(Math.max(settings[0]?.showingDurationMinutes || 60, 15), 240);
+    const duration = Math.min(Math.max(settings2[0]?.showingDurationMinutes || 60, 15), 240);
     const scheduledEnd = new Date(requestedStart.getTime() + duration * 6e4);
     const immutableContext = [
       `Public showing request for ${property.title} (${property.slug}).`,
@@ -5959,6 +6061,7 @@ async function platformShowingRequestViewer(_root, _args, context) {
   }, { timeout: 3e4 });
 }
 async function platformLeadDetail(_root, { id, before }, context) {
+  if (!context.session?.data?.role?.canManageLeads) return null;
   return context.transaction(async (tx) => {
     const scoped = await freshOperatorCommandContext(tx.withSession(context.session));
     const scope2 = actorScope(scoped);
@@ -8523,6 +8626,7 @@ async function requireAvailableShowingSlot(context, input) {
 }
 
 // features/keystone/mutations/operatorLifecycle.ts
+var statusWords = (value) => String(value ?? "").replace(/_/g, " ").toLowerCase();
 var transitions = {
   lead: { new: ["attempted_contact", "qualified", "lost"], attempted_contact: ["qualified", "lost"], qualified: ["offer", "lost"], tour_scheduled: ["qualified", "offer", "lost"], offer: ["closed", "lost"], closed: [], lost: ["qualified"] },
   property: { draft: ["coming_soon", "active", "off_market"], coming_soon: ["active", "off_market"], active: ["pending", "sold", "rented", "off_market"], pending: ["active", "sold", "rented", "off_market"], sold: ["off_market"], rented: ["off_market"], off_market: ["draft", "coming_soon", "active"] },
@@ -8826,8 +8930,8 @@ async function transitionInContext(context, domain, data) {
         activityType: "status_change",
         direction: "internal",
         channel: "crm",
-        subject: `${domain} status changed`,
-        body: [data.note ? safeString(data.note) : "", `${current} \u2192 ${next}`].filter(Boolean).join("\n"),
+        subject: `${statusWords(domain.replace(/([a-z])([A-Z])/g, "$1 $2")).replace(/^./, (c) => c.toUpperCase())} status changed`,
+        body: [data.note ? safeString(data.note) : "", `${statusWords(current)} to ${statusWords(next)}`].filter(Boolean).join("\n"),
         occurredAt: now
       },
       query: "id"
@@ -9590,8 +9694,8 @@ async function scheduleShowingForLeadCommand(_root, { data }, context) {
           return { result: { ok: false, message: error instanceof Error ? error.message : "Showing authority is required.", itemId: null }, event: null };
         }
       } else return { result: { ok: false, message: "An authorized practitioner assignment is required.", itemId: null }, event: null };
-      const settings = await sudo.query.BrokerageSettings.findMany({ where: { brokerage: { id: { equals: lead.brokerage.id } } }, take: 1, query: "showingDurationMinutes" });
-      const interval = showingInterval(scheduledStart, settings[0]?.showingDurationMinutes || 60);
+      const settings2 = await sudo.query.BrokerageSettings.findMany({ where: { brokerage: { id: { equals: lead.brokerage.id } } }, take: 1, query: "showingDurationMinutes" });
+      const interval = showingInterval(scheduledStart, settings2[0]?.showingDurationMinutes || 60);
       await requireAvailableShowingSlot(scoped, { brokerageId: lead.brokerage.id, propertyId, agentId, ...interval });
       const now = (/* @__PURE__ */ new Date()).toISOString();
       const showing = await sudo.query.Showing.createOne({ data: { brokerage: { connect: { id: lead.brokerage.id } }, status: "scheduled", showingType: "in_person", ...interval, notes, lead: { connect: { id: leadId } }, property: { connect: { id: propertyId } }, assignedAgent: { connect: { id: agentId } } }, query: "id" });
@@ -9908,17 +10012,16 @@ async function platformPipeline(_root, _args, context) {
 }
 async function platformReports(_root, _args, context) {
   const current = scope(context, "canViewReports");
-  if (!current.managesAll) throw new Error("Access denied.");
   const where = { brokerage: { id: { in: current.ids } } };
   const sudo = context.sudo();
-  const [leads, showings, deals, activeListings, pendingListings] = await Promise.all([
+  const [leads2, showings2, deals2, activeListings, pendingListings] = await Promise.all([
     sudo.query.Lead.findMany({ where, orderBy: [{ createdAt: "desc" }], take: 250, query: "id source status assignedAgent { id name }" }),
     sudo.query.Showing.findMany({ where, orderBy: [{ scheduledStart: "desc" }], take: 250, query: "id status assignedAgent { id name }" }),
     sudo.query.Deal.findMany({ where, orderBy: [{ updatedAt: "desc" }], take: 250, query: "id stage commissionAmount assignedAgent { id name }" }),
     sudo.query.Property.count({ where: { AND: [where, { status: { equals: "active" } }] } }),
     sudo.query.Property.count({ where: { AND: [where, { status: { equals: "pending" } }] } })
   ]);
-  return { leads, showings, deals, activeListings, pendingListings };
+  return { leads: leads2, showings: showings2, deals: deals2, activeListings, pendingListings };
 }
 async function platformPeople(_root, _args, context) {
   const { ids } = scope(context, "canManagePeople");
@@ -10060,14 +10163,14 @@ function normalizeInput(input) {
 async function platformStorefrontSettings(_root, _args, context) {
   if (!permissions.canManageBrokerageSettings({ session: context.session })) throw new Error("Not authorized to view storefront settings.");
   const brokerage = activeBrokerageScope(context);
-  const settings = await findScopedSettings(context, brokerage.id);
-  return settings ? { status: "ready", settings } : { status: "unconfigured", settings: null };
+  const settings2 = await findScopedSettings(context, brokerage.id);
+  return settings2 ? { status: "ready", settings: settings2 } : { status: "unconfigured", settings: null };
 }
 async function updatePlatformStorefrontSettings(_root, { data }, context) {
   if (!permissions.canManageBrokerageSettings({ session: context.session })) throw new Error("Not authorized to update storefront settings.");
   const brokerage = activeBrokerageScope(context);
   const normalized = normalizeInput(data);
-  const settings = await context.transaction(async (tx) => {
+  const settings2 = await context.transaction(async (tx) => {
     const existing = await findScopedSettings(tx, brokerage.id);
     if (existing) {
       return tx.query.BrokerageSettings.updateOne({
@@ -10085,7 +10188,7 @@ async function updatePlatformStorefrontSettings(_root, { data }, context) {
       query: SETTINGS_SELECTION
     });
   });
-  return { status: "ready", settings };
+  return { status: "ready", settings: settings2 };
 }
 
 // features/keystone/mutations/customerAccount.ts
@@ -10853,6 +10956,9 @@ function publicStatusMessage(status) {
       return "Waiting for payment.";
   }
 }
+function formatMinorUsd(minor2) {
+  return `$${(minor2 / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 // features/integrations/payment/index.ts
 var paymentProviderAdapters = {
@@ -11252,7 +11358,7 @@ async function applyInTransaction(tx, paymentId, result, eventKey, actorId4) {
         direction: "inbound",
         channel: "website",
         subject: next.status === "captured" ? `${describe(payment)} paid` : next.status === "refunded" ? `${describe(payment)} refunded` : `${describe(payment)} needs review`,
-        body: `${(payment.amountMinor / 100).toFixed(2)} ${payment.currency} \xB7 payment ${payment.id}`,
+        body: payment.currency === "USD" ? formatMinorUsd(payment.amountMinor) : `${(payment.amountMinor / 100).toFixed(2)} ${payment.currency}`,
         occurredAt: now
       },
       query: "id"
@@ -11393,11 +11499,11 @@ async function createTransactionExportManifestCommand(_root, { data }, context) 
 }
 
 // features/keystone/mutations/index.ts
-var graphql8 = String.raw;
+var graphql9 = String.raw;
 function extendGraphqlSchema(baseSchema) {
   return (0, import_schema.mergeSchemas)({
     schemas: [baseSchema],
-    typeDefs: graphql8`
+    typeDefs: graphql9`
       type PlatformPerson { id: ID! name: String! email: String phone: String }
       type PlatformPropertySummary { id: ID! title: String! slug: String city: String state: String addressLine1: String price: String listingType: String }
       type PlatformLeadSummary { id: ID! name: String! email: String phone: String status: String intent: String }

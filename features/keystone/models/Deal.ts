@@ -28,7 +28,7 @@ export const Deal = list({
     required: ['property', 'lead'],
     protectDelete: true,
   }),
-  ui: {
+  ui: { hideCreate: args => !permissions.canManageBrokerageDeals(args),
     hideDelete: true,
     listView: {
       initialColumns: ["title", "stage", "property", "lead", "assignedAgent", "expectedCloseDate"],

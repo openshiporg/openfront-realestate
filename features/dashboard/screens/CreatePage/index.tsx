@@ -19,7 +19,8 @@ export async function CreatePage({ params }: CreatePageParams) {
 
   const list = await getListByPath(listKey)
 
-  if (!list) {
+  // A role that cannot create in this list gets a 404, not a form it cannot submit.
+  if (!list || list.hideCreate) {
     notFound()
   }
 

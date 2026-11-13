@@ -53,7 +53,7 @@ export const PropertyMedia = list({
     item: { create: canCreateForManagedProperty },
   },
   hooks: withSingleHero(withMediaSource(createTenantOwnedHooks({ listKey: 'PropertyMedia', parents: { property: 'Property' }, required: ['property'], deriveOnly: true }))),
-  ui: { listView: { initialColumns: ["image", "title", "mediaType", "property", "sortOrder", "isHero"] } },
+  ui: { hideCreate: args => !permissions.canManageListings(args), listView: { initialColumns: ["image", "title", "mediaType", "property", "sortOrder", "isHero"] } },
   fields: {
     title: text({ validation: { isRequired: true } }),
     mediaType: select({

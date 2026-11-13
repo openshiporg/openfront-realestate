@@ -17,7 +17,7 @@ export const AgentTask = list({
     item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage },
   },
   hooks: createTenantOwnedHooks({ listKey: 'AgentTask', parents: { property: 'Property', lead: 'Lead', deal: 'Deal' }, users: ['assignedAgent'], protectDelete: true }),
-  ui: {
+  ui: { hideCreate: args => !permissions.canManageBrokerageTasks(args),
     hideDelete: true, listView: { initialColumns: ["title", "status", "priority", "dueAt", "assignedAgent"] } },
   fields: {
     brokerage: relationship({ ref: 'Brokerage', access: { update: () => false } }),

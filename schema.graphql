@@ -6635,6 +6635,7 @@ type Payment {
   purpose: PaymentPurposeType
   status: PaymentStatusType
   amountMinor: Int
+  amount: String
   currency: String
   providerPaymentId: String
   providerPaymentIntentId: String

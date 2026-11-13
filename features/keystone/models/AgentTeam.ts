@@ -44,7 +44,7 @@ export const AgentTeam = list({
     beforeOperation: teamHooks.beforeOperation,
     afterOperation: teamHooks.afterOperation,
   },
-  ui: {
+  ui: { hideCreate: args => !permissions.canManagePeople(args),
     hideDelete: true, listView: { initialColumns: ["name", "teamType", "status", "leadAgent"] } },
   fields: {
     brokerage: relationship({ ref: 'Brokerage.teams', access: { update: () => false } }),

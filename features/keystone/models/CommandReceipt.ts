@@ -2,13 +2,14 @@ import { list } from '@keystone-6/core'
 import { denyAll } from '@keystone-6/core/access'
 import { json, relationship, text, timestamp } from '@keystone-6/core/fields'
 
-import { permissions, rules } from '../access'
+import { permissions } from '../access'
+import { auditRowFilter, gatedPayloadField } from '../lib/auditScope'
 import { trackingFields } from './trackingFields'
 
 export const CommandReceipt = list({
   access: {
     operation: { query: permissions.canViewReports, create: denyAll, update: denyAll, delete: denyAll },
-    filter: { query: rules.canAccessBrokerageRecords },
+    filter: { query: auditRowFilter },
   },
   ui: {
     hideCreate: true,
@@ -23,7 +24,7 @@ export const CommandReceipt = list({
     aggregateId: text({ validation: { isRequired: true }, isIndexed: true }),
     requestHash: text({ validation: { isRequired: true } }),
     payloadHash: text({ validation: { isRequired: true } }),
-    payload: json({ access: { create: denyAll, update: denyAll } }),
+    payload: json({ ...gatedPayloadField }),
     occurredAt: timestamp({ validation: { isRequired: true }, isIndexed: true }),
     ...trackingFields,
   },

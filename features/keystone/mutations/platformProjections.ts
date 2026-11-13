@@ -247,8 +247,8 @@ export async function platformPipeline(_root: unknown, _args: unknown, context: 
 }
 
 export async function platformReports(_root: unknown, _args: unknown, context: Context) {
+  // Reports are brokerage-wide counts and totals: canViewReports is the grant (the Brokerage Analyst's only one).
   const current = scope(context, 'canViewReports')
-  if (!current.managesAll) throw new Error('Access denied.')
   const where = { brokerage: { id: { in: current.ids } } }
   const sudo = context.sudo() as any
   const [leads, showings, deals, activeListings, pendingListings] = await Promise.all([

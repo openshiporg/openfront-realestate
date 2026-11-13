@@ -18,7 +18,7 @@ export const PropertyValuation = list({
     moneyOrder('estimatedValue', 'highValue', 'The estimated value cannot be more than the high value.'),
     moneyOrder('lowValue', 'highValue', 'The low value cannot be more than the high value.'),
   ]),
-  ui: {
+  ui: { hideCreate: args => !permissions.canManageListings(args),
     hideDelete: true, listView: { initialColumns: ['valuationNumber', 'property', 'valuationType', 'estimatedValue'] } },
   fields: {
     valuationNumber: text({ isIndexed: 'unique', validation: { isRequired: true } }),

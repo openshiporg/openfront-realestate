@@ -13,7 +13,7 @@ export const ShowingFeedback = list({
     item: { create: canCreateForActiveShowing },
   },
   hooks: createTenantOwnedHooks({ listKey: 'ShowingFeedback', parents: { showing: 'Showing', lead: 'Lead', property: 'Property' }, required: ['showing', 'lead', 'property'], coherentWith: { field: 'showing', listKey: 'Showing', matches: { lead: 'lead', property: 'property' } }, deriveOnly: true, protectDelete: true }),
-  ui: {
+  ui: { hideCreate: args => !permissions.canManageBrokerageShowings(args),
     hideDelete: true, listView: { initialColumns: ['showing', 'lead', 'rating', 'interestLevel'] } },
   fields: {
     showing: relationship({ ref: 'Showing', access: { update: () => false } }),

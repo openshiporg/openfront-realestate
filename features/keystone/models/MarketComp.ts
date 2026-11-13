@@ -18,7 +18,7 @@ export const MarketComp = list({
     item: { create: canCreateForManagedSubjectProperty },
   },
   hooks: createTenantOwnedHooks({ listKey: 'MarketComp', parents: { subjectProperty: 'Property' }, required: ['subjectProperty'], deriveOnly: true, protectDelete: true }),
-  ui: {
+  ui: { hideCreate: args => !permissions.canManageListings(args),
     hideDelete: true, listView: { initialColumns: ["addressLine1", "status", "salePrice", "soldAt", "subjectProperty"] } },
   fields: {
     addressLine1: text({ validation: { isRequired: true } }),

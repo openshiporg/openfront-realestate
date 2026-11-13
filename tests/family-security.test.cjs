@@ -300,3 +300,33 @@ test('both browser chat clients request shared mode without fetching or posting 
     assert.match(source, /apiKey: aiConfig.localKeys.apiKey/);
   }
 });
+
+test('audit receipts and events follow the read rule of the record they copy', () => {
+  const audit = sandbox().load('features/keystone/lib/auditScope.ts');
+  const brokerage = { id: 'b1', slug: 'b', status: 'active' };
+  const session = role => ({ itemId: 'u1', listKey: 'User', data: { name: 'U', activeBrokerage: brokerage, brokerageMemberships: [{ id: 'm', membershipRole: 'analyst', status: 'active', isPrimary: true, brokerage }], role } });
+  const analyst = session({ canAccessDashboard: true, canSeeOtherPeople: true, canViewReports: true });
+  const agent = session({ canAccessDashboard: true, canManageListings: true, canManageLeads: true, canManageShowings: true, canManageDeals: true });
+  const admin = session({ canAccessDashboard: true, canManagePeople: true, canManageListings: true, canManageLeads: true, canManageShowings: true, canManageDeals: true, canViewReports: true });
+
+  // The analyst reads no lead, payer, offer or mortgage payloads.
+  for (const type of ['lead', 'leadActivity', 'payment', 'offer', 'mortgageApplication', 'showing', 'deal', 'commission', 'brokerageMembership', 'somethingNew'])
+    assert.equal(audit.canReadAuditPayload({ session: analyst, item: { aggregateType: type } }), false, type);
+  assert.equal(audit.canReadAuditPayload({ session: analyst, item: { aggregateType: 'marketComp' } }), true);
+  const analystRows = plain(audit.auditRowFilter({ session: analyst }));
+  assert.deepEqual(analystRows.AND[0], { brokerage: { id: { in: ['b1'] } } });
+  assert.deepEqual(analystRows.AND[1].aggregateType.in.sort(), ['marketComp', 'neighborhood', 'propertyValuation']);
+
+  // An assignment-scoped agent does not read brokerage-wide lead receipts, but does read payments it can list.
+  assert.equal(audit.canReadAuditPayload({ session: agent, item: { aggregateType: 'lead' } }), false);
+  assert.equal(audit.canReadAuditPayload({ session: agent, item: { aggregateType: 'payment' } }), true);
+
+  // A people manager keeps every row and every payload.
+  assert.deepEqual(plain(audit.auditRowFilter({ session: admin })), { brokerage: { id: { in: ['b1'] } } });
+  assert.equal(audit.canReadAuditPayload({ session: admin, item: { aggregateType: 'somethingNew' } }), true);
+  assert.equal(audit.auditRowFilter({ session: undefined }), false);
+
+  // A gated payload is never a filter or sort key.
+  assert.equal(audit.gatedPayloadField.isFilterable, false);
+  assert.equal(audit.gatedPayloadField.isOrderable, false);
+});

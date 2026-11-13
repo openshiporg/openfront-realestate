@@ -6,6 +6,9 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   {
+    // Same files the Next config registers its plugins for; unscoped, the
+    // jsx-a11y/react-hooks overrides crash eslint on other file types.
+    files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
     // NKS carries inherited dynamic dashboard/storefront surfaces and predates
     // the React Compiler lint rules bundled with Next 16. Keep lint executable
     // and visible without treating that inherited debt as a release blocker.
@@ -31,6 +34,14 @@ export default defineConfig([
       "react-hooks/static-components": "warn",
       "react/no-children-prop": "warn",
       "react/no-unescaped-entities": "warn",
+    },
+  },
+  {
+    // CommonJS test harnesses load modules with require() and stub `module`.
+    files: ["**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "@next/next/no-assign-module-variable": "off",
     },
   },
   globalIgnores([

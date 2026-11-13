@@ -26,7 +26,7 @@ export const LeadRoutingRule = list({
     teams: ['assignedTeam'],
     requiredAny: ['assignedAgent', 'assignedTeam'],
   }),
-  ui: {
+  ui: { hideCreate: args => !permissions.canManageBrokerageTasks(args),
     listView: {
       initialColumns: ["name", "status", "priority", "intent", "city", "assignedAgent"],
     },

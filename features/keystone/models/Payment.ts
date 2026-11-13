@@ -1,5 +1,5 @@
-import { list } from "@keystone-6/core";
-import { integer, relationship, select, text, timestamp } from "@keystone-6/core/fields";
+import { graphql, list } from "@keystone-6/core";
+import { integer, relationship, select, text, timestamp, virtual } from "@keystone-6/core/fields";
 
 import { permissions, rules } from "../access";
 import { createTenantOwnedHooks } from '../lib/tenantOwnedHooks'
@@ -26,7 +26,7 @@ export const Payment = list({
     required: ['paymentProvider'],
     protectDelete: true,
   }),
-  ui: { hideCreate: true, hideDelete: true, listView: { initialColumns: ['purpose', 'status', 'amountMinor', 'currency', 'property', 'lead'] } },
+  ui: { hideCreate: true, hideDelete: true, listView: { initialColumns: ['purpose', 'status', 'amount', 'property', 'lead'] } },
   fields: {
     brokerage: relationship({ ref: 'Brokerage.payments' }),
     purpose: select({
@@ -52,7 +52,18 @@ export const Payment = list({
       defaultValue: 'pending',
       validation: { isRequired: true },
     }),
-    amountMinor: integer({ validation: { isRequired: true, min: 1 } }),
+    amountMinor: integer({ label: 'Amount (cents)', validation: { isRequired: true, min: 1 } }),
+    // The amount as people read it ($75.00); amountMinor stays the stored integer.
+    amount: virtual({
+      field: graphql.field({
+        type: graphql.String,
+        resolve(item: any) {
+          const minor = Number(item.amountMinor || 0)
+          const value = (minor / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          return item.currency && item.currency !== 'USD' ? `${value} ${item.currency}` : `$${value}`
+        },
+      }),
+    }),
     currency: text({ validation: { isRequired: true, length: { min: 3, max: 3 } }, defaultValue: 'USD' }),
     // Nullable so that payments that have not reached the provider yet do not collide on the unique index.
     providerPaymentId: text({ isIndexed: 'unique', db: { isNullable: true }, defaultValue: undefined }),

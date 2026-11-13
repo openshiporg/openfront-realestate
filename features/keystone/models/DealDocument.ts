@@ -17,7 +17,7 @@ export const DealDocument = list({
     item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage },
   },
   hooks: createTenantOwnedHooks({ listKey: 'DealDocument', parents: { deal: 'Deal', property: 'Property' }, users: ['uploadedBy'], required: ['deal'], coherentWith: { field: 'deal', listKey: 'Deal', matches: { property: 'property' } }, protectDelete: true }),
-  ui: {
+  ui: { hideCreate: args => !permissions.canManageBrokerageDeals(args),
     hideDelete: true, listView: { initialColumns: ["title", "documentType", "status", "deal", "requiresSignature"] } },
   fields: {
     brokerage: relationship({ ref: 'Brokerage', access: { update: () => false } }),

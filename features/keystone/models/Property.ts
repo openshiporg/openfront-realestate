@@ -23,7 +23,7 @@ export const Property = list({
     item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage },
   },
   hooks: createTenantOwnedHooks({ listKey: 'Property', users: ['assignedAgent'], protectDelete: true }),
-  ui: {
+  ui: { hideCreate: args => !permissions.canManageBrokerageListings(args),
     hideDelete: true,
     listView: {
       initialColumns: ["title", "status", "listingType", "city", "price", "assignedAgent"],

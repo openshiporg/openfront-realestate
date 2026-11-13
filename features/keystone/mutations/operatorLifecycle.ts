@@ -1,4 +1,7 @@
 import type { Context } from '.keystone/types'
+
+/** Status values read as words in the lead timeline (closed_won to closed won). */
+const statusWords = (value: unknown) => String(value ?? '').replace(/_/g, ' ').toLowerCase()
 import { lockPropertyForDecision } from '../lib/propertyLock'
 import { lockAggregate } from '../lib/aggregateLock'
 
@@ -344,8 +347,8 @@ async function transitionInContext(context: Context, domain: Domain, data: Trans
         ...(item.property?.id ? { property: { connect: { id: item.property.id } } } : {}),
         ...(domain === 'showing' ? { showing: { connect: { id } } } : {}),
         agent: { connect: { id: sessionId(context)! } }, activityType: 'status_change',
-        direction: 'internal', channel: 'crm', subject: `${domain} status changed`,
-        body: [data.note ? safeString(data.note) : '', `${current} → ${next}`].filter(Boolean).join('\n'),
+        direction: 'internal', channel: 'crm', subject: `${statusWords(domain.replace(/([a-z])([A-Z])/g, '$1 $2')).replace(/^./, c => c.toUpperCase())} status changed`,
+        body: [data.note ? safeString(data.note) : '', `${statusWords(current)} to ${statusWords(next)}`].filter(Boolean).join('\n'),
         occurredAt: now,
       },
       query: 'id',

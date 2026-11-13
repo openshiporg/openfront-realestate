@@ -18,7 +18,7 @@ export const PropertyInspection = list({
     item: { create: canCreateForActiveDeal },
   },
   hooks: createTenantOwnedHooks({ listKey: 'PropertyInspection', parents: { deal: 'Deal', property: 'Property' }, required: ['deal', 'property'], coherentWith: { field: 'deal', listKey: 'Deal', matches: { property: 'property' } }, deriveOnly: true, protectDelete: true }),
-  ui: {
+  ui: { hideCreate: args => !permissions.canManageBrokerageDeals(args),
     hideDelete: true, listView: { initialColumns: ["title", "inspectionType", "status", "property", "scheduledAt"] } },
   fields: {
     title: text({ validation: { isRequired: true } }),

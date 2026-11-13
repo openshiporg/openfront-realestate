@@ -13,7 +13,7 @@ export const OpenHouse = list({
     item: { create: canCreateForActiveProperty },
   },
   hooks: withRecordInvariants(createTenantOwnedHooks({ listKey: 'OpenHouse', parents: { property: 'Property' }, users: ['hostAgent'], required: ['property'], deriveOnly: true, protectDelete: true }), [timeOrder('startsAt', 'endsAt', 'The open house must end after it starts.')]),
-  ui: {
+  ui: { hideCreate: args => !permissions.canManageBrokerageShowings(args),
     hideDelete: true, listView: { initialColumns: ['title', 'property', 'status', 'startsAt'] } },
   fields: {
     title: text({ validation: { isRequired: true } }),

@@ -12,7 +12,7 @@ export const Disclosure = list({
     item: { create: canCreateForActiveDeal },
   },
   hooks: createTenantOwnedHooks({ listKey: 'Disclosure', parents: { deal: 'Deal', property: 'Property' }, required: ['deal', 'property'], coherentWith: { field: 'deal', listKey: 'Deal', matches: { property: 'property' } }, deriveOnly: true, protectDelete: true }),
-  ui: {
+  ui: { hideCreate: args => !permissions.canManageBrokerageDeals(args),
     hideDelete: true, listView: { initialColumns: ['title', 'property', 'disclosureType', 'status'] } },
   fields: {
     title: text({ validation: { isRequired: true } }),

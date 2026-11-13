@@ -46,7 +46,7 @@ export const BrokerageSettings = list({
   graphql: {
     plural: 'BrokerageSettingsItems',
   },
-  ui: {
+  ui: { hideCreate: args => !permissions.canManageBrokerageSettings(args),
     hideDelete: true,
     listView: {
       initialColumns: ['businessName', 'marketLabel', 'city', 'state'],
