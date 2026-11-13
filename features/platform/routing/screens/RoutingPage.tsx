@@ -96,7 +96,7 @@ export async function RoutingPage() {
                   { label: 'Assigns to', className: 'hidden md:table-cell' },
                   { label: 'Fallback', className: 'hidden lg:table-cell' },
                   { label: 'Status', className: 'hidden md:table-cell' },
-                  { label: <span className="sr-only">Actions</span>, className: 'hidden text-right md:table-cell' },
+                  ...(canEdit ? [{ label: <span className="sr-only">Actions</span>, className: 'hidden text-right md:table-cell' }] : []),
                 ]}
               >
                 {rules.map(rule => {
@@ -122,9 +122,9 @@ export async function RoutingPage() {
                       <Td className="hidden max-w-[11rem] truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] md:table-cell">{to || <span className="text-amber-700 dark:text-amber-400">Nobody</span>}{!rule.assignedAgent && rule.assignedTeam ? <span className="block text-xs text-amber-700 dark:text-amber-400">No agent: never matches</span> : null}</Td>
                       <Td className="hidden lg:table-cell">{rule.isFallback ? 'Yes' : <span className="text-muted-foreground">—</span>}</Td>
                       <Td className="hidden whitespace-nowrap md:table-cell"><StatusCell tone={rule.status === 'active' ? 'emerald' : 'zinc'}>{rule.status === 'active' ? 'Active' : 'Paused'}</StatusCell></Td>
-                      <Td className="hidden w-px whitespace-nowrap py-2 text-right md:table-cell">
+                      {canEdit ? <Td className="hidden w-px whitespace-nowrap py-2 text-right md:table-cell">
                         <div className="flex justify-end gap-1.5"><RoutingRuleDrawer rule={rule} options={options} /><RoutingRuleActions rule={rule} /></div>
-                      </Td>
+                      </Td> : null}
                     </tr>
                   )
                 })}
