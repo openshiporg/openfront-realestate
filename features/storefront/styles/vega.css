@@ -856,8 +856,10 @@
 
   /* Tap floor (design rule: 44px). Last in the layer so it wins over the compact phone and
    * desktop calibrations above; only heights and hit areas change, not type sizes. */
-  .sf-header__icon, .sf-header__toggle,
+  .sf-header__icon, .sf-header__toggle, .sf-save,
   .sf-card__save, .sf-card--row .sf-card__save { width: 2.75rem; height: 2.75rem; }
+  .sf-header .sf-lockup, .sf-crumbs a:first-child, .sf-gallery__all,
+  .sf-search__pill, .sf-search__area input,
   .sf-card__book, .sf-card--row .sf-card__book,
   .sf-split[data-variant="results"] .sf-card__book,
   .sf-agent .sf-btn,
