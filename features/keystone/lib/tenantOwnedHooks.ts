@@ -141,6 +141,8 @@ export function createTenantOwnedHooks(config: HookConfig) {
       for (const field of config.users || []) {
         const id = relationshipId(relationshipData, field)
         if (!id) continue
+        // An unchanged person is not re-checked on update: a member who has since left must not freeze the record.
+        if (operation === 'update' && !relationshipId(inputData, field) && !relationshipId(resolvedData, field)) continue
         const brokerageIds = await relatedBrokerageIds(context, 'User', id, config.allowCustomers)
         if (!brokerageIds.includes(brokerageId)) {
           addValidationError(`${config.listKey} ${field} must have an active membership in the brokerage.`)

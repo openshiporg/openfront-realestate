@@ -29,13 +29,14 @@ export function sameShowingIdentity(value: unknown, header: ShowingIdentity): bo
 }
 
 /** Minimal membership metadata only, never an elevated People profile. */
-export async function activeShowingAgent(context: Context, agentId: string | null, brokerageId: string) {
+export async function activeShowingAgent(context: Context, agentId: string | null, brokerageId: string, anyMembershipStatus = false) {
   if (agentId === null) return true // Requested, unrouted records can be reviewed by existing managers.
   if (!identifier(agentId)) return false
+  const statusFilter = anyMembershipStatus ? '' : 'status: { equals: active }, '
   const user = await context.sudo().query.User.findOne({ where: { id: agentId }, query: `id
-    brokerageMemberships(where: { status: { equals: active }, brokerage: { id: { equals: ${JSON.stringify(brokerageId)} }, status: { equals: active } } }, take: 1) { status brokerage { id status } }` })
+    brokerageMemberships(where: { ${statusFilter}brokerage: { id: { equals: ${JSON.stringify(brokerageId)} }, status: { equals: active } } }, take: 1) { status brokerage { id status } }` })
   if (user?.id !== agentId || !Array.isArray(user.brokerageMemberships) || user.brokerageMemberships.length > 1) return false
-  return user.brokerageMemberships.some((membership: unknown) => record(membership) && membership.status === 'active'
+  return user.brokerageMemberships.some((membership: unknown) => record(membership) && (anyMembershipStatus || membership.status === 'active')
     && record(membership.brokerage) && membership.brokerage.id === brokerageId && membership.brokerage.status === 'active')
 }
 
@@ -50,7 +51,8 @@ export async function scopedShowingIdentity(context: Context, id: string, purpos
     || !(item.assignedAgent === null || (record(item.assignedAgent) && identifier(item.assignedAgent.id)))) return null
   const header = item as ShowingIdentity
   if (purpose === 'showing' && !session.data.role.canManagePeople && header.assignedAgent?.id !== session.itemId) return null
-  if (!await activeShowingAgent(context, header.assignedAgent?.id || null, brokerageId)) return null
+  // Managers keep control of a suspended or departed agent's showings; the agent must still have been a member here.
+  if (!await activeShowingAgent(context, header.assignedAgent?.id || null, brokerageId, Boolean(session.data.role.canManagePeople))) return null
   return header
 }
 
