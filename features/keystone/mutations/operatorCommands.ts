@@ -10,6 +10,7 @@ import { ownedShowingEventHeader } from '../lib/showingEventScope'
 import { leadStatusAfterShowing, reconcileLeadStatusAfterShowing, requireAvailableShowingSlot, showingInterval } from '../lib/showingPolicy'
 import { planShowingReschedule } from '../lib/showingReschedule'
 import { runControlledEvidenceCommand } from './controlledEvidenceCommand'
+import seed from '../../platform/onboarding/lib/seed.json'
 import { ownsShowingScheduleReceipt, showingSnapshot } from './showingJourney'
 
 import { commandText as clean } from '../../lib/date-time'
@@ -62,6 +63,11 @@ export async function inviteBrokerageMemberCommand(_root: unknown, { data }: { d
         sudo.query.User.findMany({ where: { email: { equals: email } }, take: 1, query: 'id' }),
         sudo.query.Role.findMany({ where: { name: { equals: roleName } }, take: 2, query: 'id name' }),
       ])
+      // A brokerage that skipped setup or chose the basic one has no template yet: add it from the setup seed.
+      if (!roles.length) {
+        const template = (seed as any).sections.roles.items.find((item: any) => item.data?.name === roleName)?.data
+        if (template) roles.push(await sudo.query.Role.createOne({ data: template, query: 'id name' }))
+      }
       if (!brokerage || brokerage.status !== 'active' || !activeBrokerageIds(scoped.session as any).includes(brokerage.id)) return { result: { ok: false, message: 'Brokerage not found or access denied.', itemId: null }, event: null as never }
       if (existingUsers.length) return { result: { ok: false, message: 'That email already belongs to an account. Ask the account owner to contact your brokerage administrator.', itemId: null }, event: null as never }
       if (roles.length !== 1) return { result: { ok: false, message: 'The selected immutable role template is unavailable.', itemId: null }, event: null as never }
