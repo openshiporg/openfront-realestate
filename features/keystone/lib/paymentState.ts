@@ -26,7 +26,7 @@ export function newAccessToken() {
   return randomBytes(24).toString('base64url')
 }
 
-/** Provider vocabulary (Stripe PaymentIntent / PayPal) to the local Payment status. */
+/** Provider vocabulary (Stripe) to the local Payment status. */
 export function mapProviderStatus(status: string | undefined | null): PaymentStatus {
   switch (String(status || '').toLowerCase()) {
     case 'succeeded': case 'paid': case 'captured': return 'captured'

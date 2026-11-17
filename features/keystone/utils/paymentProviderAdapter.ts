@@ -19,7 +19,7 @@ export function paymentAdapterPayload(provider: any, args: any) {
   // Never forward an application's session cookies/authorization to an adapter.
   if (input.headers && typeof input.headers === "object") {
     input.headers = Object.fromEntries(Object.entries(input.headers).filter(([key]) =>
-      key.toLowerCase() === "stripe-signature" || key.toLowerCase().startsWith("paypal-")));
+      key.toLowerCase() === "stripe-signature"));
   }
   return { ...input, provider: projectedProvider };
 }
@@ -98,6 +98,6 @@ export async function handleWebhook({ provider, event, headers, rawBody }: { pro
 
 export async function cancelPayment({ provider, paymentId, idempotencyKey }: { provider: any; paymentId: string; idempotencyKey?: string }) {
   const selector = provider.getPaymentStatusFunction;
-  if (!["stripe", "paypal", "manual"].includes(selector)) throw new Error("External payment adapter cancellation contract is not configured");
+  if (!["stripe", "manual"].includes(selector)) throw new Error("External payment adapter cancellation contract is not configured");
   return executeAdapterFunction({ provider: { ...provider, cancelPaymentFunction: selector }, functionName: "cancelPaymentFunction", args: { paymentId, idempotencyKey } });
 }
