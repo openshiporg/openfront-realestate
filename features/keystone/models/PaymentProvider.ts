@@ -42,9 +42,20 @@ export const PaymentProvider = list({
     }),
     isInstalled: checkbox({ defaultValue: true }),
     // Secrets are write-only through the API: staff can set them, nothing can read them back.
-    credentials: json({ defaultValue: {}, access: { read: () => false } }),
+    credentials: json({
+      defaultValue: {},
+      access: { read: () => false },
+      hooks: {
+        // Saving one secret keeps the others: credentials cannot be read back, so a partial save must merge.
+        resolveInput: ({ operation, resolvedData, item }: any) => {
+          const next = resolvedData.credentials
+          const plain = (value: unknown) => value && typeof value === 'object' && !Array.isArray(value)
+          return operation === 'update' && plain(next) && plain(item?.credentials) ? { ...item.credentials, ...next } : next
+        },
+      },
+    }),
     metadata: json({ defaultValue: {} }),
-    createPaymentFunction: adapterField("Adapter key (stripe, paypal, manual) or an https:// URL that creates payments"),
+    createPaymentFunction: adapterField("Adapter key (stripe, manual) or an https:// URL that creates payments"),
     capturePaymentFunction: adapterField("Adapter key or https:// URL that captures payments"),
     refundPaymentFunction: adapterField("Adapter key or https:// URL that refunds payments"),
     getPaymentStatusFunction: adapterField("Adapter key or https:// URL that checks payment status"),
