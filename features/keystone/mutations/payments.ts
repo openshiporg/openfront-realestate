@@ -129,7 +129,10 @@ export async function beginPaymentCheckout(_root: unknown, { token }: { token: s
     try {
       const status = await getPaymentStatus({ provider, paymentId: settled.providerPaymentId }) as any
       if (status.url) return { ok: true, message: 'Continue to secure checkout.', url: status.url as string, token: settled.accessToken }
-    } catch { /* fall through to a fresh session */ }
+    } catch {
+      // The open session may still be payable; never start a second one we cannot see.
+      return { ok: false, message: 'We could not start checkout. Please try again in a moment.', url: null, token: settled.accessToken }
+    }
   }
   const attempt = settled.providerPaymentId ? `:retry-${Date.now()}` : ''
   const base = publicBaseUrl(context)
@@ -145,9 +148,10 @@ export async function beginPaymentCheckout(_root: unknown, { token }: { token: s
     await context.sudo().query.Payment.updateOne({ where: { id: settled.id }, data: { providerPaymentId: String(created.id), checkoutUrl: String(created.url), status: 'pending' }, query: 'id' })
     return { ok: true, message: 'Continue to secure checkout.', url: String(created.url) as string, token: settled.accessToken }
   } catch (error) {
-    // The provider may have created the session even though we did not hear back: park it for reconciliation.
+    // A session at the wrong amount is parked for staff. Any other error leaves the payment payable:
+    // the next click repeats the same idempotency key, so a session Stripe did create is returned, not doubled.
     const mismatch = error instanceof PaymentMismatchError
-    await context.sudo().query.Payment.updateOne({ where: { id: settled.id }, data: { status: 'unknown' }, query: 'id' })
+    if (mismatch) await context.sudo().query.Payment.updateOne({ where: { id: settled.id }, data: { status: 'unknown' }, query: 'id' })
     return { ok: false, message: mismatch ? 'This payment could not be started. Please contact the brokerage.' : 'We could not start checkout. Please try again in a moment.', url: null, token: settled.accessToken }
   }
 }
