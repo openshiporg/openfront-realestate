@@ -23,7 +23,7 @@ function normalizeDates(form: FormData, element: HTMLFormElement) {
 }
 
 /** A form bound to a server action: toasts the result, refreshes the page, optionally redirects to the new record. */
-export function RecordForm({ action, children, submitLabel, pendingLabel = 'Saving…', className, onDone, redirectTo }: { action: Action; children: ReactNode; submitLabel: string; pendingLabel?: string; className?: string; onDone?: () => void; redirectTo?: (id: string) => string }) {
+export function RecordForm({ action, children, submitLabel, pendingLabel = 'Saving…', className, onDone, redirectTo, result }: { action: Action; children: ReactNode; submitLabel: string; pendingLabel?: string; className?: string; onDone?: () => void; redirectTo?: (id: string) => string; result?: (state: FormResult) => ReactNode }) {
   const [state, formAction, pending] = useActionState(action, { ok: false, message: '' })
   const router = useRouter()
   useEffect(() => {
@@ -47,6 +47,7 @@ export function RecordForm({ action, children, submitLabel, pendingLabel = 'Savi
     >
       {children}
       {!state.ok && state.message ? <p role="alert" className="text-sm text-destructive sm:col-span-2">{state.message}</p> : null}
+      {state.ok && result ? <div className="sm:col-span-2">{result(state)}</div> : null}
       <div className="sm:col-span-2"><Button type="submit" variant="ghost" size="sm" className={pillPrimaryClass} disabled={pending}>{pending ? pendingLabel : submitLabel}</Button></div>
     </form>
   )
