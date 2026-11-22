@@ -102,6 +102,37 @@ export async function suspendBrokerageMemberCommand(_root: unknown, { data }: { 
   })
 }
 
+export async function changeBrokerageMemberRoleCommand(_root: unknown, { data }: { data: any }, context: Context) {
+  const membershipId = clean(data.membershipId), roleName = clean(data.roleName), membershipRole = clean(data.membershipRole), key = clean(data.idempotencyKey)
+  const allowedRoles = ['Brokerage Admin', 'Listing Agent', 'Brokerage Analyst']
+  const allowedMemberships = ['admin', 'team_lead', 'agent', 'coordinator', 'analyst']
+  if (!membershipId || !allowedRoles.includes(roleName) || !allowedMemberships.includes(membershipRole) || !key) return { ok: false, message: 'Choose a role and a position.', itemId: null, replayed: false }
+  if (!role(context).canManageRoles) return { ok: false, message: 'Brokerage owner or administrator role authority is required.', itemId: null, replayed: false }
+  return command(context, {
+    eventKey: `command:membership:${membershipId}:role:${key}`, lockKey: `membership:${membershipId}`, permission: 'canManagePeople', request: { membershipId, roleName, membershipRole },
+    execute: async scoped => {
+      const sudo = scoped.sudo() as any
+      const membership = await sudo.query.BrokerageMembership.findOne({ where: { id: membershipId }, query: 'id status membershipRole brokerage { id } user { id role { id name } }' })
+      const actorMembership = (scoped.session as any)?.data?.brokerageMemberships?.find((item: any) => item.brokerage?.id === membership?.brokerage?.id && item.status === 'active' && item.brokerage?.status === 'active')
+      if (!membership || !actorMembership || !['owner', 'admin'].includes(actorMembership.membershipRole) || !activeBrokerageIds(scoped.session as any).includes(membership.brokerage?.id)) return { result: { ok: false, message: 'Membership not found or access denied.', itemId: null }, event: null as never }
+      if (membership.user?.id === actorId(scoped)) return { result: { ok: false, message: 'You cannot change your own role. Ask another owner.', itemId: null }, event: null as never }
+      if (membership.membershipRole === 'owner') return { result: { ok: false, message: 'An owner\'s role cannot be changed here.', itemId: null }, event: null as never }
+      if ((roleName === 'Brokerage Admin' || membershipRole === 'admin' || membership.membershipRole === 'admin') && actorMembership.membershipRole !== 'owner') return { result: { ok: false, message: 'Only a brokerage owner can make or change an administrator.', itemId: null }, event: null as never }
+      let roles = await sudo.query.Role.findMany({ where: { name: { equals: roleName } }, take: 2, query: 'id name' })
+      if (!roles.length) {
+        const template = (seed as any).sections.roles.items.find((item: any) => item.data?.name === roleName)?.data
+        if (template) roles = [await sudo.query.Role.createOne({ data: template, query: 'id name' })]
+      }
+      if (roles.length !== 1) return { result: { ok: false, message: 'The selected role template is unavailable.', itemId: null }, event: null as never }
+      const before = { roleName: membership.user?.role?.name || null, membershipRole: membership.membershipRole }
+      await sudo.query.BrokerageMembership.updateOne({ where: { id: membership.id }, data: { membershipRole }, query: 'id' })
+      await sudo.query.User.updateOne({ where: { id: membership.user.id }, data: { role: { connect: { id: roles[0].id } } }, query: 'id' })
+      const result = { ok: true, message: 'Role changed. It applies on their next page load.', itemId: membership.id }
+      return { result, event: { eventType: 'brokerage.member_role_changed', brokerageId: membership.brokerage.id, aggregateType: 'brokerageMembership', aggregateId: membership.id, actorId: actorId(scoped), action: 'change_member_role', before, after: { ...result, roleName, membershipRole } } }
+    },
+  })
+}
+
 export async function updateDealFinancialTermsCommand(_root: unknown, { data }: { data: any }, context: Context) {
   const dealId = clean(data.dealId), offerAmount = clean(data.offerAmount), commissionAmount = clean(data.commissionAmount), key = clean(data.idempotencyKey)
   if (!dealId || !key || !validMoney(offerAmount) || (commissionAmount && !validMoney(commissionAmount))) {

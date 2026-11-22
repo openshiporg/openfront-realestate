@@ -75,6 +75,21 @@ export async function suspendBrokerageMember(_previous: PeopleCommandState, form
   return result
 }
 
+export async function changeBrokerageMemberRole(_previous: PeopleCommandState, formData: FormData): Promise<PeopleCommandState> {
+  const membershipId = String(formData.get('membershipId') || '')
+  const roleName = String(formData.get('roleName') || '')
+  const membershipRole = String(formData.get('membershipRole') || '')
+  if (!membershipId || !roleName || !membershipRole) return { ok: false, message: 'Choose a role and a position.' }
+  const response = await keystoneClient<{ changeBrokerageMemberRoleCommand: PeopleCommandState }>(`
+    mutation ChangeBrokerageMemberRole($data: ChangeBrokerageMemberRoleInput!) {
+      changeBrokerageMemberRoleCommand(data: $data) { ok message itemId replayed }
+    }
+  `, { data: { membershipId, roleName, membershipRole, idempotencyKey: crypto.randomUUID() } }, { cache: 'no-store' })
+  const result = response.success ? response.data.changeBrokerageMemberRoleCommand : { ok: false, message: 'Could not change the role.' }
+  if (result.ok) revalidatePath('/dashboard/platform/people')
+  return result
+}
+
 export async function getPlatformPeople(): Promise<{ agents: PlatformAgent[]; teams: PlatformAgentTeam[]; error: string | null }> {
   const response = await keystoneClient<any>(QUERY, {}, { cache: 'no-store' })
   return response.success

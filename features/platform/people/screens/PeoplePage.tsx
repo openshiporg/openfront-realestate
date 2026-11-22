@@ -8,6 +8,7 @@ import { DataTable, EmptyState, ErrorBanner, PlatformPage, Stats, StatusCell, Td
 import { FilterTabs } from '../../listings/components/FilterTabs'
 import { getPlatformPeople, type PlatformAgent } from '../actions/people'
 import { AddMemberDrawer, MemberRowActions } from '../components/MemberForms'
+import { getViewerPermissions } from '../../lib/records'
 
 const membershipLabels: Record<string, string> = { owner: 'Owner', admin: 'Administrator', team_lead: 'Team lead', agent: 'Agent', coordinator: 'Coordinator', analyst: 'Analyst' }
 
@@ -37,7 +38,8 @@ const quietLink = 'inline-flex h-8 items-center gap-1 rounded-[6px] px-2 text-sm
 export async function PeoplePage({ searchParams }: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const params = (await searchParams) || {}
   const view = params.view === 'teams' ? 'teams' : 'agents'
-  const [{ agents, teams, error }, viewerId] = await Promise.all([getPlatformPeople(), currentUserId()])
+  const [{ agents, teams, error }, viewerId, permissions] = await Promise.all([getPlatformPeople(), currentUserId(), getViewerPermissions()])
+  const canManageRoles = Boolean(permissions.canManageRoles)
   const activeTeams = teams.filter(team => team.status === 'active').length
   const brokerageId = agents.flatMap(agent => agent.memberships).find(membership => membership.isPrimary)?.brokerage?.id || agents[0]?.memberships[0]?.brokerage?.id
   const licensedAgents = agents.filter(agent => agent.licenseNumber).length
@@ -82,7 +84,7 @@ export async function PeoplePage({ searchParams }: { searchParams?: Promise<{ [k
                 const membership = agent.memberships[0]
                 const canSuspend = Boolean(membership?.id) && membership?.membershipRole !== 'owner' && agent.id !== viewerId
                 const position = membershipLabels[membership?.membershipRole || ''] || humanize(membership?.membershipRole, 'Member')
-                const actions = (className?: string) => <MemberRowActions membershipId={membership?.id} memberName={agent.name} viewHref={`/dashboard/users/${encodeURIComponent(agent.id)}`} canSuspend={canSuspend} className={className} />
+                const actions = (className?: string) => <MemberRowActions membershipId={membership?.id} memberName={agent.name} viewHref={`/dashboard/users/${encodeURIComponent(agent.id)}`} canSuspend={canSuspend} canChangeRole={canSuspend && canManageRoles} roleName={agent.role?.name} membershipRole={membership?.membershipRole} className={className} />
                 return (
                   <tr key={agent.id} className="transition-colors hover:bg-muted/30">
                     <Td className="py-2">

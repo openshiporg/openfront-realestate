@@ -91,3 +91,23 @@ export async function setClosingRecordStatus(_state: RecordResult, form: FormDat
   if (!kind || !id || !kind.allowed.includes(status)) return { ok: false, message: 'Choose a valid status.' }
   return runRecordMutation(kind.mutation, { id, status }, kind.field, 'Status updated.', [dealPath(dealId)])
 }
+
+const DEAL_TYPES = ['buyer', 'seller', 'tenant', 'landlord']
+
+/** Edits a deal's own details and, for people managers, its agent. Stage, money and next step have their own forms. */
+export async function updateDealDetails(_state: RecordResult, form: FormData): Promise<RecordResult> {
+  const id = text(form, 'id'), title = text(form, 'title')
+  if (!id) return { ok: false, message: 'Deal not found.' }
+  if (!title) return { ok: false, message: 'Give the deal a title.' }
+  const agentId = text(form, 'assignedAgentId'), currentAgentId = text(form, 'currentAgentId')
+  const agent = form.has('assignedAgentId') && agentId !== currentAgentId ? { assignedAgent: agentId ? connect(agentId) : { disconnect: true } } : {}
+  return runRecordMutation('mutation UpdateDeal($id: ID!, $data: DealUpdateInput!) { updateDeal(where: { id: $id }, data: $data) { id } }', {
+    id,
+    data: {
+      title,
+      transactionType: DEAL_TYPES.includes(text(form, 'transactionType')) ? text(form, 'transactionType') : 'buyer',
+      expectedCloseDate: isoOrNull(form, 'expectedCloseDate'),
+      ...agent,
+    },
+  }, 'updateDeal', 'Deal saved.', [PIPELINE, dealPath(id)])
+}

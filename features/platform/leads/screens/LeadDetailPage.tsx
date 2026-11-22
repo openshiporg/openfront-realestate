@@ -7,6 +7,9 @@ import { ErrorBanner, Meta, Panel, PlatformPage, TitleLine, trackItemClass } fro
 import { getPlatformLeadDetail, getShowingRequestViewer } from '../actions/leads'
 import { LogActivityButton, ScheduleShowingButton } from '../components/LeadDetailDrawers'
 import { LeadRowActions } from '../components/LeadRowActions'
+import { EditLeadDrawer } from '../components/EditLeadDrawer'
+import { getAgentOptions } from '../../listings/lib/listingDetail'
+import { getViewerPermissions } from '../../lib/records'
 import { RequestPaymentDrawer } from '../../payments/components/PaymentForms'
 import { LocalizedText } from '../components/LocalizedText'
 import { OriginalShowingRecovery } from '../components/PendingShowingForms'
@@ -29,7 +32,7 @@ export async function LeadDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params
   const query = await searchParams
   const before = typeof query.before === 'string' ? query.before : query.before ? 'invalid-cursor' : undefined
-  const [{ detail, error }, viewer] = await Promise.all([getPlatformLeadDetail(id, before), getShowingRequestViewer()])
+  const [{ detail, error }, viewer, permissions, agents] = await Promise.all([getPlatformLeadDetail(id, before), getShowingRequestViewer(), getViewerPermissions(), getAgentOptions()])
   if (!detail && error === 'Lead not found.') notFound()
   const href = `/dashboard/platform/leads/${encodeURIComponent(id)}`
   const lead = detail?.lead
@@ -52,6 +55,7 @@ export async function LeadDetailPage({ params, searchParams }: PageProps) {
       actions={lead && !failed ? (
         <div className="flex flex-wrap items-center gap-2">
         <RequestPaymentDrawer leadId={id} disabled={['closed', 'lost'].includes(lead.status)} />
+        {permissions.canManageLeads ? <EditLeadDrawer lead={{ id, name: lead.name, email: lead.email, phone: lead.phone, intent: lead.intent, source: lead.source, assignedAgent: lead.assignedAgent }} agents={agents} canAssign={permissions.canManagePeople} /> : null}
         <LeadRowActions
           showContact
           viewer={viewer}

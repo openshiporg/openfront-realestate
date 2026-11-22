@@ -37,6 +37,7 @@ import {
   resolveDuplicateLeadCommand,
   scheduleShowingForLeadCommand,
   suspendBrokerageMemberCommand,
+  changeBrokerageMemberRoleCommand,
   updateDealFinancialTermsCommand,
   updateDealNextStepCommand,
 } from './operatorCommands'
@@ -432,6 +433,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       }
 
       input SuspendBrokerageMemberInput { membershipId: ID! idempotencyKey: String! }
+      input ChangeBrokerageMemberRoleInput { membershipId: ID! roleName: String! membershipRole: String! idempotencyKey: String! }
 
       input UpdateDealFinancialTermsInput {
         dealId: ID!
@@ -612,6 +614,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         createTransactionExportManifestCommand(data: CreateTransactionExportManifestInput!): OperatorCommandResult!
         inviteBrokerageMemberCommand(data: InviteBrokerageMemberInput!): OperatorCommandResult!
         suspendBrokerageMemberCommand(data: SuspendBrokerageMemberInput!): OperatorCommandResult!
+        changeBrokerageMemberRoleCommand(data: ChangeBrokerageMemberRoleInput!): OperatorCommandResult!
         updateDealFinancialTermsCommand(data: UpdateDealFinancialTermsInput!): OperatorCommandResult!
         updateDealNextStepCommand(data: UpdateDealNextStepInput!): OperatorCommandResult!
         completeShowingWithFeedback(data: CompleteShowingWithFeedbackInput!): OperatorCommandResult!
@@ -707,6 +710,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         createTransactionExportManifestCommand,
         inviteBrokerageMemberCommand,
         suspendBrokerageMemberCommand,
+        changeBrokerageMemberRoleCommand,
         updateDealFinancialTermsCommand,
         updateDealNextStepCommand,
         completeShowingWithFeedback,

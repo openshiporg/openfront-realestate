@@ -8,6 +8,8 @@ import { ChecklistDrawer, CommissionAction, CounterOfferDrawer, DealOfferDrawer,
 import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
 import { DealFinancialTermsForm, DealNextStepForm } from '../components/DealActionForms'
 import { DealRowActions } from '../components/DealRowActions'
+import { EditDealDrawer } from '../components/EditDealDrawer'
+import { getViewerPermissions } from '../../lib/records'
 import { RequestPaymentDrawer } from '../../payments/components/PaymentForms'
 import { ClosingStatusTrack, CommissionDrawer, DocumentDrawer, EscrowDrawer, InspectionDrawer, MortgageDrawer, TitleDrawer } from '../components/DealRecordForms'
 import { getDealOptions, getDealWorkspace } from '../lib/dealWorkspace'
@@ -57,7 +59,7 @@ function Row({ title, status, meta, children }: { title: ReactNode; status: stri
 
 export async function DealDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const [{ workspace, error }, options] = await Promise.all([getDealWorkspace(id), getDealOptions()])
+  const [{ workspace, error }, options, permissions] = await Promise.all([getDealWorkspace(id), getDealOptions(), getViewerPermissions()])
   if (!workspace && !error) notFound()
   if (!workspace) return <PlatformPage crumbs={[{ label: 'Pipeline', href: '/platform/pipeline' }, { label: 'Deal' }]} title="Deal"><ErrorBanner>This deal could not be loaded. {error}</ErrorBanner></PlatformPage>
 
@@ -164,7 +166,7 @@ export async function DealDetailPage({ params }: { params: Promise<{ id: string 
       crumbs={[{ label: 'Pipeline', href: '/platform/pipeline' }, { label: deal.title }]}
       title={<TitleLine as="h1" tone={stage?.[2] || 'zinc'} status={stage?.[1] || human(deal.stage)} headingClassName="text-2xl tracking-tight">{deal.title}</TitleLine>}
       meta={<>{human(deal.transactionType)} · {deal.assignedAgent?.name || 'Unassigned'}{deal.expectedCloseDate ? <> · Close <ViewerTime value={deal.expectedCloseDate} style="date" /></> : null}</>}
-      actions={open ? <div className="flex flex-wrap items-center gap-2">{deal.lead ? <RequestPaymentDrawer leadId={deal.lead.id} dealId={deal.id} /> : null}<DealRowActions editInMenu={false} deal={{ id: deal.id, title: deal.title, stage: deal.stage }} /></div> : null}
+      actions={open ? <div className="flex flex-wrap items-center gap-2">{permissions.canManageDeals ? <EditDealDrawer deal={{ id: deal.id, title: deal.title, transactionType: deal.transactionType, expectedCloseDate: deal.expectedCloseDate, assignedAgent: deal.assignedAgent }} agents={options.agents} canAssign={permissions.canManagePeople} /> : null}{deal.lead ? <RequestPaymentDrawer leadId={deal.lead.id} dealId={deal.id} /> : null}<DealRowActions editInMenu={false} deal={{ id: deal.id, title: deal.title, stage: deal.stage }} /></div> : null}
       toolbar={deal.stage !== 'closed_lost' ? (
         <nav aria-label="Deal stages" className="relative -mx-4 overflow-x-auto px-4 [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin] md:mx-0 md:px-0">
           <ol className="flex min-w-max items-center gap-0 border-b border-border pb-2.5 text-[13px]">

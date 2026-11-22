@@ -7224,6 +7224,7 @@ type Mutation {
   createTransactionExportManifestCommand(data: CreateTransactionExportManifestInput!): OperatorCommandResult!
   inviteBrokerageMemberCommand(data: InviteBrokerageMemberInput!): OperatorCommandResult!
   suspendBrokerageMemberCommand(data: SuspendBrokerageMemberInput!): OperatorCommandResult!
+  changeBrokerageMemberRoleCommand(data: ChangeBrokerageMemberRoleInput!): OperatorCommandResult!
   updateDealFinancialTermsCommand(data: UpdateDealFinancialTermsInput!): OperatorCommandResult!
   updateDealNextStepCommand(data: UpdateDealNextStepInput!): OperatorCommandResult!
   completeShowingWithFeedback(data: CompleteShowingWithFeedbackInput!): OperatorCommandResult!
@@ -8898,6 +8899,13 @@ input InviteBrokerageMemberInput {
 
 input SuspendBrokerageMemberInput {
   membershipId: ID!
+  idempotencyKey: String!
+}
+
+input ChangeBrokerageMemberRoleInput {
+  membershipId: ID!
+  roleName: String!
+  membershipRole: String!
   idempotencyKey: String!
 }
 

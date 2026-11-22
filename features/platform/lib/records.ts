@@ -21,15 +21,15 @@ export async function getActiveBrokerageId(): Promise<string | null> {
   return live.filter(membership => membership.brokerage?.id === selected.id).length === 1 ? selected.id : null
 }
 
-export type ViewerPermissions = { canManagePeople: boolean; canManageListings: boolean; canManageLeads: boolean; canManageDeals: boolean; canManageShowings: boolean }
+export type ViewerPermissions = { canManagePeople: boolean; canManageListings: boolean; canManageLeads: boolean; canManageDeals: boolean; canManageShowings: boolean; canManageRoles: boolean }
 
 export async function getViewerPermissions(): Promise<ViewerPermissions> {
   const response = await keystoneClient<{ authenticatedItem: { role: ViewerPermissions | null } | null }>(
-    'query PlatformViewer { authenticatedItem { ... on User { role { canManagePeople canManageListings canManageLeads canManageDeals canManageShowings } } } }',
+    'query PlatformViewer { authenticatedItem { ... on User { role { canManagePeople canManageListings canManageLeads canManageDeals canManageShowings canManageRoles } } } }',
     {}, { cache: 'no-store' },
   )
   const role = response.success ? response.data.authenticatedItem?.role : null
-  return { canManagePeople: Boolean(role?.canManagePeople), canManageListings: Boolean(role?.canManageListings), canManageLeads: Boolean(role?.canManageLeads), canManageDeals: Boolean(role?.canManageDeals), canManageShowings: Boolean(role?.canManageShowings) }
+  return { canManagePeople: Boolean(role?.canManagePeople), canManageListings: Boolean(role?.canManageListings), canManageLeads: Boolean(role?.canManageLeads), canManageDeals: Boolean(role?.canManageDeals), canManageShowings: Boolean(role?.canManageShowings), canManageRoles: Boolean(role?.canManageRoles) }
 }
 
 /** Runs a create/update/delete mutation whose result field is `field`, then revalidates `paths`. */

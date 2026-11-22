@@ -6,6 +6,21 @@ import { createTenantOwnedHooks } from '../lib/tenantOwnedHooks'
 import { withRecordInvariants, moneyOrder } from '../lib/recordInvariants'
 import { money } from '../lib/money'
 import { trackingFields } from "./trackingFields";
+import { leadIdentityKey } from '../mutations/leadCapture'
+
+/** When staff correct a lead's email or phone, its duplicate-matching key follows. */
+function withLeadIdentity<H extends { resolveInput?: (args: any) => any }>(hooks: H): H {
+  const inner = hooks.resolveInput
+  return {
+    ...hooks,
+    async resolveInput(args: any) {
+      const resolved = inner ? await inner.call(hooks, args) : args.resolvedData
+      if (args.operation !== 'update' || !('email' in (args.inputData || {}) || 'phone' in (args.inputData || {}))) return resolved
+      const key = leadIdentityKey('email' in args.inputData ? args.inputData.email : args.item?.email, 'phone' in args.inputData ? args.inputData.phone : args.item?.phone)
+      return key ? { ...resolved, identityKey: key } : resolved
+    },
+  } as H
+}
 
 export const Lead = list({
   access: {
@@ -21,13 +36,13 @@ export const Lead = list({
     },
     item: { create: canCreateInActiveBrokerage, update: canMoveToActiveBrokerage },
   },
-  hooks: withRecordInvariants(createTenantOwnedHooks({
+  hooks: withLeadIdentity(withRecordInvariants(createTenantOwnedHooks({
     listKey: 'Lead',
     parents: { property: 'Property' },
     users: ['assignedAgent'],
     teams: ['assignedTeam'],
     protectDelete: true,
-  }), [moneyOrder('budgetMin', 'budgetMax', 'The minimum budget cannot be more than the maximum budget.')]),
+  }), [moneyOrder('budgetMin', 'budgetMax', 'The minimum budget cannot be more than the maximum budget.')])),
   ui: {
     hideDelete: true,
     hideCreate: args => !permissions.canManageBrokerageTasks(args),

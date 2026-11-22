@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils'
 import { pillClass, pillDangerClass, pillPrimaryClass, quietButtonClass } from '../../components/styles'
 import { FormDrawer } from '../../components/RecordForm'
-import { inviteBrokerageMember, suspendBrokerageMember, type PeopleCommandState } from '../actions/people'
+import { changeBrokerageMemberRole, inviteBrokerageMember, suspendBrokerageMember, type PeopleCommandState } from '../actions/people'
 
 const initial: PeopleCommandState = { ok: false, message: '' }
 
@@ -33,6 +33,62 @@ function useResultToast(state: PeopleCommandState, onSuccess?: () => void) {
     else toast.error(state.message)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state])
+}
+
+function RoleFields({ id, roleName = 'Listing Agent', membershipRole = 'agent' }: { id: string; roleName?: string; membershipRole?: string }) {
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${id}-role`}>Role</Label>
+        <Select name="roleName" defaultValue={roleName}>
+          <SelectTrigger id={`${id}-role`} className="h-11 w-full rounded-[6px] text-sm md:h-9"><SelectValue /></SelectTrigger>
+          <SelectContent className="rounded-[6px]">
+            <SelectItem value="Listing Agent">Listing Agent</SelectItem>
+            <SelectItem value="Brokerage Analyst">Brokerage Analyst</SelectItem>
+            <SelectItem value="Brokerage Admin">Brokerage Admin</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${id}-membership`}>Position</Label>
+        <Select name="membershipRole" defaultValue={membershipRole}>
+          <SelectTrigger id={`${id}-membership`} className="h-11 w-full rounded-[6px] text-sm md:h-9"><SelectValue /></SelectTrigger>
+          <SelectContent className="rounded-[6px]">
+            <SelectItem value="agent">Agent</SelectItem>
+            <SelectItem value="team_lead">Team lead</SelectItem>
+            <SelectItem value="coordinator">Coordinator</SelectItem>
+            <SelectItem value="analyst">Analyst</SelectItem>
+            <SelectItem value="admin">Administrator</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  )
+}
+
+/** Changes a member's role template and position together, the same pair the invite sets. */
+function ChangeRoleDialog({ open, onOpenChange, membershipId, memberName, roleName, membershipRole }: { open: boolean; onOpenChange: (open: boolean) => void; membershipId: string; memberName: string; roleName?: string | null; membershipRole?: string | null }) {
+  const [state, action, pending] = useActionState(changeBrokerageMemberRole, initial)
+  const id = useId()
+  useResultToast(state, () => onOpenChange(false))
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="rounded-[6px]">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Change role · {memberName}</AlertDialogTitle>
+          <AlertDialogDescription>Role sets what they can open and change. Position is how they show on the team.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <form action={action} className="grid gap-3">
+          <input type="hidden" name="membershipId" value={membershipId} />
+          <RoleFields id={id} roleName={roleName || 'Listing Agent'} membershipRole={membershipRole || 'agent'} />
+          <AlertDialogFooter className="mt-2">
+            <AlertDialogCancel type="button" className={pillClass}>Cancel</AlertDialogCancel>
+            <Button type="submit" variant="ghost" size="sm" className={cn(pillPrimaryClass, 'max-sm:h-11')} disabled={pending}>{pending ? 'Saving…' : 'Save role'}</Button>
+          </AlertDialogFooter>
+        </form>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
 }
 
 export function InviteMemberForm({ brokerageId, onDone }: { brokerageId: string; onDone?: () => void }) {
@@ -56,30 +112,7 @@ export function InviteMemberForm({ brokerageId, onDone }: { brokerageId: string;
           <Label htmlFor={`${id}-password`}>Temporary password</Label>
           <Input className="h-9 rounded-[6px]" id={`${id}-password`} name="temporaryPassword" type="password" required minLength={12} autoComplete="new-password" />
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={`${id}-role`}>Role</Label>
-          <Select name="roleName" defaultValue="Listing Agent">
-            <SelectTrigger id={`${id}-role`} className="h-9 w-full rounded-[6px] text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent className="rounded-[6px]">
-              <SelectItem value="Listing Agent">Listing Agent</SelectItem>
-              <SelectItem value="Brokerage Analyst">Brokerage Analyst</SelectItem>
-              <SelectItem value="Brokerage Admin">Brokerage Admin</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={`${id}-membership`}>Position</Label>
-          <Select name="membershipRole" defaultValue="agent">
-            <SelectTrigger id={`${id}-membership`} className="h-9 w-full rounded-[6px] text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent className="rounded-[6px]">
-              <SelectItem value="agent">Agent</SelectItem>
-              <SelectItem value="team_lead">Team lead</SelectItem>
-              <SelectItem value="coordinator">Coordinator</SelectItem>
-              <SelectItem value="analyst">Analyst</SelectItem>
-              <SelectItem value="admin">Administrator</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <RoleFields id={id} />
       </div>
       <Button type="submit" variant="ghost" size="sm" className={cn(pillPrimaryClass, 'mt-4')} disabled={pending}>{pending ? 'Adding…' : 'Add member'}</Button>
     </form>
@@ -90,7 +123,8 @@ export function InviteMemberForm({ brokerageId, onDone }: { brokerageId: string;
  * Row actions for a member: a neutral "View" as the visible primary, and Suspend behind
  * the More menu with a confirmation, so a destructive command is never the row's only action.
  */
-export function MemberRowActions({ membershipId, memberName, viewHref, canSuspend, className }: { membershipId?: string | null; memberName: string; viewHref: string; canSuspend: boolean; className?: string }) {
+export function MemberRowActions({ membershipId, memberName, viewHref, canSuspend, canChangeRole = false, roleName, membershipRole, className }: { membershipId?: string | null; memberName: string; viewHref: string; canSuspend: boolean; canChangeRole?: boolean; roleName?: string | null; membershipRole?: string | null; className?: string }) {
+  const [changingRole, setChangingRole] = useState(false)
   const [state, action, pending] = useActionState(suspendBrokerageMember, initial)
   const [confirming, setConfirming] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
@@ -98,7 +132,7 @@ export function MemberRowActions({ membershipId, memberName, viewHref, canSuspen
   return (
     <div className={cn('flex items-center justify-end gap-1.5', className)}>
       <Button asChild variant="ghost" size="sm" className={cn(pillClass, 'max-sm:h-11')}><Link href={viewHref}>View</Link></Button>
-      {canSuspend && membershipId ? (
+      {(canSuspend || canChangeRole) && membershipId ? (
         <>
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
@@ -107,9 +141,11 @@ export function MemberRowActions({ membershipId, memberName, viewHref, canSuspen
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-44 rounded-[6px]">
-              <DropdownMenuItem variant="destructive" className="rounded-[4px]" disabled={pending} onSelect={() => setConfirming(true)}>{pending ? 'Suspending…' : 'Suspend access…'}</DropdownMenuItem>
+              {canChangeRole ? <DropdownMenuItem className="rounded-[4px]" onSelect={() => setChangingRole(true)}>Change role…</DropdownMenuItem> : null}
+              {canSuspend ? <DropdownMenuItem variant="destructive" className="rounded-[4px]" disabled={pending} onSelect={() => setConfirming(true)}>{pending ? 'Suspending…' : 'Suspend access…'}</DropdownMenuItem> : null}
             </DropdownMenuContent>
           </DropdownMenu>
+          {canChangeRole ? <ChangeRoleDialog open={changingRole} onOpenChange={setChangingRole} membershipId={membershipId} memberName={memberName} roleName={roleName} membershipRole={membershipRole} /> : null}
           <form ref={formRef} action={action} className="hidden">
             <input type="hidden" name="membershipId" value={membershipId} />
           </form>
