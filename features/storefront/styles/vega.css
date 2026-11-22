@@ -345,9 +345,6 @@
   .sf-map__canvas, .sf-map__canvas.maplibregl-map { position: absolute; inset: 0; width: 100%; height: 100%; }
   .sf-map__note { position: absolute; left: 1rem; bottom: 1rem; padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: var(--sf-paper); color: var(--sf-muted); font-size: 0.875rem; box-shadow: var(--sf-shadow); }
   .sf-map .maplibregl-ctrl-attrib { font-size: 0.75rem; }
-  /* The attribution toggle is a real button: give it a full 44px tap area without enlarging the glyph. */
-  .sf-map .maplibregl-ctrl-attrib.maplibregl-compact { min-height: 2.75rem; min-width: 2.75rem; }
-  .sf-map .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button { width: 2.75rem; height: 2.75rem; background-position: center; background-repeat: no-repeat; border-radius: 999px; }
   .sf-map__controls { position: absolute; right: 1rem; bottom: 1.5rem; display: grid; border-radius: 0.625rem; background: var(--sf-paper); box-shadow: var(--sf-shadow); overflow: hidden; }
   .sf-map__controls button { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border: 0; background: transparent; color: var(--sf-ink); cursor: pointer; }
   .sf-map__controls button + button { border-top: 1px solid var(--sf-line); }
@@ -917,3 +914,8 @@
   .sf-agent-card__links a[aria-label^="Email"] { min-width: 2.75rem; justify-content: center; }
   .sf-sheet__handle { height: 2.75rem; }
 }
+
+/* Outside the layer on purpose: MapLibre's own stylesheet is unlayered and would win.
+   The attribution toggle is a real button, so it gets a full 44px tap area. */
+.sf-map .maplibregl-ctrl-attrib.maplibregl-compact { min-height: 2.75rem; min-width: 2.75rem; }
+.sf-map .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button { width: 2.75rem; height: 2.75rem; background-position: center; background-repeat: no-repeat; border-radius: 999px; }
