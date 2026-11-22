@@ -331,6 +331,11 @@ export async function handlePaymentProviderWebhook(context: Context, providerId:
   if (!providerId || providerId.length > 200) return { status: 404, body: { error: 'Unknown provider' } }
   const provider: any = await context.sudo().query.PaymentProvider.findOne({ where: { id: providerId }, query: PROVIDER_QUERY })
   if (!provider || !provider.isInstalled) return { status: 404, body: { error: 'Unknown provider' } }
+  // The Stripe test account is shared by many sites. With no signing secret here there is nothing to verify or
+  // act on, so the delivery is acknowledged and dropped; the one-minute payment sweep settles this site's payments.
+  if (provider.handleWebhookFunction === 'stripe' && !provider.credentials?.webhookSecret && !process.env.STRIPE_WEBHOOK_SECRET) {
+    return { status: 200, body: { received: true, outcome: 'not_configured' } }
+  }
   let verified: any
   try {
     verified = await handleWebhook({ provider, event: undefined, headers, rawBody })

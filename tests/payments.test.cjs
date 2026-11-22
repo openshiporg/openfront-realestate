@@ -231,3 +231,39 @@ test('refund: staff command refunds the unrefunded balance once, wired to the Pa
   const page = fs.readFileSync(path.join(root, 'features/platform/payments/screens/PaymentsPage.tsx'), 'utf8');
   assert.match(page, /<RefundPaymentButton paymentId=\{payment\.id\} \/>/);
 });
+
+test('webhook: another site\'s event on the shared Stripe account is acknowledged with 200 and changes nothing', async () => {
+  const { handlePaymentProviderWebhook } = paymentsModule();
+  const harness = webhookHarness();
+  const foreign = JSON.stringify({ id: 'evt_other_site', type: 'checkout.session.completed', data: { object: { id: 'cs_test_someone_else', payment_intent: 'pi_other', payment_status: 'paid', amount_total: 9900, currency: 'usd', metadata: { paymentId: 'pay_from_another_site' } } } });
+  const result = await handlePaymentProviderWebhook(harness.context, 'prov_1', foreign, { 'stripe-signature': stripeSignature('whsec_x', foreign) });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.outcome, 'unmatched');
+  assert.equal(harness.updates.length, 0);
+  assert.equal(harness.row.status, 'pending');
+  const other = JSON.stringify({ id: 'evt_customer', type: 'customer.created', data: { object: { id: 'cus_1' } } });
+  const ignored = await handlePaymentProviderWebhook(harness.context, 'prov_1', other, { 'stripe-signature': stripeSignature('whsec_x', other) });
+  assert.equal(ignored.status, 200);
+  assert.equal(ignored.body.outcome, 'ignored');
+});
+
+test('webhook: with no signing secret configured the delivery is acknowledged and nothing is written', async () => {
+  const real = sandbox({ env: {}, mocks: {
+    '.keystone/types': {},
+    './submitListingInquiry': { submitListingInquiry: async () => ({ ok: true }) },
+    './leadCapture': { leadIdentityKey: () => null },
+    './controlledEvidenceCommand': { runControlledEvidenceCommand: async () => ({}) },
+    '../lib/domainEvents': { enqueueDomainEvent: async () => {} },
+    '../access': { activeBrokerageIds: () => [] },
+    '../../lib/date-time': { commandText: v => String(v ?? '').trim() },
+  } });
+  const { handlePaymentProviderWebhook } = real.load('features/keystone/mutations/payments.ts');
+  const harness = webhookHarness();
+  harness.context.sudo().query.PaymentProvider.findOne = async () => ({ id: 'prov_1', code: 'pp_stripe', isInstalled: true, credentials: {}, handleWebhookFunction: 'stripe', brokerage: { id: 'b1', status: 'active' } });
+  const body = sessionEvent('evt_unsigned');
+  const result = await handlePaymentProviderWebhook(harness.context, 'prov_1', body, { 'stripe-signature': 't=1,v1=00' });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.outcome, 'not_configured');
+  assert.equal(harness.receipts.size, 0);
+  assert.equal(harness.row.status, 'pending');
+});
