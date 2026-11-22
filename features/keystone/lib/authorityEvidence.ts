@@ -50,7 +50,7 @@ export async function requirePractitionerLicense(
   const latest = rows[0]
   const evaluatedAt = input.at || new Date()
   if (!latest || latest.status !== 'verified_active' || !authorityIsEffective(latest, evaluatedAt) || !latest.verifiedAt || new Date(latest.verifiedAt) > evaluatedAt || !latest.verificationSource) {
-    throw new ListingAuthorityDeniedError('A current verified practitioner license is required for this jurisdictional action.')
+    throw new ListingAuthorityDeniedError('Step needed: add a current, verified agent license for this state, then try again.')
   }
   return latest
 }
@@ -99,7 +99,8 @@ export async function requireRepresentationAuthority(
       practitioner: { id: { equals: input.practitionerId } },
       jurisdictionCode: { equals: input.jurisdictionCode.toUpperCase() },
       side: { equals: input.side },
-      ...(input.propertyId ? { property: { id: { equals: input.propertyId } } } : {}),
+      // A listing-specific agreement, or one that covers an area (no single listing).
+      ...(input.propertyId ? { OR: [{ property: { id: { equals: input.propertyId } } }, { property: null }] } : {}),
     },
     orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
     take: 1,
@@ -110,7 +111,7 @@ export async function requireRepresentationAuthority(
     ? ['exclusive_agency', 'nonexclusive_agency', 'transaction_brokerage', 'customer_assistance'].includes(authority?.relationshipType)
     : ['exclusive_agency', 'nonexclusive_agency', 'transaction_brokerage'].includes(authority?.relationshipType)
   if (!authority || authority.status !== 'executed' || !authorityIsEffective(authority, input.at) || !permittedRelationship || !isSha256(authority.documentSha256) || !authority.consentRecordedAt || (input.dealId && authority.deal?.id && authority.deal.id !== input.dealId)) {
-    throw new Error('No signed representation agreement is on file for this customer in this state. Add one under Operations, Licenses & agreements, then try again.')
+    throw new Error('Step needed: add a signed buyer agreement for this client (parties, compensation, term and homes covered, or the signed PDF), then confirm again.')
   }
   return authority
 }

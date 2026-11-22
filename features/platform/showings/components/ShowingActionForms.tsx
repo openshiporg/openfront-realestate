@@ -19,14 +19,17 @@ const quietClass = 'h-11 md:h-8 rounded-[6px] px-3 text-muted-foreground shadow-
 
 const initialState: ShowingActionState = { ok: false, message: '' }
 
-function useResultToast(state: ShowingActionState) {
+function useResultToast(state: ShowingActionState, leadId?: string) {
   useEffect(() => {
     if (!state.message || state.uncertain) return
-    if (state.ok) toast.success(state.message)
-    // The one failure staff can fix themselves gets a button that goes to the place to fix it.
-    else if (/representation agreement/i.test(state.message)) toast.error(state.message, { duration: 12000, action: { label: 'Open agreements', onClick: () => window.location.assign('/dashboard/platform/operations?section=agreements') } })
-    else toast.error(state.message)
-  }, [state])
+    if (state.ok) { toast.success(state.message); return }
+    // A missing step gets a button that opens that step's form, with the client filled in.
+    const step = /buyer agreement|representation agreement/i.test(state.message) ? 'buyer-agreement' : /agent license/i.test(state.message) ? 'license' : null
+    if (step) {
+      const href = `/dashboard/platform/operations?section=agreements&add=${step}${leadId ? `&lead=${encodeURIComponent(leadId)}` : ''}`
+      toast.error(state.message, { duration: 15000, action: { label: step === 'license' ? 'Add license' : 'Add agreement', onClick: () => window.location.assign(href) } })
+    } else toast.error(state.message)
+  }, [state, leadId])
 }
 
 function UncertainNote({ state }: { state: ShowingActionState }) {
@@ -35,7 +38,7 @@ function UncertainNote({ state }: { state: ShowingActionState }) {
 
 export function ShowingStatusButton({ showingId, leadId, status, label, expectedStatus, expectedUpdatedAt, expectedRevision, quiet = false }: { showingId: string; leadId?: string; status: string; label: string; expectedStatus: string; expectedUpdatedAt: string; expectedRevision: string; quiet?: boolean }) {
   const [state, action, pending] = useActionState(updateShowingStatus, initialState)
-  useResultToast(state)
+  useResultToast(state, leadId)
 
   return (
     <form action={action} className="inline-flex shrink-0 flex-col gap-1">
@@ -49,7 +52,22 @@ export function ShowingStatusButton({ showingId, leadId, status, label, expected
         {pending ? 'Updating…' : state.uncertain ? 'Refresh to check' : label}
       </Button>
       <UncertainNote state={state} />
+      <StepNeeded state={state} leadId={leadId} />
     </form>
+  )
+}
+
+/** Keeps the missing step on screen (the toast goes away), with a link straight to its form. */
+function StepNeeded({ state, leadId }: { state: ShowingActionState; leadId?: string }) {
+  if (state.ok || state.uncertain || !state.message) return null
+  const step = /buyer agreement|representation agreement/i.test(state.message) ? 'buyer-agreement' : /agent license/i.test(state.message) ? 'license' : null
+  if (!step) return null
+  const href = `/dashboard/platform/operations?section=agreements&add=${step}${leadId ? `&lead=${encodeURIComponent(leadId)}` : ''}`
+  return (
+    <p role="alert" className="max-w-xs text-xs text-destructive">
+      {state.message}{' '}
+      <a href={href} className="inline-flex min-h-11 items-center font-medium underline underline-offset-2 md:min-h-0">{step === 'license' ? 'Add the license' : 'Add the buyer agreement'}</a>
+    </p>
   )
 }
 

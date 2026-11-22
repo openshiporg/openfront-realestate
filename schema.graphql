@@ -5658,6 +5658,8 @@ type RepresentationAuthority {
   effectiveFrom: DateTime
   effectiveThrough: DateTime
   scopeSummary: String
+  compensationSummary: String
+  signedAgreement: FileFieldOutput
   documentSha256: String
   disclosureVersion: String
   consentRecordedAt: DateTime
@@ -5689,6 +5691,12 @@ enum RepresentationAuthorityStatusType {
   expired
 }
 
+type FileFieldOutput {
+  filename: String!
+  filesize: Int!
+  url: String!
+}
+
 input RepresentationAuthorityWhereUniqueInput {
   id: ID
   authorityNumber: String
@@ -5712,6 +5720,7 @@ input RepresentationAuthorityWhereInput {
   effectiveFrom: DateTimeFilter
   effectiveThrough: DateTimeFilter
   scopeSummary: StringFilter
+  compensationSummary: StringFilter
   documentSha256: StringFilter
   disclosureVersion: StringFilter
   consentRecordedAt: DateTimeFilter
@@ -5755,6 +5764,7 @@ input RepresentationAuthorityOrderByInput {
   effectiveFrom: OrderDirection
   effectiveThrough: OrderDirection
   scopeSummary: OrderDirection
+  compensationSummary: OrderDirection
   documentSha256: OrderDirection
   disclosureVersion: OrderDirection
   consentRecordedAt: OrderDirection
@@ -5778,6 +5788,8 @@ input RepresentationAuthorityUpdateInput {
   effectiveFrom: DateTime
   effectiveThrough: DateTime
   scopeSummary: String
+  compensationSummary: String
+  signedAgreement: FileFieldInput
   documentSha256: String
   disclosureVersion: String
   consentRecordedAt: DateTime
@@ -5788,6 +5800,10 @@ input RepresentationAuthorityUpdateInput {
   recordedAt: DateTime
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input FileFieldInput {
+  upload: Upload!
 }
 
 input RepresentationAuthorityRelateToOneForUpdateInput {
@@ -5815,6 +5831,8 @@ input RepresentationAuthorityCreateInput {
   effectiveFrom: DateTime
   effectiveThrough: DateTime
   scopeSummary: String
+  compensationSummary: String
+  signedAgreement: FileFieldInput
   documentSha256: String
   disclosureVersion: String
   consentRecordedAt: DateTime
@@ -8224,6 +8242,8 @@ type PlatformRepresentationAuthority {
   effectiveFrom: String!
   effectiveThrough: String!
   disclosureVersion: String!
+  compensationSummary: String
+  signedAgreementUrl: String
   lead: PlatformLeadRef
   property: PlatformPropertyRef
   deal: PlatformDealRef
@@ -8739,16 +8759,18 @@ input RecordRepresentationAuthorityInput {
   dealId: ID
   practitionerId: ID!
   side: String!
-  relationshipType: String!
-  jurisdictionCode: String!
-  status: String!
+  relationshipType: String
+  jurisdictionCode: String
+  status: String
   effectiveFrom: DateTime!
   effectiveThrough: DateTime!
   scopeSummary: String!
-  documentSha256: String!
-  disclosureVersion: String!
-  consentRecordedAt: DateTime!
-  reason: String!
+  compensationSummary: String
+  signedAgreement: Upload
+  documentSha256: String
+  disclosureVersion: String
+  consentRecordedAt: DateTime
+  reason: String
   idempotencyKey: String!
 }
 

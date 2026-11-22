@@ -453,14 +453,14 @@ function CommissionsSection({ workspace, options }: { workspace: OperationsWorks
   )
 }
 
-function AgreementsSection({ workspace, options }: { workspace: OperationsWorkspace; options: OperationsOptions }) {
+function AgreementsSection({ workspace, options, add, leadId }: { workspace: OperationsWorkspace; options: OperationsOptions; add?: string; leadId?: string }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
-        <PractitionerLicenseForm options={options} />
+        <PractitionerLicenseForm options={options} defaultOpen={add === 'license'} />
         <ListingEngagementForm options={options} />
         <ListingPublicationForm options={options} />
-        <RepresentationForm options={options} />
+        <RepresentationForm options={options} defaultOpen={add === 'buyer-agreement'} leadId={leadId} />
       </div>
       <Section title="Agent licenses">
         <DataTable label="Agent licenses" className={wide} head={[{ label: 'Agent' }, { label: 'License' }, { label: 'Jurisdiction' }, { label: 'Valid until' }, { label: 'Verified' }, { label: 'Status' }]}>
@@ -489,17 +489,17 @@ function AgreementsSection({ workspace, options }: { workspace: OperationsWorksp
           )) : <NoRows colSpan={5}>No listing agreements</NoRows>}
         </DataTable>
       </Section>
-      <Section title="Representation agreements">
-        <DataTable label="Representation agreements" className={wide} head={[{ label: 'Client' }, { label: 'Side' }, { label: 'Relationship' }, { label: 'Agreement' }, { label: 'Status' }]}>
+      <Section title="Buyer and seller agreements">
+        <DataTable label="Buyer and seller agreements" className={wide} head={[{ label: 'Client' }, { label: 'Side' }, { label: 'Compensation' }, { label: 'Agreement' }, { label: 'Status' }]}>
           {workspace.representationAuthorities.length ? workspace.representationAuthorities.map((item) => (
             <Row key={item.id}>
               <Td><p className="font-medium text-foreground">{item.lead?.name}</p><p className="text-xs text-muted-foreground">{item.practitioner?.name}</p></Td>
               <Td className="whitespace-nowrap">{humanize(item.side)}</Td>
-              <Td className="whitespace-nowrap">{humanize(item.relationshipType)}</Td>
-              <Td className="whitespace-nowrap tabular-nums">{item.authorityNumber}{item.disclosureVersion ? ` · ${item.disclosureVersion}` : ''}</Td>
+              <Td className="max-w-[16rem]"><p className="truncate">{item.compensationSummary || humanize(item.relationshipType)}</p><p className="text-xs text-muted-foreground">Ends <DateText value={item.effectiveThrough} /></p></Td>
+              <Td className="whitespace-nowrap tabular-nums">{item.authorityNumber}{item.signedAgreementUrl ? <> · <a href={item.signedAgreementUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2">Signed PDF</a></> : null}</Td>
               <Td className="whitespace-nowrap"><Status value={item.status} /></Td>
             </Row>
-          )) : <NoRows colSpan={5}>No representation agreements</NoRows>}
+          )) : <NoRows colSpan={5}>No agreements yet</NoRows>}
         </DataTable>
       </Section>
     </div>
@@ -692,7 +692,7 @@ export async function OperationsPage({ searchParams }: { searchParams?: Promise<
         {section === 'open-houses' ? <OpenHousesSection workspace={workspace} /> : null}
         {section === 'tasks' ? <TasksSection workspace={workspace} now={now} /> : null}
         {section === 'commissions' ? <CommissionsSection workspace={workspace} options={options} /> : null}
-        {section === 'agreements' ? <AgreementsSection workspace={workspace} options={options} /> : null}
+        {section === 'agreements' ? <AgreementsSection workspace={workspace} options={options} add={typeof params.add === 'string' ? params.add : undefined} leadId={typeof params.lead === 'string' ? params.lead : undefined} /> : null}
         {section === 'documents' ? <DocumentsSection workspace={workspace} options={options} /> : null}
         {section === 'market' ? <MarketSection workspace={workspace} /> : null}
         {section === 'alerts' ? <AlertsSection workspace={workspace} /> : null}

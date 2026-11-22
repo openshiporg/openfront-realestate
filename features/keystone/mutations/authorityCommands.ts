@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { Readable } from 'node:stream'
 import type { Context } from '.keystone/types'
 
 import { boundedIdempotencyKey, boundedReason, isSha256, requirePractitionerLicense } from '../lib/authorityEvidence'
@@ -16,6 +17,11 @@ function effectiveRange(fromValue: unknown, throughValue: unknown) {
   const effectiveThrough = timestamp(throughValue, 'Effective through')
   if (new Date(effectiveFrom) >= new Date(effectiveThrough)) throw new Error('Effective through must be after effective from.')
   return { effectiveFrom, effectiveThrough }
+}
+/** Hands stored bytes back to Keystone's file field as a fresh upload stream. */
+function pdfUpload(bytes: Buffer, filename: string) {
+  const safe = filename.replace(/[^A-Za-z0-9._-]+/g, '-').slice(-120) || 'agreement.pdf'
+  return Promise.resolve({ filename: safe, mimetype: 'application/pdf', encoding: '7bit', createReadStream: () => Readable.from([bytes]) })
 }
 function suffix(key: string) { return crypto.createHash('sha256').update(key).digest('hex').slice(0, 12).toUpperCase() }
 
@@ -91,12 +97,47 @@ export async function recordListingPublicationAuthorityCommand(_root: unknown, {
 }
 
 export async function recordRepresentationAuthorityCommand(_root: unknown, { data }: { data: any }, context: Context) {
-  const leadId = clean(data.leadId), propertyId = clean(data.propertyId), dealId = clean(data.dealId), practitionerId = clean(data.practitionerId), side = clean(data.side), relationshipType = clean(data.relationshipType), jurisdictionCode = clean(data.jurisdictionCode).toUpperCase(), status = clean(data.status), scopeSummary = clean(data.scopeSummary), documentSha256 = clean(data.documentSha256).toLowerCase(), disclosureVersion = clean(data.disclosureVersion), reason = boundedReason(data.reason), key = boundedIdempotencyKey(data.idempotencyKey)
+  // What the law asks of a buyer agreement: the parties, the compensation, the term and the scope.
+  // Everything else has a sensible default; a signed PDF may be attached instead of a checksum.
+  const leadId = clean(data.leadId), propertyId = clean(data.propertyId), dealId = clean(data.dealId), practitionerId = clean(data.practitionerId), side = clean(data.side)
+  const relationshipType = clean(data.relationshipType) || 'exclusive_agency', status = clean(data.status) || 'executed'
+  const scopeSummary = clean(data.scopeSummary), compensationSummary = clean(data.compensationSummary), disclosureVersion = clean(data.disclosureVersion)
+  const reason = clean(data.reason) || 'Buyer agreement recorded.', key = boundedIdempotencyKey(data.idempotencyKey)
+  if (reason.length > 5000) throw new Error('Keep the note under 5,000 characters.')
   const range = effectiveRange(data.effectiveFrom, data.effectiveThrough)
-  const consentRecordedAt = timestamp(data.consentRecordedAt, 'Consent recorded at')
-  if (!leadId || !practitionerId || !['buyer', 'seller'].includes(side) || !['exclusive_agency', 'nonexclusive_agency', 'transaction_brokerage', 'customer_assistance'].includes(relationshipType) || !['executed', 'terminated', 'expired'].includes(status) || !jurisdictionCode || !scopeSummary || scopeSummary.length > 5000 || !isSha256(documentSha256) || !disclosureVersion || disclosureVersion.length > 300) throw new Error('Valid representation-authority evidence is required.')
+  const consentRecordedAt = clean(data.consentRecordedAt) ? timestamp(data.consentRecordedAt, 'Signed on') : range.effectiveFrom
+  if (!leadId || !practitionerId) throw new Error('Choose the client and the agent.')
+  if (!['buyer', 'seller'].includes(side) || !['exclusive_agency', 'nonexclusive_agency', 'transaction_brokerage', 'customer_assistance'].includes(relationshipType) || !['executed', 'terminated', 'expired'].includes(status)) throw new Error('Choose a valid side, relationship and status.')
+  if (!scopeSummary || scopeSummary.length > 5000) throw new Error('Say which homes or area the agreement covers.')
+  if (side === 'buyer' && (!compensationSummary || compensationSummary.length > 5000)) throw new Error('Write down the compensation the client agreed to.')
+  if (disclosureVersion.length > 300) throw new Error('Keep the form version under 300 characters.')
+  const upload = data.signedAgreement ? await data.signedAgreement : null
+  let fileBytes: Buffer | null = null
+  if (upload) {
+    if (!/\.pdf$/i.test(String(upload.filename || '')) && upload.mimetype !== 'application/pdf') throw new Error('Upload the signed agreement as a PDF.')
+    const chunks: Buffer[] = []
+    let size = 0
+    for await (const chunk of upload.createReadStream()) {
+      size += chunk.length
+      if (size > 10_000_000) throw new Error('The signed agreement must be under 10 MB.')
+      chunks.push(Buffer.from(chunk))
+    }
+    fileBytes = Buffer.concat(chunks)
+    if (!fileBytes.subarray(0, 5).equals(Buffer.from('%PDF-'))) throw new Error('That file is not a PDF.')
+  }
+  const brokerageId0 = evidenceBrokerageId(context) || ''
+  const [property0, settings0] = await Promise.all([
+    propertyId ? (context.sudo() as any).query.Property.findOne({ where: { id: propertyId }, query: 'id state' }) : null,
+    (context.sudo() as any).query.BrokerageSettings.findMany({ where: { brokerage: { id: { equals: brokerageId0 } } }, take: 1, query: 'state' }),
+  ])
+  const jurisdictionCode = (clean(data.jurisdictionCode) || property0?.state || settings0?.[0]?.state || '').toUpperCase()
+  if (!jurisdictionCode) throw new Error('Choose the state the agreement is under.')
+  const documentSha256 = fileBytes
+    ? crypto.createHash('sha256').update(fileBytes).digest('hex')
+    : clean(data.documentSha256).toLowerCase() || crypto.createHash('sha256').update(JSON.stringify({ leadId, practitionerId, side, relationshipType, jurisdictionCode, scopeSummary, compensationSummary, ...range })).digest('hex')
+  if (!isSha256(documentSha256)) throw new Error('The agreement checksum must be a SHA-256 value.')
   const brokerageId = evidenceBrokerageId(context) || ''
-  const request = { leadId, propertyId, dealId, practitionerId, side, relationshipType, jurisdictionCode, status, ...range, scopeSummary, documentSha256, disclosureVersion, consentRecordedAt, reason }
+  const request = { leadId, propertyId, dealId, practitionerId, side, relationshipType, jurisdictionCode, status, ...range, scopeSummary, compensationSummary, documentSha256, disclosureVersion, consentRecordedAt, reason, signedFile: Boolean(fileBytes) }
   return runControlledEvidenceCommand(context, {
     eventKey: `command:representation:${leadId}:${key}`, lockKey: `authority:representation:${leadId}`, permission: 'canManageDeals', managerRequired: true, request,
     execute: async scoped => {
@@ -109,8 +150,8 @@ export async function recordRepresentationAuthorityCommand(_root: unknown, { dat
       ])
       if (!lead || lead.brokerage?.id !== brokerageId || (propertyId && (!property || property.brokerage?.id !== brokerageId || property.state.toUpperCase() !== jurisdictionCode)) || (dealId && (!deal || deal.brokerage?.id !== brokerageId || deal.lead?.id !== leadId || (propertyId && deal.property?.id !== propertyId)))) return { result: { ok: false, message: 'Representation parties and scope do not align within the brokerage.', itemId: null }, event: null as never }
       if (status === 'executed') await requirePractitionerLicense(scoped, { brokerageId, practitionerId, jurisdictionCode })
-      const item = await sudo.query.RepresentationAuthority.createOne({ data: { brokerage: { connect: { id: brokerageId } }, authorityNumber: `RA-${suffix(key)}`, lead: { connect: { id: leadId } }, ...(propertyId ? { property: { connect: { id: propertyId } } } : {}), ...(dealId ? { deal: { connect: { id: dealId } } } : {}), practitioner: { connect: { id: practitionerId } }, side, relationshipType, jurisdictionCode, status, ...range, scopeSummary, documentSha256, disclosureVersion, consentRecordedAt, ...(prior[0]?.id ? { supersedes: { connect: { id: prior[0].id } } } : {}), reason, recordedBy: { connect: { id: evidenceActorId(scoped)! } }, recordedAt: new Date().toISOString() }, query: 'id' })
-      const result = { ok: true, message: 'Representation authority evidence appended.', itemId: item.id }
+      const item = await sudo.query.RepresentationAuthority.createOne({ data: { brokerage: { connect: { id: brokerageId } }, authorityNumber: `RA-${suffix(key)}`, lead: { connect: { id: leadId } }, ...(propertyId ? { property: { connect: { id: propertyId } } } : {}), ...(dealId ? { deal: { connect: { id: dealId } } } : {}), practitioner: { connect: { id: practitionerId } }, side, relationshipType, jurisdictionCode, status, ...range, scopeSummary, compensationSummary, documentSha256, disclosureVersion, ...(fileBytes ? { signedAgreement: { upload: pdfUpload(fileBytes, String(upload.filename || 'agreement.pdf')) } } : {}), consentRecordedAt, ...(prior[0]?.id ? { supersedes: { connect: { id: prior[0].id } } } : {}), reason, recordedBy: { connect: { id: evidenceActorId(scoped)! } }, recordedAt: new Date().toISOString() }, query: 'id' })
+      const result = { ok: true, message: 'Buyer agreement saved.', itemId: item.id }
       return { result, event: { eventType: 'authority.representation_recorded', brokerageId, aggregateType: 'representationAuthority', aggregateId: item.id, actorId: evidenceActorId(scoped), action: 'record', before: prior[0] || null, after: { ...result, leadId, side, status } } }
     },
   })

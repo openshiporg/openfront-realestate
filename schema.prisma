@@ -1099,37 +1099,40 @@ model PractitionerLicenseAuthority {
 }
 
 model RepresentationAuthority {
-  id                String                                      @id @default(cuid())
-  brokerage         Brokerage?                                  @relation("RepresentationAuthority_brokerage", fields: [brokerageId], references: [id])
-  brokerageId       String?                                     @map("brokerage")
-  authorityNumber   String                                      @unique @default("")
-  lead              Lead?                                       @relation("RepresentationAuthority_lead", fields: [leadId], references: [id])
-  leadId            String?                                     @map("lead")
-  property          Property?                                   @relation("RepresentationAuthority_property", fields: [propertyId], references: [id])
-  propertyId        String?                                     @map("property")
-  deal              Deal?                                       @relation("RepresentationAuthority_deal", fields: [dealId], references: [id])
-  dealId            String?                                     @map("deal")
-  practitioner      User?                                       @relation("RepresentationAuthority_practitioner", fields: [practitionerId], references: [id])
-  practitionerId    String?                                     @map("practitioner")
-  side              RepresentationAuthoritySideType
-  relationshipType  RepresentationAuthorityRelationshipTypeType
-  jurisdictionCode  String                                      @default("")
-  status            RepresentationAuthorityStatusType
-  effectiveFrom     DateTime
-  effectiveThrough  DateTime
-  scopeSummary      String                                      @default("")
-  documentSha256    String                                      @default("")
-  disclosureVersion String                                      @default("")
-  consentRecordedAt DateTime
-  supersedes        RepresentationAuthority?                    @relation("RepresentationAuthority_supersedes", fields: [supersedesId], references: [id])
-  supersedesId      String?                                     @map("supersedes")
-  supersededBy      RepresentationAuthority[]                   @relation("RepresentationAuthority_supersedes")
-  reason            String                                      @default("")
-  recordedBy        User?                                       @relation("RepresentationAuthority_recordedBy", fields: [recordedById], references: [id])
-  recordedById      String?                                     @map("recordedBy")
-  recordedAt        DateTime
-  createdAt         DateTime                                    @default(now())
-  updatedAt         DateTime                                    @default(now()) @updatedAt
+  id                       String                                      @id @default(cuid())
+  brokerage                Brokerage?                                  @relation("RepresentationAuthority_brokerage", fields: [brokerageId], references: [id])
+  brokerageId              String?                                     @map("brokerage")
+  authorityNumber          String                                      @unique @default("")
+  lead                     Lead?                                       @relation("RepresentationAuthority_lead", fields: [leadId], references: [id])
+  leadId                   String?                                     @map("lead")
+  property                 Property?                                   @relation("RepresentationAuthority_property", fields: [propertyId], references: [id])
+  propertyId               String?                                     @map("property")
+  deal                     Deal?                                       @relation("RepresentationAuthority_deal", fields: [dealId], references: [id])
+  dealId                   String?                                     @map("deal")
+  practitioner             User?                                       @relation("RepresentationAuthority_practitioner", fields: [practitionerId], references: [id])
+  practitionerId           String?                                     @map("practitioner")
+  side                     RepresentationAuthoritySideType
+  relationshipType         RepresentationAuthorityRelationshipTypeType
+  jurisdictionCode         String                                      @default("")
+  status                   RepresentationAuthorityStatusType
+  effectiveFrom            DateTime
+  effectiveThrough         DateTime
+  scopeSummary             String                                      @default("")
+  compensationSummary      String                                      @default("")
+  signedAgreement_filesize Int?
+  signedAgreement_filename String?
+  documentSha256           String                                      @default("")
+  disclosureVersion        String                                      @default("")
+  consentRecordedAt        DateTime
+  supersedes               RepresentationAuthority?                    @relation("RepresentationAuthority_supersedes", fields: [supersedesId], references: [id])
+  supersedesId             String?                                     @map("supersedes")
+  supersededBy             RepresentationAuthority[]                   @relation("RepresentationAuthority_supersedes")
+  reason                   String                                      @default("")
+  recordedBy               User?                                       @relation("RepresentationAuthority_recordedBy", fields: [recordedById], references: [id])
+  recordedById             String?                                     @map("recordedBy")
+  recordedAt               DateTime
+  createdAt                DateTime                                    @default(now())
+  updatedAt                DateTime                                    @default(now()) @updatedAt
 
   @@index([brokerageId])
   @@index([leadId])

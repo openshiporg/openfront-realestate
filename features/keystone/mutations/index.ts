@@ -49,6 +49,9 @@ import { appendDocumentEvidenceEventCommand } from './documentEvidenceCommands'
 import { approveCommissionAllocationCommand, proposeCommissionAllocationCommand, recordCommissionReceiptCommand, reconcileCommissionLedgerCommand, reverseCommissionLedgerEntryCommand } from './commissionLedgerCommands'
 import { beginPaymentCheckout, paymentByToken, reconcilePaymentByToken, reconcilePaymentCommand, refundPaymentCommand, requestPaymentCommand, startApplicationFeeCheckout } from './payments'
 import { assignTransactionFileRetentionCommand, createTransactionExportManifestCommand, recordRetentionPolicyCommand, recordTransactionLegalHoldCommand } from './retentionCommands'
+import { notifyShowingChange } from '../lib/showingEmail'
+
+const showingEmailKind = (status: unknown) => status === 'scheduled' ? 'confirmed' as const : status === 'cancelled' ? 'cancelled' as const : null
 
 const graphql = String.raw
 
@@ -126,7 +129,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       type PlatformListingEngagementAuthority { id: ID! authorityNumber: String! status: String! jurisdictionCode: String! effectiveFrom: String! effectiveThrough: String! marketingAuthorized: Boolean! showingAuthorized: Boolean! documentSha256: String! property: PlatformPropertyRef practitioner: PlatformPerson }
       type PlatformListingPublicationAuthority { id: ID! authorityNumber: String! destination: String! status: String! effectiveFrom: String! effectiveThrough: String! authorityBasis: String! property: PlatformPropertyRef engagementId: ID }
       type PlatformPractitionerLicenseAuthority { id: ID! licenseNumber: String! licenseType: String! jurisdictionCode: String! status: String! effectiveFrom: String! effectiveThrough: String! verifiedAt: String! verificationSource: String! practitioner: PlatformPerson }
-      type PlatformRepresentationAuthority { id: ID! authorityNumber: String! side: String! relationshipType: String! jurisdictionCode: String! status: String! effectiveFrom: String! effectiveThrough: String! disclosureVersion: String! lead: PlatformLeadRef property: PlatformPropertyRef deal: PlatformDealRef practitioner: PlatformPerson }
+      type PlatformRepresentationAuthority { id: ID! authorityNumber: String! side: String! relationshipType: String! jurisdictionCode: String! status: String! effectiveFrom: String! effectiveThrough: String! disclosureVersion: String! compensationSummary: String signedAgreementUrl: String lead: PlatformLeadRef property: PlatformPropertyRef deal: PlatformDealRef practitioner: PlatformPerson }
       type PlatformDocumentEvidenceEvent { id: ID! eventKey: String! eventType: String! documentSha256: String! templateSha256: String! channel: String! provider: String! providerReference: String! occurredAt: String! acknowledgedAt: String document: PlatformDocumentRef offer: PlatformOfferRef }
       type PlatformDocumentRef { id: ID! title: String! }
       type PlatformCommissionLedgerEntry { id: ID! entryKey: String! batchKey: String! entryType: String! allocationType: String amountCents: String! currencyCode: String! payeeLabel: String externalReference: String occurredAt: String! commissionId: ID! preparedBy: PlatformPerson approvedBy: PlatformPerson }
@@ -402,7 +405,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       input RecordPractitionerLicenseAuthorityInput { practitionerId: ID! licenseNumber: String! licenseType: String! jurisdictionCode: String! status: String! effectiveFrom: DateTime! effectiveThrough: DateTime! verifiedAt: DateTime! verificationSource: String! restrictions: String reason: String! idempotencyKey: String! }
       input RecordListingEngagementAuthorityInput { propertyId: ID! practitionerId: ID! status: String! jurisdictionCode: String! effectiveFrom: DateTime! effectiveThrough: DateTime! exclusive: Boolean marketingAuthorized: Boolean showingAuthorized: Boolean sellerPartySummary: JSON signatoryCapacity: String! documentSha256: String! providerReference: String reason: String! idempotencyKey: String! }
       input RecordListingPublicationAuthorityInput { propertyId: ID! engagementId: ID! destination: String! status: String! effectiveFrom: DateTime! effectiveThrough: DateTime! authorityBasis: String! localRuleReference: String dataUseGrantReference: String reason: String! idempotencyKey: String! }
-      input RecordRepresentationAuthorityInput { leadId: ID! propertyId: ID dealId: ID practitionerId: ID! side: String! relationshipType: String! jurisdictionCode: String! status: String! effectiveFrom: DateTime! effectiveThrough: DateTime! scopeSummary: String! documentSha256: String! disclosureVersion: String! consentRecordedAt: DateTime! reason: String! idempotencyKey: String! }
+      input RecordRepresentationAuthorityInput { leadId: ID! propertyId: ID dealId: ID practitionerId: ID! side: String! relationshipType: String jurisdictionCode: String status: String effectiveFrom: DateTime! effectiveThrough: DateTime! scopeSummary: String! compensationSummary: String signedAgreement: Upload documentSha256: String disclosureVersion: String consentRecordedAt: DateTime reason: String idempotencyKey: String! }
 
       input AppendDocumentEvidenceEventInput { documentId: ID! offerId: ID eventType: String! documentSha256: String! templateSha256: String! certificateSha256: String recipients: JSON! channel: String! provider: String! providerReference: String! occurredAt: DateTime! providerReportedAt: DateTime acknowledgedAt: DateTime acknowledgementReference: String reason: String! idempotencyKey: String! }
 
@@ -662,8 +665,16 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         requestPropertyShowing,
         transitionLeadStatus,
         transitionPropertyStatus,
-        transitionShowingStatus,
-        reviewShowingCommand,
+        transitionShowingStatus: async (root: unknown, args: any, context: any) => {
+          const result: any = await transitionShowingStatus(root, args, context)
+          const kind = showingEmailKind(args?.data?.status)
+          return kind ? notifyShowingChange(context, kind, result) : result
+        },
+        reviewShowingCommand: async (root: unknown, args: any, context: any) => {
+          const result: any = await reviewShowingCommand(root, args, context)
+          const kind = showingEmailKind(args?.data?.status)
+          return kind ? notifyShowingChange(context, kind, result) : result
+        },
         transitionOpenHouseStatus,
         transitionOfferStatus,
         transitionDealStage,
@@ -699,7 +710,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         updateDealFinancialTermsCommand,
         updateDealNextStepCommand,
         completeShowingWithFeedback,
-        rescheduleShowingCommand,
+        rescheduleShowingCommand: async (root: unknown, args: any, context: any) =>
+          notifyShowingChange(context, 'moved', await rescheduleShowingCommand(root, args, context) as any),
         scheduleShowingForLeadCommand,
         addLeadActivityCommand,
         resolveDuplicateLeadCommand,

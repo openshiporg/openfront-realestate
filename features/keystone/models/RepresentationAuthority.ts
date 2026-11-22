@@ -1,5 +1,5 @@
 import { list } from '@keystone-6/core'
-import { relationship, select, text, timestamp } from '@keystone-6/core/fields'
+import { file, relationship, select, text, timestamp } from '@keystone-6/core/fields'
 
 import { permissions, rules } from '../access'
 import { createTenantOwnedHooks } from '../lib/tenantOwnedHooks'
@@ -58,8 +58,13 @@ export const RepresentationAuthority = list({
     effectiveFrom: timestamp({ validation: { isRequired: true } }),
     effectiveThrough: timestamp({ validation: { isRequired: true } }),
     scopeSummary: text({ validation: { isRequired: true }, ui: { displayMode: 'textarea' } }),
+    // What the client agreed to pay, in the agreement's own words (required on buyer agreements since the 2024 NAR settlement).
+    compensationSummary: text({ ui: { displayMode: 'textarea' } }),
+    // The signed agreement itself, when staff upload it. documentSha256 is the checksum of this file,
+    // or, without a file, of the recorded terms.
+    signedAgreement: file({ storage: 'agreement_files' }),
     documentSha256: text({ validation: { isRequired: true } }),
-    disclosureVersion: text({ validation: { isRequired: true } }),
+    disclosureVersion: text(),
     consentRecordedAt: timestamp({ validation: { isRequired: true } }),
     supersedes: relationship({ ref: 'RepresentationAuthority.supersededBy' }),
     supersededBy: relationship({ ref: 'RepresentationAuthority.supersedes', many: true }),

@@ -26,15 +26,15 @@ import {
   transitionSyndicationAuthority,
 } from '../actions/operations'
 import type { OperationsOptions } from '../lib/options'
-import { CheckboxField, DateTimeField, MoneyField, RecordField, RowsField, SelectField, TextField } from './FormFields'
+import { CheckboxField, DateTimeField, FileInputField, MoneyField, RecordField, RowsField, SelectField, TextAreaField, TextField } from './FormFields'
 
 type State = { ok: boolean; message: string; uncertain?: boolean }
 const initial: State = { ok: false, message: '' }
 
 /** A recorded command behind a drawer trigger; the drawer closes when the command is confirmed. */
-function CommandForm({ action, title, trigger, submitLabel = 'Save', children }: { action: (state: State, form: FormData) => Promise<State>; title: string; trigger?: string; submitLabel?: string; children: ReactNode }) {
+function CommandForm({ action, title, trigger, submitLabel = 'Save', defaultOpen = false, noteRequired = true, encType, children }: { action: (state: State, form: FormData) => Promise<State>; title: string; trigger?: string; submitLabel?: string; defaultOpen?: boolean; noteRequired?: boolean; encType?: string; children: ReactNode }) {
   const [state, formAction, pending] = useActionState(action, initial)
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   const id = useId()
   useEffect(() => {
     if (!state.message) return
@@ -48,11 +48,11 @@ function CommandForm({ action, title, trigger, submitLabel = 'Save', children }:
       </SheetTrigger>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
         <SheetHeader><SheetTitle>{title}</SheetTitle></SheetHeader>
-        <form action={formAction} className="grid gap-3 px-4 pb-6 sm:grid-cols-2">
+        <form action={formAction} encType={encType as any} className="grid gap-3 px-4 pb-6 sm:grid-cols-2">
           {children}
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor={`${id}-reason`}>Note</Label>
-            <Textarea id={`${id}-reason`} required name="reason" rows={2} className="rounded-[6px]" />
+            <Label htmlFor={`${id}-reason`}>{noteRequired ? 'Note' : 'Note (optional)'}</Label>
+            <Textarea id={`${id}-reason`} required={noteRequired} name="reason" rows={2} className="rounded-[6px]" />
           </div>
           {!state.ok && state.message ? <p role="alert" className="text-sm text-destructive sm:col-span-2">{state.message}</p> : null}
           <div className="sm:col-span-2">
@@ -67,9 +67,9 @@ function CommandForm({ action, title, trigger, submitLabel = 'Save', children }:
 const licenseTypes: Array<[string, string]> = [['sales_agent', 'Sales agent'], ['associate_broker', 'Associate broker'], ['broker', 'Broker']]
 const licenseStatuses: Array<[string, string]> = [['verified_active', 'Active'], ['restricted', 'Restricted'], ['inactive', 'Inactive'], ['expired', 'Expired'], ['suspended', 'Suspended'], ['revoked', 'Revoked']]
 
-export function PractitionerLicenseForm({ options }: { options: OperationsOptions }) {
+export function PractitionerLicenseForm({ options, defaultOpen = false }: { options: OperationsOptions; defaultOpen?: boolean }) {
   return (
-    <CommandForm action={recordPractitionerLicense} title="Add agent license">
+    <CommandForm action={recordPractitionerLicense} title="Add agent license" defaultOpen={defaultOpen}>
       <RecordField name="practitionerId" label="Agent" options={options.practitioners} />
       <TextField name="licenseNumber" label="License number" />
       <SelectField name="licenseType" label="License type" options={licenseTypes} />
@@ -122,23 +122,28 @@ export function ListingPublicationForm({ options }: { options: OperationsOptions
   )
 }
 
-export function RepresentationForm({ options }: { options: OperationsOptions }) {
+export function RepresentationForm({ options, defaultOpen = false, leadId }: { options: OperationsOptions; defaultOpen?: boolean; leadId?: string }) {
   return (
-    <CommandForm action={recordRepresentation} title="Add representation agreement">
-      <RecordField name="leadId" label="Client" options={options.leads} />
+    <CommandForm action={recordRepresentation} title="Add buyer agreement" defaultOpen={defaultOpen} noteRequired={false} encType="multipart/form-data">
+      <p className="text-sm text-muted-foreground sm:col-span-2">A signed buyer agreement must be on file before a showing is confirmed. Record its terms, or attach the signed PDF.</p>
+      <RecordField name="leadId" label="Client" options={options.leads} defaultValue={leadId} />
       <RecordField name="practitionerId" label="Agent" options={options.practitioners} />
-      <RecordField name="propertyId" label="Listing" options={options.properties} required={false} />
-      <RecordField name="dealId" label="Deal" options={options.deals} required={false} />
-      <SelectField name="side" label="Side" options={[['buyer', 'Buyer'], ['seller', 'Seller']]} />
-      <SelectField name="relationshipType" label="Relationship" options={[['exclusive_agency', 'Exclusive agency'], ['nonexclusive_agency', 'Non-exclusive agency'], ['transaction_brokerage', 'Transaction broker'], ['customer_assistance', 'Customer only']]} />
-      <TextField name="jurisdictionCode" label="State or jurisdiction" />
-      <SelectField name="status" label="Status" options={[['executed', 'Signed'], ['terminated', 'Terminated'], ['expired', 'Expired']]} />
       <DateTimeField name="effectiveFrom" label="Starts" />
       <DateTimeField name="effectiveThrough" label="Ends" />
-      <DateTimeField name="consentRecordedAt" label="Client consent on" />
-      <TextField name="documentSha256" label="Agreement checksum (SHA-256)" />
-      <TextField name="disclosureVersion" label="Disclosure form version" />
-      <TextField name="scopeSummary" label="Scope" />
+      <TextAreaField name="compensationSummary" label="Compensation agreed" placeholder="2.5% of the purchase price, paid at closing" />
+      <TextAreaField name="scopeSummary" label="Homes or area covered" placeholder="Homes for sale in Travis County" />
+      <FileInputField name="signedAgreement" label="Signed agreement (PDF, optional)" accept="application/pdf,.pdf" />
+      <details className="sm:col-span-2">
+        <summary className="cursor-pointer py-2 text-sm text-muted-foreground">More details (optional)</summary>
+        <div className="grid gap-3 pt-2 sm:grid-cols-2">
+          <RecordField name="propertyId" label="One listing only" options={options.properties} required={false} />
+          <RecordField name="dealId" label="Deal" options={options.deals} required={false} />
+          <SelectField name="side" label="Side" options={[['buyer', 'Buyer'], ['seller', 'Seller']]} />
+          <SelectField name="relationshipType" label="Relationship" options={[['exclusive_agency', 'Exclusive agency'], ['nonexclusive_agency', 'Non-exclusive agency'], ['transaction_brokerage', 'Transaction broker'], ['customer_assistance', 'Customer only']]} />
+          <TextField name="jurisdictionCode" label="State (defaults to the brokerage's)" required={false} placeholder="TX" />
+          <TextField name="disclosureVersion" label="Form version" required={false} />
+        </div>
+      </details>
     </CommandForm>
   )
 }

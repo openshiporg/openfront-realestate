@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { pillClass, quietButtonClass } from '../../components/styles'
@@ -34,7 +35,7 @@ export function SelectField({ name, label, options, defaultValue, wide }: { name
   return (
     <FieldShell id={id} label={label} wide={wide}>
       <Select name={name} defaultValue={defaultValue ?? options[0]?.[0]}>
-        <SelectTrigger id={id} className="h-9 w-full rounded-[6px] text-sm"><SelectValue /></SelectTrigger>
+        <SelectTrigger id={id} className="h-11 w-full rounded-[6px] text-base md:h-9 md:text-sm"><SelectValue /></SelectTrigger>
         <SelectContent className="rounded-[6px]">{options.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}</SelectContent>
       </Select>
     </FieldShell>
@@ -42,15 +43,15 @@ export function SelectField({ name, label, options, defaultValue, wide }: { name
 }
 
 /** Picks an existing record; falls back to a plain field when no records could be loaded. */
-export function RecordField({ name, label, options, required = true, wide, placeholder }: { name: string; label: string; options: RecordOption[]; required?: boolean; wide?: boolean; placeholder?: string }) {
+export function RecordField({ name, label, options, required = true, wide, placeholder, defaultValue }: { name: string; label: string; options: RecordOption[]; required?: boolean; wide?: boolean; placeholder?: string; defaultValue?: string }) {
   const id = useId()
-  const [value, setValue] = useState('')
+  const [value, setValue] = useState(defaultValue && options.some((option) => option.value === defaultValue) ? defaultValue : '')
   if (!options.length) return <TextField name={name} label={label} required={required} wide={wide} placeholder={placeholder} />
   return (
     <FieldShell id={id} label={label} wide={wide}>
       <input type="hidden" name={name} value={value === NONE ? '' : value} />
       <Select value={value} onValueChange={setValue}>
-        <SelectTrigger id={id} className="h-9 w-full rounded-[6px] text-sm"><SelectValue placeholder={required ? 'Select…' : 'None'} /></SelectTrigger>
+        <SelectTrigger id={id} className="h-11 w-full rounded-[6px] text-base md:h-9 md:text-sm"><SelectValue placeholder={required ? 'Select…' : 'None'} /></SelectTrigger>
         <SelectContent className="rounded-[6px]">
           {required ? null : <SelectItem value={NONE}>None</SelectItem>}
           {options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
@@ -58,6 +59,16 @@ export function RecordField({ name, label, options, required = true, wide, place
       </Select>
     </FieldShell>
   )
+}
+
+export function TextAreaField({ name, label, required = true, placeholder }: { name: string; label: string; required?: boolean; placeholder?: string }) {
+  const id = useId()
+  return <FieldShell id={id} label={label} wide><Textarea className="rounded-[6px]" id={id} name={name} required={required} placeholder={placeholder} rows={2} /></FieldShell>
+}
+
+export function FileInputField({ name, label, accept }: { name: string; label: string; accept?: string }) {
+  const id = useId()
+  return <FieldShell id={id} label={label} wide><Input className="h-11 rounded-[6px] md:h-9" id={id} name={name} type="file" accept={accept} /></FieldShell>
 }
 
 /** Shows a local date and time and submits it as an exact timestamp. */
@@ -125,7 +136,7 @@ export function RowsField({ name, label, columns, addLabel = 'Add row' }: { name
                   <Label htmlFor={fieldId} className="text-xs text-muted-foreground">{column.label}</Label>
                   {column.options?.length ? (
                     <Select value={row[column.key]} onValueChange={(value) => update(index, column.key, value)}>
-                      <SelectTrigger id={fieldId} className="h-9 w-full rounded-[6px] text-sm"><SelectValue /></SelectTrigger>
+                      <SelectTrigger id={fieldId} className="h-11 w-full rounded-[6px] text-base md:h-9 md:text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent className="rounded-[6px]">{column.options.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}</SelectContent>
                     </Select>
                   ) : (

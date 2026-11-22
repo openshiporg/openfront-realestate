@@ -140,6 +140,19 @@ export default withAuth(
         signed: { expiry: 5000 },
         forcePathStyle: s3ForcePathStyle(endpoint),
       },
+      // Signed client agreements: same bucket, private, reachable only through short-lived signed links.
+      agreement_files: {
+        kind: "s3",
+        type: "file",
+        bucketName,
+        region,
+        accessKeyId,
+        secretAccessKey,
+        endpoint,
+        pathPrefix: "agreements/",
+        signed: { expiry: 600 },
+        forcePathStyle: s3ForcePathStyle(endpoint),
+      },
     },
     ui: {
       isAccessAllowed: ({ session }) => permissions.canAccessDashboard({ session }),
