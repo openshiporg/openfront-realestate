@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { mdCellClass } from '../../components/styles'
 import type { ReactNode } from 'react'
 import { formatMoney as money } from '@/features/lib/money'
 import { cn } from '@/lib/utils'
@@ -226,30 +227,33 @@ function OffersSection({ workspace }: { workspace: OperationsWorkspace }) {
     <Section title="Offers" actions={openDeals.length ? <NewOfferDrawer deals={openDeals.map((deal) => [deal.id, [deal.title, deal.lead?.name].filter(Boolean).join(' · ')] as [string, string])} /> : null}>
       <DataTable
         label="Offers"
-        className="[&_table]:min-w-[52rem]"
-        head={[{ label: 'Offer' }, { label: 'Amount', className: 'text-right' }, { label: 'Financing' }, { label: 'Response due' }, { label: 'Agent' }, { label: 'Status' }, { label: <span className="sr-only">Actions</span>, className: 'text-right' }]}
+        className="md:[&_table]:min-w-[52rem]"
+        head={[{ label: 'Offer' }, { label: 'Amount', className: 'text-right' }, { label: 'Financing', className: mdCellClass }, { label: 'Response due', className: mdCellClass }, { label: 'Agent', className: mdCellClass }, { label: 'Status' }, { label: <span className="sr-only">Actions</span>, className: `${mdCellClass} text-right` }]}
       >
         {workspace.offers.length ? workspace.offers.map((offer) => {
           const live = ['submitted', 'countered'].includes(offer.status)
-          return (
-            <Row key={offer.id}>
-              <Td>
-                <p className="max-w-[16rem] truncate font-medium text-foreground">{offer.property?.title || offer.deal?.title || 'Offer'}</p>
-                <p className="text-xs text-muted-foreground">{offer.offerNumber} · v{offer.version}{offer.parentOffer ? ` · counter to ${offer.parentOffer.offerNumber}` : ''}</p>
-              </Td>
-              <Td className="whitespace-nowrap text-right font-medium tabular-nums">{money(offer.amount)}</Td>
-              <Td className="whitespace-nowrap">{humanize(offer.financingType)}</Td>
-              <Td className="whitespace-nowrap tabular-nums"><DateText value={offer.responseDueAt} /></Td>
-              <Td className="max-w-[9rem] truncate">{offer.assignedAgent?.name || <span className="text-amber-700 dark:text-amber-400">Unassigned</span>}</Td>
-              <Td className="whitespace-nowrap"><Status value={offer.status} /></Td>
-              <Actions>
+          const actions = <>
                 {offer.status === 'draft' ? <OfferAction offerId={offer.id} status="submitted" label="Submit" /> : null}
                 {live ? <>
                   <OfferAction offerId={offer.id} status="accepted" label="Accept" />
                   <CounterOfferDrawer offerId={offer.id} offerLabel={offer.offerNumber} />
                   <OfferAction offerId={offer.id} status="rejected" label="Reject" emphasis="quiet" />
                 </> : null}
-              </Actions>
+          </>
+          return (
+            <Row key={offer.id}>
+              <Td>
+                <p className="max-w-[16rem] truncate font-medium text-foreground">{offer.property?.title || offer.deal?.title || 'Offer'}</p>
+                <p className="text-xs text-muted-foreground">{offer.offerNumber} · v{offer.version}{offer.parentOffer ? ` · counter to ${offer.parentOffer.offerNumber}` : ''}</p>
+                <p className="text-xs text-muted-foreground md:hidden">{humanize(offer.financingType)} · {offer.assignedAgent?.name || 'Unassigned'}</p>
+                {offer.status === 'draft' || live ? <div className="mt-2.5 flex flex-wrap gap-1.5 md:hidden">{actions}</div> : null}
+              </Td>
+              <Td className="whitespace-nowrap text-right font-medium tabular-nums">{money(offer.amount)}</Td>
+              <Td className={`${mdCellClass} whitespace-nowrap`}>{humanize(offer.financingType)}</Td>
+              <Td className={`${mdCellClass} whitespace-nowrap tabular-nums`}><DateText value={offer.responseDueAt} /></Td>
+              <Td className={`${mdCellClass} max-w-[9rem] truncate`}>{offer.assignedAgent?.name || <span className="text-amber-700 dark:text-amber-400">Unassigned</span>}</Td>
+              <Td className="whitespace-nowrap"><Status value={offer.status} /></Td>
+              <Td className={`${mdCellClass} w-px whitespace-nowrap py-2 text-right`}><div className="flex items-start justify-end gap-1.5">{actions}</div></Td>
             </Row>
           )
         }) : <NoRows colSpan={7}>No offers</NoRows>}

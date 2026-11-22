@@ -15,7 +15,7 @@ import { addShowingFeedback, rescheduleShowing, updateShowingStatus } from '../a
 import type { ShowingActionState } from '../lib/showingActionFeedback'
 
 /** Destructive but rare: plain text that turns red on hover, kept last in its row. */
-const quietClass = 'h-8 rounded-[6px] px-3 text-muted-foreground shadow-none hover:bg-destructive/5 hover:text-destructive active:scale-[0.98]'
+const quietClass = 'h-11 md:h-8 rounded-[6px] px-3 text-muted-foreground shadow-none hover:bg-destructive/5 hover:text-destructive active:scale-[0.98]'
 
 const initialState: ShowingActionState = { ok: false, message: '' }
 
@@ -23,6 +23,8 @@ function useResultToast(state: ShowingActionState) {
   useEffect(() => {
     if (!state.message || state.uncertain) return
     if (state.ok) toast.success(state.message)
+    // The one failure staff can fix themselves gets a button that goes to the place to fix it.
+    else if (/representation agreement/i.test(state.message)) toast.error(state.message, { duration: 12000, action: { label: 'Open agreements', onClick: () => window.location.assign('/dashboard/platform/operations?section=agreements') } })
     else toast.error(state.message)
   }, [state])
 }

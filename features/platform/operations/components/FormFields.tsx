@@ -135,7 +135,7 @@ export function RowsField({ name, label, columns, addLabel = 'Add row' }: { name
               )
             })}
           </div>
-          <Button type="button" variant="ghost" size="icon" className={cn(quietButtonClass, 'size-9 px-0')} aria-label="Remove row" disabled={rows.length === 1} onClick={() => setRows((current) => current.filter((_, i) => i !== index))}>
+          <Button type="button" variant="ghost" size="icon" className={cn(quietButtonClass, 'size-11 md:size-9 px-0')} aria-label="Remove row" disabled={rows.length === 1} onClick={() => setRows((current) => current.filter((_, i) => i !== index))}>
             <X />
           </Button>
         </div>

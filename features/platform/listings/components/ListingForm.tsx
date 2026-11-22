@@ -63,7 +63,9 @@ export function ListingForm({ listing, agents, canAssign, onDone }: { listing?: 
       <Group title="Storefront">
         <Field name="shortDescription" label="Summary" wide defaultValue={listing?.shortDescription} />
         <TextArea name="description" label="Description" rows={5} defaultValue={listing?.description} />
-        <Field name="primaryImageUrl" label="Main photo path" placeholder="/images/real-estate/photos/…" wide defaultValue={listing?.primaryImageUrl} />
+        {/* Photos are uploaded from the listing page (Add photo). The stored cover is carried through unchanged. */}
+        <input type="hidden" name="primaryImageUrl" value={listing?.primaryImageUrl ?? ''} />
+        <p className="text-sm text-muted-foreground sm:col-span-2">{listing ? 'Add or change photos from the listing page with Add photo.' : 'Save the listing first, then add photos from its page with Add photo.'}</p>
         <Field name="virtualTourUrl" label="Virtual tour URL" type="url" wide defaultValue={listing?.virtualTourUrl} />
         <Toggle name="isFeatured" label="Feature on the home page" defaultChecked={listing?.isFeatured} />
       </Group>

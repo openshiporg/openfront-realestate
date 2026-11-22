@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { pillClass } from '../../components/styles'
 import { DataTable, EmptyState, ErrorBanner, PlatformPage, StatusCell, Td } from '../../components/PlatformUI'
 import { formatMoney } from '@/features/lib/money'
 import { ViewerTime } from '@/features/dashboard/components/ViewerTime'
@@ -18,7 +19,7 @@ export async function PaymentsPage() {
       crumbs={[{ label: 'Payments' }]}
       title="Payments"
       meta={!error && payments.length ? `${payments.length} ${payments.length === 1 ? 'payment' : 'payments'} · ${dollars(paid, 'USD')} received${review ? ` · ${review} need review` : ''}` : null}
-      actions={<Link href="/dashboard/platform/payment-providers" className="text-sm underline-offset-2 hover:underline">Payment providers</Link>}
+      actions={<Link href="/dashboard/platform/payment-providers" className={`${pillClass} inline-flex items-center text-sm font-medium`}>Payment providers</Link>}
     >
       {error ? <ErrorBanner>Payments could not be loaded. {error}</ErrorBanner> : payments.length ? (
         <div className="pb-16">
@@ -28,6 +29,8 @@ export async function PaymentsPage() {
               <tr key={payment.id} className="transition-colors hover:bg-muted/30">
                 <Td>
                   {purposeLabels[payment.purpose] || payment.purpose}
+                  {/* Phones hide the Payer and Listing columns, so the row says who and what for here. */}
+                  {payment.lead || payment.property ? <div className="mt-0.5 text-xs text-muted-foreground md:hidden">{[payment.lead?.name, payment.property?.title].filter(Boolean).join(' · ')}</div> : null}
                   {checkable(payment) || refundable(payment) ? <div className="mt-2 flex flex-wrap gap-2 sm:hidden">{checkable(payment) ? <CheckStatusButton paymentId={payment.id} /> : null}{refundable(payment) ? <RefundPaymentButton paymentId={payment.id} /> : null}</div> : null}
                 </Td>
                 <Td className="text-right tabular-nums">{dollars(payment.amountMinor, payment.currency)}</Td>

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
  * so every screen keeps compiling; the shapes are now flat 6px controls with no
  * recessed track (owner rule, 2026-10-25: no pill or rounded tabs, radii at most
  * 6px). Radii are explicit pixels because the dashboard theme sets --radius to 10px.
+ * Controls are 44px tall on phones (tap floor) and 32px from md up.
  */
 
 /** A plain row of related controls. Narrow rows wrap. */
@@ -13,7 +14,7 @@ export const trackClass = 'relative inline-flex max-w-full flex-wrap items-cente
 /** A flat 6px link-button; `active` marks the current choice with an ink border. */
 export function trackItemClass(active: boolean) {
   return cn(
-    'inline-flex h-8 shrink-0 select-none items-center gap-1.5 whitespace-nowrap rounded-[6px] border px-3 text-sm font-medium transition-[background-color,color,border-color,transform] duration-150 ease-out outline-none active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-ring/50',
+    'inline-flex h-11 md:h-8 shrink-0 select-none items-center gap-1.5 whitespace-nowrap rounded-[6px] border px-3 text-sm font-medium transition-[background-color,color,border-color,transform] duration-150 ease-out outline-none active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-ring/50',
     active ? 'border-foreground bg-background text-foreground' : 'border-border bg-background text-muted-foreground hover:border-foreground/25 hover:text-foreground',
   )
 }
@@ -25,17 +26,17 @@ export function trackItemClass(active: boolean) {
  * them so the button reads as a flat 6px control whatever variant it was given.
  */
 const flatReset = 'bg-none ring-0 ring-offset-0 inset-shadow-none shadow-none hover:brightness-100 active:brightness-100 dark:inset-shadow-none dark:ring-0'
-export const pillClass = `${flatReset} h-8 rounded-[6px] border border-border bg-background px-3 text-foreground hover:border-foreground/25 hover:bg-muted/60 hover:text-foreground active:scale-[0.98] dark:border dark:border-border`
-export const pillPrimaryClass = `${flatReset} h-8 rounded-[6px] border-0 bg-foreground px-3 text-background hover:bg-foreground/85 hover:text-background active:scale-[0.98] dark:border-0`
+export const pillClass = `${flatReset} h-11 md:h-8 rounded-[6px] border border-border bg-background px-3 text-foreground hover:border-foreground/25 hover:bg-muted/60 hover:text-foreground active:scale-[0.98] dark:border dark:border-border`
+export const pillPrimaryClass = `${flatReset} h-11 md:h-8 rounded-[6px] border-0 bg-foreground px-3 text-background hover:bg-foreground/85 hover:text-background active:scale-[0.98] dark:border-0`
 /** Flat destructive confirm (used inside confirmation dialogs only). */
-export const pillDangerClass = `${flatReset} h-8 rounded-[6px] border-0 bg-destructive px-3 text-white hover:bg-destructive/90 hover:text-white active:scale-[0.98] dark:border-0`
+export const pillDangerClass = `${flatReset} h-11 md:h-8 rounded-[6px] border-0 bg-destructive px-3 text-white hover:bg-destructive/90 hover:text-white active:scale-[0.98] dark:border-0`
 /** A borderless icon/text button (row menus, close buttons). */
-export const quietButtonClass = `${flatReset} h-8 rounded-[6px] border-0 bg-transparent px-2 text-muted-foreground hover:bg-muted hover:text-foreground dark:border-0`
+export const quietButtonClass = `${flatReset} h-11 md:h-8 rounded-[6px] border-0 bg-transparent px-2 text-muted-foreground hover:bg-muted hover:text-foreground dark:border-0`
 
 /** Underline view tabs. */
 export function tabClass(active: boolean) {
   return cn(
-    '-mb-px inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+    '-mb-px inline-flex h-11 md:h-9 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
     active ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground',
   )
 }

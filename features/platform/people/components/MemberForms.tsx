@@ -102,7 +102,7 @@ export function MemberRowActions({ membershipId, memberName, viewHref, canSuspen
         <>
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" aria-label={`More actions for ${memberName}`} disabled={pending} className={cn(quietButtonClass, 'size-8 px-0 data-[state=open]:bg-muted max-sm:size-9')}>
+              <Button type="button" variant="ghost" size="icon" aria-label={`More actions for ${memberName}`} disabled={pending} className={cn(quietButtonClass, 'size-11 px-0 data-[state=open]:bg-muted md:size-8')}>
                 <MoreHorizontal aria-hidden className="size-4" />
               </Button>
             </DropdownMenuTrigger>

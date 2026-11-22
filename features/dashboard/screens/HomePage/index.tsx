@@ -11,6 +11,9 @@ import { Button } from '@/components/ui/button'
 import { PageContainer } from '../../components/PageContainer'
 import { getAdminMetaAction, getListCounts } from '../../actions'
 import { cn } from '@/lib/utils'
+import { keystonePartialQuery } from '@/features/dashboard/lib/keystoneClient'
+import { getViewerPermissions } from '@/features/platform/lib/records'
+import { basePath } from '../../lib/config'
 
 interface ListCardProps {
   list: any
@@ -74,6 +77,46 @@ function EmptyState() {
   )
 }
 
+/** What is waiting for this person right now: one count per queue, each linking to its page. */
+async function WorkQueue() {
+  const can = await getViewerPermissions().catch(() => null)
+  if (!can) return null
+  const response = await keystonePartialQuery<Record<string, number>>(`query DashboardWorkQueue {
+    newLeads: leadsCount(where: { status: { equals: new } })
+    toConfirm: showingsCount(where: { status: { equals: requested } })
+    openTasks: agentTasksCount(where: { status: { in: [open, in_progress, blocked] } })
+    openDeals: dealsCount(where: { stage: { notIn: [closed_won, closed_lost] } })
+    unpaid: paymentsCount(where: { status: { equals: pending } })
+    activeListings: propertiesCount(where: { status: { equals: active } })
+  }`)
+  const counts: Partial<Record<string, number>> = response.success ? response.data : {}
+  const queues = [
+    { key: 'newLeads', label: 'New leads', hint: 'Not contacted yet', href: '/platform/leads?status=new', show: can.canManageLeads },
+    { key: 'toConfirm', label: 'Showings to confirm', hint: 'Requested by customers', href: '/platform/showings', show: can.canManageShowings },
+    { key: 'openTasks', label: 'Open tasks', hint: 'Not done yet', href: '/platform/tasks', show: can.canManageLeads },
+    { key: 'openDeals', label: 'Open deals', hint: 'Not closed yet', href: '/platform/pipeline', show: can.canManageDeals },
+    { key: 'unpaid', label: 'Payments waiting', hint: 'Link sent, not paid', href: '/platform/payments', show: can.canManageLeads && can.canManageDeals },
+    { key: 'activeListings', label: 'Active listings', hint: 'On the storefront', href: '/platform/listings', show: can.canManageListings },
+  ].filter(queue => queue.show && typeof counts[queue.key] === 'number')
+  if (!queues.length) return null
+  return (
+    <section aria-labelledby="work-queue">
+      <h2 id="work-queue" className="tracking-wide uppercase font-medium mb-2 text-muted-foreground text-sm">Today</h2>
+      <ul className="grid grid-cols-2 xl:grid-cols-3 gap-2 md:gap-4">
+        {queues.map(queue => (
+          <li key={queue.key}>
+            <Link href={`${basePath}${queue.href}`} className="flex h-full min-h-[5.5rem] flex-col rounded-lg border bg-card p-4 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <span className="text-2xl font-semibold leading-none tabular-nums text-foreground">{counts[queue.key]}</span>
+              <span className="mt-2 text-sm font-medium text-foreground">{queue.label}</span>
+              <span className="text-xs text-muted-foreground">{queue.hint}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 export async function HomePage() {
   // Fetch admin meta server-side
   const adminMetaResponse = await getAdminMetaAction()
@@ -108,9 +151,6 @@ export async function HomePage() {
   const header = (
     <div className="flex flex-col">
       <h1 className="text-lg font-semibold md:text-2xl">Dashboard</h1>
-      {enhancedLists.length > 0 && (
-        <p className="text-muted-foreground">{enhancedLists.length} Models</p>
-      )}
     </div>
   )
 
@@ -128,10 +168,11 @@ export async function HomePage() {
 
   return (
     <PageContainer title="Dashboard" header={header} breadcrumbs={breadcrumbs}>
-      <div className="w-full max-w-4xl p-4 md:p-6 flex flex-col gap-4">
+      <div className="w-full max-w-4xl p-4 md:p-6 flex flex-col gap-8">
+        <WorkQueue />
         <div className="mb-4">
           <h2 className="tracking-wide uppercase font-medium mb-2 text-muted-foreground text-sm">
-            Data Models
+            All records
           </h2>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-4">

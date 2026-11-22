@@ -110,7 +110,7 @@ export async function requireRepresentationAuthority(
     ? ['exclusive_agency', 'nonexclusive_agency', 'transaction_brokerage', 'customer_assistance'].includes(authority?.relationshipType)
     : ['exclusive_agency', 'nonexclusive_agency', 'transaction_brokerage'].includes(authority?.relationshipType)
   if (!authority || authority.status !== 'executed' || !authorityIsEffective(authority, input.at) || !permittedRelationship || !isSha256(authority.documentSha256) || !authority.consentRecordedAt || (input.dealId && authority.deal?.id && authority.deal.id !== input.dealId)) {
-    throw new Error('An effective jurisdiction-specific representation authority is required for this action.')
+    throw new Error('No signed representation agreement is on file for this customer in this state. Add one under Operations, Licenses & agreements, then try again.')
   }
   return authority
 }

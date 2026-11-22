@@ -93,7 +93,7 @@ export function StoreSettingsPageClient({ initialData, initialError }: StoreSett
   const location = [city, state].filter(Boolean).join(', ')
 
   return (
-    <div className="px-4 pb-24 pt-5 md:px-6">
+    <div className="px-4 pb-8 pt-5 md:px-6">
       <header className="mb-6">
         <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-[1.375rem]">Store settings</h1>
       </header>
@@ -269,9 +269,9 @@ export function StoreSettingsPageClient({ initialData, initialError }: StoreSett
           {!logoSupported ? <p role="alert" className="pt-4 text-sm text-destructive">Unsupported logo SVG</p> : null}
           <StoreSettingsSaveBar
             isSaving={isLoading}
-            className="justify-end border-t border-border pt-4"
+            className="border-t border-border pt-4 md:justify-end"
             button={
-              <Button type="submit" variant="ghost" className={cn(pillPrimaryClass, 'h-9 px-4')} disabled={isLoading || !logoSupported}>
+              <Button type="submit" variant="ghost" className={cn(pillPrimaryClass, 'h-11 md:h-9 px-4')} disabled={isLoading || !logoSupported}>
                 {isLoading ? 'Saving…' : 'Save settings'}
               </Button>
             }

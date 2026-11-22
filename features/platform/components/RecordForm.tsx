@@ -12,7 +12,7 @@ import { pillClass, pillPrimaryClass } from './styles'
 export type FormResult = { ok: boolean; message: string; id?: string | null }
 type Action = (state: FormResult, form: FormData) => Promise<FormResult>
 
-const fieldClass = 'h-9 w-full min-w-0 rounded-[6px] border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50'
+const fieldClass = 'h-11 md:h-9 w-full min-w-0 rounded-[6px] border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50'
 
 /** datetime-local inputs carry the browser's wall time; send them as ISO instants. */
 function normalizeDates(form: FormData, element: HTMLFormElement) {

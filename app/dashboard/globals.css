@@ -182,3 +182,12 @@ h3.tiptap-heading + h2.tiptap-heading {
 	margin: 1.5rem 0;
 	padding-left: 1rem;
 }
+
+/* Phones: 16px in every field, or iOS zooms the page when one is focused. */
+@media (max-width: 47.99rem) {
+	input:not([type="checkbox"]):not([type="radio"]),
+	select,
+	textarea {
+		font-size: 1rem;
+	}
+}

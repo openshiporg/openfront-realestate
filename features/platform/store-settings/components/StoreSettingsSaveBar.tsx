@@ -31,16 +31,11 @@ export function StoreSettingsSaveBar({
     </Button>
   )
 
+  // One bar at the end of the form on every screen. A bar pinned to the bottom of a phone covered the field being typed in.
   return (
-    <>
-      <div className={cn('hidden md:flex md:items-center md:gap-3', className)}>
-        {status ? <span className="text-xs text-muted-foreground">{status}</span> : null}
-        {control}
-      </div>
-      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-end gap-3 border-t border-border bg-background/95 py-3 pl-4 pr-[4.5rem] pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
-        {status ? <span className="mr-auto truncate text-xs text-muted-foreground">{status}</span> : null}
-        {control}
-      </div>
-    </>
+    <div className={cn('flex flex-col gap-3 md:flex-row md:items-center [&_[data-slot=button]]:max-md:w-full', className)}>
+      {status ? <span className="text-xs text-muted-foreground">{status}</span> : null}
+      {control}
+    </div>
   )
 }

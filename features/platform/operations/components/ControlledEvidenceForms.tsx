@@ -56,7 +56,7 @@ function CommandForm({ action, title, trigger, submitLabel = 'Save', children }:
           </div>
           {!state.ok && state.message ? <p role="alert" className="text-sm text-destructive sm:col-span-2">{state.message}</p> : null}
           <div className="sm:col-span-2">
-            <Button type="submit" variant="ghost" size="sm" className={cn(pillPrimaryClass, 'h-9')} disabled={pending}>{pending ? 'Saving…' : submitLabel}</Button>
+            <Button type="submit" variant="ghost" size="sm" className={cn(pillPrimaryClass, 'h-11 md:h-9')} disabled={pending}>{pending ? 'Saving…' : submitLabel}</Button>
           </div>
         </form>
       </SheetContent>

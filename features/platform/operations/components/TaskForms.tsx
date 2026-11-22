@@ -15,7 +15,7 @@ import { pillClass, pillPrimaryClass, trackClass } from '../../components/styles
 
 /** Quiet treatment for a destructive or backward step: last in the row, no border until hover. */
 const quietClass = cn(pillClass, 'border-transparent text-muted-foreground hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive')
-const submitClass = cn(pillPrimaryClass, 'h-9')
+const submitClass = cn(pillPrimaryClass, 'h-11 md:h-9')
 const fieldRadius = 'rounded-[6px]'
 
 type FormState = { ok: boolean; message: string; uncertain?: boolean }
