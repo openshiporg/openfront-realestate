@@ -16,8 +16,8 @@ function SectionSheet({ trigger, title, primary = false, children }: { trigger: 
       <SheetTrigger asChild>
         <Button type="button" variant="ghost" size="sm" className={primary ? pillPrimaryClass : pillClass}>{trigger}</Button>
       </SheetTrigger>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
-        <SheetHeader><SheetTitle>{title}</SheetTitle></SheetHeader>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-md" onOpenAutoFocus={event => event.preventDefault()}>
+        <SheetHeader className="text-left"><SheetTitle>{title}</SheetTitle></SheetHeader>
         <div className="px-4 pb-6">{children}</div>
       </SheetContent>
     </Sheet>

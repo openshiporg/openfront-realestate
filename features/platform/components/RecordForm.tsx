@@ -61,8 +61,8 @@ export function FormDrawer({ trigger, title, primary = false, children }: { trig
       <SheetTrigger asChild>
         <Button type="button" variant="ghost" size="sm" className={primary ? pillPrimaryClass : pillClass}>{trigger}</Button>
       </SheetTrigger>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-        <SheetHeader><SheetTitle>{title}</SheetTitle></SheetHeader>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-lg" onOpenAutoFocus={event => event.preventDefault()}>
+        <SheetHeader className="text-left"><SheetTitle>{title}</SheetTitle></SheetHeader>
         <div className="px-4 pb-6">{children(() => setOpen(false))}</div>
       </SheetContent>
     </Sheet>

@@ -269,9 +269,9 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
           </SidebarMenu>
         </SidebarGroup>
 
-        {/* Models */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Models</SidebarGroupLabel>
+        {/* Raw records: owners and admins only, folded, for the rare fix the screens do not cover. */}
+        {user?.role?.canManageRoles ? <SidebarGroup>
+          <SidebarGroupLabel>Advanced</SidebarGroupLabel>
           <SidebarMenu className="group-has-[[data-collapsible=icon]]/sidebar-wrapper:hidden">
             <Collapsible
               asChild
@@ -282,7 +282,7 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
                 <CollapsibleTrigger asChild>
                   <SidebarMenuButton>
                     <Package className="h-4 w-4" />
-                    <span>Models</span>
+                    <span>All records</span>
                     <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                   </SidebarMenuButton>
                 </CollapsibleTrigger>
@@ -356,7 +356,7 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
               </SidebarMenuItem>
             </DropdownMenu>
           </SidebarMenu>
-        </SidebarGroup>
+        </SidebarGroup> : null}
       </SidebarContent>
       
       <SidebarFooter>
