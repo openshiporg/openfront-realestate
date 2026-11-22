@@ -266,6 +266,15 @@ export const rules = {
     if (session.data.role.canManagePeople) return brokerageOwnedFilter(session)
     return brokerageAndAssignment(session, { assignedAgent: { id: { equals: session.itemId } } })
   },
+  /** Managers see every payment in the brokerage; an agent sees only payments on their own leads and deals. */
+  canReadPayments: ({ session }: AccessArgs) => {
+    if (!session) return false
+    if (session.data.role?.canManagePeople) return brokerageOwnedFilter(session)
+    return brokerageAndAssignment(session, { OR: [
+      { lead: { assignedAgent: { id: { equals: session.itemId } } } },
+      { deal: { assignedAgent: { id: { equals: session.itemId } } } },
+    ] })
+  },
   canReadDeals: ({ session }: AccessArgs) => {
     if (!session?.data.role?.canManageDeals) return false
     if (session.data.role.canManagePeople) return brokerageOwnedFilter(session)

@@ -18,7 +18,7 @@ export const Payment = list({
       update: () => false,
       delete: () => false,
     },
-    filter: { query: rules.canAccessBrokerageRecords },
+    filter: { query: rules.canReadPayments },
   },
   hooks: createTenantOwnedHooks({
     listKey: 'Payment',

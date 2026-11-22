@@ -265,7 +265,9 @@ export async function requestPaymentCommand(_root: unknown, { data }: { data: { 
 export async function reconcilePaymentCommand(_root: unknown, { paymentId }: { paymentId: string }, context: Context) {
   const session = context.session as any
   if (!session?.itemId || !paymentId || paymentId.length > 200) return { ok: false, message: 'Access denied.', itemId: null, url: null, replayed: false }
-  const row: any = await context.sudo().query.Payment.findOne({ where: { id: paymentId }, query: PAYMENT_QUERY })
+  // Only a payment this person can see on the Payments page can be acted on (an agent: their own leads and deals).
+  const visible = await context.query.Payment.findOne({ where: { id: paymentId }, query: 'id' }).catch(() => null)
+  const row: any = visible ? await context.sudo().query.Payment.findOne({ where: { id: paymentId }, query: PAYMENT_QUERY }) : null
   const payment = row ? asPayment(row) : null
   if (!payment || !staffCan(context, payment.brokerage.id, 'canManageLeads', null) && !staffCan(context, payment.brokerage.id, 'canManageDeals', null)) return { ok: false, message: 'Payment not found or access denied.', itemId: null, url: null, replayed: false }
   if (!payment.providerPaymentId) return { ok: true, message: 'No checkout has been started for this payment yet.', itemId: payment.id, url: null, replayed: false }
@@ -289,7 +291,9 @@ export async function reconcilePaymentCommand(_root: unknown, { paymentId }: { p
 export async function refundPaymentCommand(_root: unknown, { paymentId }: { paymentId: string }, context: Context) {
   const session = context.session as any
   if (!session?.itemId || !paymentId || paymentId.length > 200) return { ok: false, message: 'Access denied.', itemId: null, url: null, replayed: false }
-  const row: any = await context.sudo().query.Payment.findOne({ where: { id: paymentId }, query: PAYMENT_QUERY })
+  // Only a payment this person can see on the Payments page can be acted on (an agent: their own leads and deals).
+  const visible = await context.query.Payment.findOne({ where: { id: paymentId }, query: 'id' }).catch(() => null)
+  const row: any = visible ? await context.sudo().query.Payment.findOne({ where: { id: paymentId }, query: PAYMENT_QUERY }) : null
   const payment = row ? asPayment(row) : null
   if (!payment || !staffCan(context, payment.brokerage.id, 'canManageDeals', null) && !staffCan(context, payment.brokerage.id, 'canManageLeads', null)) return { ok: false, message: 'Payment not found or access denied.', itemId: null, url: null, replayed: false }
   if (payment.status === 'refunded') return { ok: true, message: 'This payment is already refunded.', itemId: payment.id, url: null, replayed: true }
