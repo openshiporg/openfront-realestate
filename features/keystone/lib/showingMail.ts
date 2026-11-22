@@ -30,5 +30,7 @@ ${input.address ? emailPanel(`${escapeHtml(input.listing)}<br>${escapeHtml(input
 ${link ? emailButton("View your showing", link) : ""}`,
   });
   const info = await transport.sendMail({ to: input.to, from: process.env.SMTP_FROM, subject: title, html });
-  return String(info.messageId || "");
+  // Resend answers "250 Queued as <id>"; keep that provider id alongside the Message-ID header.
+  const queued = /queued as\s+(\S+)/i.exec(String(info.response || ""))?.[1];
+  return [queued ? `resend ${queued}` : "", info.messageId ? `message-id ${info.messageId}` : ""].filter(Boolean).join(" · ");
 }
