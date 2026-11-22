@@ -28,7 +28,7 @@ export default async function PaymentPage({ params, searchParams }: PageProps) {
           <h1>{payment.description}</h1>
           <p className="sf-signplate__price"><span className="sf-num">{usd(payment.amountMinor, payment.currency)}</span></p>
           {payment.payerName ? <p>For {payment.payerName}</p> : null}
-          <p role="status" className={payment.status === 'captured' ? 'sf-message sf-message--success' : 'sf-message'}>{payment.statusMessage}</p>
+          <p role="status" className={payment.status === 'captured' ? 'sf-message sf-message--success' : payment.status === 'failed' ? 'sf-message' : 'sf-message sf-message--neutral'}>{payment.statusMessage}</p>
           {notice ? <p role="status" className="sf-message">{notice}</p> : null}
           {payment.canPay ? (
             <form action={payNow}>
