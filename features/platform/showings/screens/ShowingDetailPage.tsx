@@ -91,8 +91,8 @@ export async function ShowingDetailPage({ params, searchParams }: PageProps) {
               <Panel title="Client">
                 <div className="space-y-1 text-sm">
                   <p className="font-medium text-foreground">{current.lead?.name || 'No client'}</p>
-                  {current.lead?.phone ? <a className="block text-foreground hover:underline" href={`tel:${current.lead.phone.replace(/[^+\d]/g, '')}`}>{current.lead.phone}</a> : null}
-                  {current.lead?.email ? <a className="block break-all text-foreground hover:underline" href={`mailto:${current.lead.email}`}>{current.lead.email}</a> : null}
+                  {current.lead?.phone ? <a className="tap-link block text-foreground hover:underline" href={`tel:${current.lead.phone.replace(/[^+\d]/g, '')}`}>{current.lead.phone}</a> : null}
+                  {current.lead?.email ? <a className="tap-link block break-all text-foreground hover:underline" href={`mailto:${current.lead.email}`}>{current.lead.email}</a> : null}
                   <p className="pt-2 text-muted-foreground">Agent · <span className="text-foreground">{current.assignedAgent ? current.assignedAgent.name || 'Assigned' : 'Unassigned'}</span></p>
                 </div>
                 {current.lead?.id ? <Link className={`mt-3 ${trackItemClass(true)}`} href={`/dashboard/platform/leads/${encodeURIComponent(current.lead.id)}`}>Open lead</Link> : null}

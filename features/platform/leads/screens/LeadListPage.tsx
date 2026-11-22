@@ -82,8 +82,8 @@ function LeadRow({ lead, viewer }: { lead: PlatformLead; viewer: OperatorViewer 
           <ResponseClock since={waitingSince(lead)} waiting={waiting} className="text-xs" />
         </div>
         <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-          {lead.phone ? <a href={`tel:${lead.phone.replace(/[^+\d]/g, '')}`} className="tabular-nums hover:text-foreground hover:underline">{lead.phone}</a>
-            : lead.email ? <a href={`mailto:${lead.email}`} className="max-w-[16rem] truncate hover:text-foreground hover:underline">{lead.email}</a>
+          {lead.phone ? <a href={`tel:${lead.phone.replace(/[^+\d]/g, '')}`} className="tap-link tabular-nums hover:text-foreground hover:underline max-sm:-my-3">{lead.phone}</a>
+            : lead.email ? <a href={`mailto:${lead.email}`} className="tap-link max-w-[16rem] truncate hover:text-foreground hover:underline max-sm:-my-3">{lead.email}</a>
             : <span>No contact details</span>}
           {lead.property ? <span className="truncate md:hidden">{lead.property.title}</span> : null}
         </div>

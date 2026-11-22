@@ -50,8 +50,8 @@ export async function PeoplePage({ searchParams }: { searchParams?: Promise<{ [k
       crumbs={[{ label: 'Agents & Teams' }]}
       title="Agents & Teams"
       actions={<>
-        <Link href="/dashboard/users" className={quietLink}>User records <ArrowUpRight aria-hidden className="size-3.5" /></Link>
-        <Link href="/dashboard/agent-teams" className={quietLink}>Team records <ArrowUpRight aria-hidden className="size-3.5" /></Link>
+        {canManageRoles ? <Link href="/dashboard/users" className={`${quietLink} max-sm:h-11`}>User records <ArrowUpRight aria-hidden className="size-3.5" /></Link> : null}
+        {canManageRoles ? <Link href="/dashboard/agent-teams" className={`${quietLink} max-sm:h-11`}>Team records <ArrowUpRight aria-hidden className="size-3.5" /></Link> : null}
         {brokerageId ? <AddMemberDrawer brokerageId={brokerageId} /> : null}
       </>}
       toolbar={<>

@@ -104,7 +104,7 @@ export function ShowingBoard({ showings, versions }: { showings: PlatformShowing
                   <span className="text-xs text-muted-foreground">{zone ? `${zone} · ` : ''}{label(showingTypeLabels, showing.showingType, 'Showing')}</span>
                 </Td>
                 <Td className="min-w-0 max-w-80 py-2">
-                  <Link href={href} className="block truncate font-medium text-foreground underline-offset-2 hover:underline">{property?.title || 'No listing'}</Link>
+                  <Link href={href} className="block truncate font-medium text-foreground underline-offset-2 hover:underline max-sm:py-3 max-sm:-my-3">{property?.title || 'No listing'}</Link>
                   <span className="block truncate text-xs text-muted-foreground">
                     <span className="tabular-nums sm:hidden">{time} · </span>
                     {property ? <>{[property.addressLine1, property.city].filter(Boolean).join(', ')} · <span className="tabular-nums">{formatMoney(property.price, property.listingType)}</span></> : null}

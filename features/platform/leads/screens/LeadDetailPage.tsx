@@ -74,7 +74,7 @@ export async function LeadDetailPage({ params, searchParams }: PageProps) {
               <Panel title="Contact">
                 <div className="space-y-4">
                   <div className="flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-x-6">
-                    {lead.phone ? <a href={`tel:${lead.phone.replace(/[^+\d]/g, '')}`} className="inline-flex min-h-9 items-center gap-2 text-base font-semibold tabular-nums text-foreground underline-offset-2 hover:underline"><Phone aria-hidden className="size-4 text-muted-foreground" />{lead.phone}</a> : null}
+                    {lead.phone ? <a href={`tel:${lead.phone.replace(/[^+\d]/g, '')}`} className="inline-flex min-h-9 max-sm:min-h-11 items-center gap-2 text-base font-semibold tabular-nums text-foreground underline-offset-2 hover:underline"><Phone aria-hidden className="size-4 text-muted-foreground" />{lead.phone}</a> : null}
                     {lead.email ? <a href={`mailto:${lead.email}`} className="inline-flex min-h-9 min-w-0 items-center gap-2 break-all text-base font-medium text-foreground underline-offset-2 hover:underline"><Mail aria-hidden className="size-4 shrink-0 text-muted-foreground" />{lead.email}</a> : null}
                     {!lead.phone && !lead.email ? <p className="text-muted-foreground">No contact details</p> : null}
                   </div>

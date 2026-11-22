@@ -72,7 +72,7 @@ function ListingRow({ item, now }: { item: PlatformListing; now: number }) {
             aria-label={item.primaryImageUrl ? `${item.title} photo` : 'No photo'}
           />
           <div className="min-w-0">
-            <Link href={href} className="block max-w-[19rem] truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] font-medium sm:max-w-[22rem] xl:max-w-[19rem] 2xl:max-w-[22rem] text-foreground underline-offset-2 hover:underline">{item.title}</Link>
+            <Link href={href} className="block max-sm:py-3 max-sm:-my-3 max-w-[19rem] truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] font-medium sm:max-w-[22rem] xl:max-w-[19rem] 2xl:max-w-[22rem] text-foreground underline-offset-2 hover:underline">{item.title}</Link>
             <p className="max-w-[19rem] truncate max-md:whitespace-normal max-md:[overflow-wrap:anywhere] text-xs text-muted-foreground sm:max-w-[22rem] xl:max-w-[19rem] 2xl:max-w-[22rem]">{[place || 'No address', facts].filter(Boolean).join(' · ')}</p>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs md:hidden">
               {statusCell}

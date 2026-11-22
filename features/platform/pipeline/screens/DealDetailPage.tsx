@@ -154,7 +154,7 @@ export async function DealDetailPage({ params }: { params: Promise<{ id: string 
                   {(commissionNext[item.status] || []).map(([status, text]) => <CommissionAction key={status} commissionId={item.id} status={status} label={text} />)}
                 </Row>
               )} />
-              <Link href="/dashboard/platform/operations#commissions" className="mt-3 inline-block text-xs font-medium text-muted-foreground hover:text-foreground">Ledger in Operations</Link>
+              <Link href="/dashboard/platform/operations#commissions" className="mt-3 inline-flex min-h-9 items-center text-xs font-medium text-muted-foreground hover:text-foreground max-sm:min-h-11">Ledger in Operations</Link>
             </Panel>
     ) },
   ]
@@ -216,8 +216,8 @@ export async function DealDetailPage({ params }: { params: Promise<{ id: string 
           <Panel title="Client">
             {deal.lead ? <div className="space-y-1 text-sm">
               <Link href={`/dashboard/platform/leads/${deal.lead.id}`} className="font-medium text-foreground hover:underline">{deal.lead.name}</Link>
-              {deal.lead.phone ? <a className="block hover:underline" href={`tel:${deal.lead.phone.replace(/[^+\d]/g, '')}`}>{deal.lead.phone}</a> : null}
-              {deal.lead.email ? <a className="block break-all hover:underline" href={`mailto:${deal.lead.email}`}>{deal.lead.email}</a> : null}
+              {deal.lead.phone ? <a className="tap-link block hover:underline" href={`tel:${deal.lead.phone.replace(/[^+\d]/g, '')}`}>{deal.lead.phone}</a> : null}
+              {deal.lead.email ? <a className="tap-link block break-all hover:underline" href={`mailto:${deal.lead.email}`}>{deal.lead.email}</a> : null}
             </div> : <p className="text-sm text-muted-foreground">No client</p>}
           </Panel>
           <Panel title="Listing">

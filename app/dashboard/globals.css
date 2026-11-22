@@ -190,4 +190,16 @@ h3.tiptap-heading + h2.tiptap-heading {
 	textarea {
 		font-size: 1rem;
 	}
+	/* 44px tap floor for fields on phones (DESIGN.md). */
+	input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+	select {
+		min-height: 2.75rem;
+	}
+	/* Contact links in rows and side panels are tap targets on a phone. */
+	.tap-link {
+		display: inline-flex;
+		min-height: 2.75rem;
+		align-items: center;
+		max-width: 100%;
+	}
 }

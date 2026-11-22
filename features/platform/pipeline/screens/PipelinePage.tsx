@@ -89,7 +89,7 @@ function DealRow({ deal }: { deal: PlatformDeal }) {
   return (
     <tr className="transition-colors hover:bg-muted/30">
       <Td className="min-w-0 max-w-[calc(100vw-4rem)] py-2 md:max-w-[26rem]">
-        <Link href={`/dashboard/platform/pipeline/${deal.id}`} className="block truncate font-medium text-foreground underline-offset-2 hover:underline">{deal.title}</Link>
+        <Link href={`/dashboard/platform/pipeline/${deal.id}`} className="block truncate font-medium text-foreground underline-offset-2 hover:underline max-sm:py-3 max-sm:-my-3">{deal.title}</Link>
         <span className="block truncate text-xs text-muted-foreground">{transactionTypeLabels[deal.transactionType || ''] || 'Buyer'} · {people}</span>
         {deal.nextStep ? <span className="block break-words text-xs text-foreground/80 md:truncate">Next: {deal.nextStep}</span> : null}
         {/* Phone: expected close (with overdue) and last change fold into the first cell. */}
