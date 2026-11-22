@@ -97,7 +97,7 @@ export function MemberRowActions({ membershipId, memberName, viewHref, canSuspen
   useResultToast(state)
   return (
     <div className={cn('flex items-center justify-end gap-1.5', className)}>
-      <Button asChild variant="ghost" size="sm" className={cn(pillClass, 'max-sm:h-9')}><Link href={viewHref}>View</Link></Button>
+      <Button asChild variant="ghost" size="sm" className={cn(pillClass, 'max-sm:h-11')}><Link href={viewHref}>View</Link></Button>
       {canSuspend && membershipId ? (
         <>
           <DropdownMenu modal={false}>

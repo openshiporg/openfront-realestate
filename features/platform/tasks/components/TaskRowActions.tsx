@@ -51,7 +51,7 @@ export function TaskRowActions({ task, options, className }: { task: AgentTaskRo
   return (
     <div className={cn('flex items-center justify-end gap-1.5', className)}>
       {primary ? (
-        <Button type="button" variant="ghost" size="sm" className={cn(task.status === 'done' ? pillClass : pillPrimaryClass, 'max-sm:h-9')} disabled={blocked} onClick={() => move(primary[0])}>
+        <Button type="button" variant="ghost" size="sm" className={cn(task.status === 'done' ? pillClass : pillPrimaryClass, 'max-sm:h-11')} disabled={blocked} onClick={() => move(primary[0])}>
           {state.uncertain ? 'Refresh to check' : pending && target === primary[0] ? 'Updating…' : primary[1]}
         </Button>
       ) : null}
@@ -59,7 +59,7 @@ export function TaskRowActions({ task, options, className }: { task: AgentTaskRo
       {rest.length ? (
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
-            <Button type="button" variant="ghost" size="icon" aria-label={`More actions for ${task.title}`} className="size-8 rounded-[6px] border border-transparent text-muted-foreground shadow-none hover:border-border hover:text-foreground active:scale-[0.97] data-[state=open]:border-border max-sm:size-9">
+            <Button type="button" variant="ghost" size="icon" aria-label={`More actions for ${task.title}`} className="size-8 rounded-[6px] border border-transparent text-muted-foreground shadow-none hover:border-border hover:text-foreground active:scale-[0.97] data-[state=open]:border-border max-sm:size-11">
               <MoreHorizontal aria-hidden className="size-4" />
             </Button>
           </DropdownMenuTrigger>

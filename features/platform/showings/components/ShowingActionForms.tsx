@@ -45,7 +45,7 @@ export function ShowingStatusButton({ showingId, leadId, status, label, expected
       <input type="hidden" name="expectedRevision" value={expectedRevision} />
       <input type="hidden" name="expectedStatus" value={expectedStatus} />
       <input type="hidden" name="expectedUpdatedAt" value={expectedUpdatedAt} />
-      <Button type="submit" variant="ghost" size="sm" className={cn(status === 'scheduled' ? pillPrimaryClass : quiet ? quietClass : pillClass, 'max-sm:h-9')} disabled={pending || state.uncertain}>
+      <Button type="submit" variant="ghost" size="sm" className={cn(status === 'scheduled' ? pillPrimaryClass : quiet ? quietClass : pillClass, 'max-sm:h-11')} disabled={pending || state.uncertain}>
         {pending ? 'Updating…' : state.uncertain ? 'Refresh to check' : label}
       </Button>
       <UncertainNote state={state} />
@@ -92,7 +92,7 @@ export function ShowingRescheduleDialog({ showingId, scheduledStart, expectedSta
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className={cn(pillClass, 'max-sm:h-9')} disabled={state.uncertain}>
+        <Button type="button" variant="ghost" size="sm" className={cn(pillClass, 'max-sm:h-11')} disabled={state.uncertain}>
           {state.uncertain ? 'Refresh to check' : 'Reschedule'}
         </Button>
       </DialogTrigger>

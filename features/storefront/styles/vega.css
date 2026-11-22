@@ -800,8 +800,8 @@
     .storefront-root:has(.sf-header[data-search]) { --sf-head: 7.5625rem; }
     .sf-header__bar { min-height: 3.625rem; }
     .sf-lockup__name { font-size: 2rem; }
-    .sf-header__nav a, .sf-header__account { min-height: 2.5rem; font-size: 0.78125rem; }
-    .sf-header__cta, .sf-header__account.sf-btn { min-height: 1.875rem; padding: 0 1.0625rem; font-size: 0.78125rem; }
+    .sf-header__nav a, .sf-header__account { min-height: 2.5rem; font-size: 0.8125rem; }
+    .sf-header__cta, .sf-header__account.sf-btn { min-height: 2.25rem; padding: 0 1.0625rem; font-size: 0.8125rem; }
     .sf-header__icon { width: 2.5rem; height: 2.5rem; }
     .sf-header__icon svg.lucide { width: 1.1875rem; height: 1.1875rem; }
     .sf-header__search { padding-bottom: 0.5rem; }
@@ -810,10 +810,10 @@
     .sf-search__pill { min-height: 3.625rem; padding-left: 1.25rem; }
     .sf-search__area { gap: 0.75rem; }
     .sf-search__area svg.lucide { width: 1.125rem; height: 1.125rem; }
-    .sf-search__area input { min-height: 2.5rem; font-size: 0.75rem; }
+    .sf-search__area input { min-height: 2.5rem; font-size: 0.875rem; }
     .sf-search__select { min-height: 2.5rem; }
     .sf-search__select > span { font-size: 0.75rem; }
-    .sf-search__select select { min-height: 1.25rem; font-size: 0.75rem; }
+    .sf-search__select select { min-height: 1.5rem; font-size: 0.875rem; }
     .sf-search__more { width: 2.5rem; height: 2.5rem; }
     .sf-search__go { width: 3.375rem; height: 3.375rem; }
     .sf-search__go svg.lucide { width: 1.25rem; height: 1.25rem; }
@@ -827,7 +827,7 @@
     .sf-card--row .sf-card__foot { padding-top: 0.5rem; }
     .sf-card--row .sf-card__agent { font-size: 0.75rem; }
     .sf-card--row .sf-card__agent img, .sf-card--row .sf-card__agent .sf-avatar { width: 1.75rem; height: 1.75rem; }
-    .sf-card--row .sf-card__book { min-height: 1.875rem; padding: 0 0.875rem; font-size: 0.75rem; }
+    .sf-card--row .sf-card__book { min-height: 2.25rem; padding: 0 0.875rem; font-size: 0.8125rem; }
     .sf-card--row .sf-card__media .sf-badge { font-size: 0.75rem; min-height: 1.625rem; }
     .sf-card--row .sf-card__save { width: 2.25rem; height: 2.25rem; left: calc(52% - 2.875rem); }
 

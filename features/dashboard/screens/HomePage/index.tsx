@@ -5,7 +5,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { PlusIcon, Database } from 'lucide-react'
+import { ChevronRight, PlusIcon, Database } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PageContainer } from '../../components/PageContainer'
@@ -53,7 +53,7 @@ function ListCard({ list, count, hideCreate = false }: ListCardProps) {
           <Button
             variant="outline" 
             size="icon"
-            className="h-7 w-7"
+            className="size-11 md:size-7"
             title={`Add ${list.singular?.toLowerCase() || 'item'}`}
           >
             <PlusIcon className="h-4 w-4" />
@@ -170,12 +170,14 @@ export async function HomePage() {
     <PageContainer title="Dashboard" header={header} breadcrumbs={breadcrumbs}>
       <div className="w-full max-w-4xl p-4 md:p-6 flex flex-col gap-8">
         <WorkQueue />
-        <div className="mb-4">
-          <h2 className="tracking-wide uppercase font-medium mb-2 text-muted-foreground text-sm">
-            All records
-          </h2>
+        {/* Raw record lists are for look-ups, not daily work, so they stay folded away. */}
+        <details className="group mb-4">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden="true" />
+            All records ({enhancedLists.length})
+          </summary>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-4">
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-4">
             {enhancedLists.map((list: any) => (
               <ListCard
                 key={list.key}
@@ -185,7 +187,7 @@ export async function HomePage() {
               />
             ))}
           </div>
-        </div>
+        </details>
       </div>
     </PageContainer>
   )

@@ -77,26 +77,26 @@ export function LeadRowActions({ lead, viewer, showContact = false, className }:
 
   return (
     <div className={cn('flex items-center justify-end gap-1.5', className)}>
-      {showContact && lead.phone ? <a href={telHref(lead.phone)} className={cn(trackItemClass(false), 'max-sm:h-9')}><Phone aria-hidden className="size-3.5" />Call</a> : null}
-      {showContact && lead.email ? <a href={`mailto:${lead.email}`} className={cn(trackItemClass(false), 'max-sm:h-9')}><Mail aria-hidden className="size-3.5" />Email</a> : null}
+      {showContact && lead.phone ? <a href={telHref(lead.phone)} className={cn(trackItemClass(false), 'max-sm:h-11')}><Phone aria-hidden className="size-3.5" />Call</a> : null}
+      {showContact && lead.email ? <a href={`mailto:${lead.email}`} className={cn(trackItemClass(false), 'max-sm:h-11')}><Mail aria-hidden className="size-3.5" />Email</a> : null}
 
       {state.uncertain ? (
-        <Button type="button" variant="ghost" size="sm" className={cn(pillClass, 'max-sm:h-9')} disabled>Refresh to check</Button>
+        <Button type="button" variant="ghost" size="sm" className={cn(pillClass, 'max-sm:h-11')} disabled>Refresh to check</Button>
       ) : scheduleIsPrimary ? (
-        <Button type="button" variant="ghost" size="sm" className={cn(pillPrimaryClass, 'max-sm:h-9')} onClick={() => setSheet('schedule')}>Schedule showing</Button>
+        <Button type="button" variant="ghost" size="sm" className={cn(pillPrimaryClass, 'max-sm:h-11')} onClick={() => setSheet('schedule')}>Schedule showing</Button>
       ) : primaryStep ? (
-        <Button type="button" variant="ghost" size="sm" className={cn(pillPrimaryClass, 'max-sm:h-9')} disabled={blocked} onClick={() => move(primaryStep[0])}>
+        <Button type="button" variant="ghost" size="sm" className={cn(pillPrimaryClass, 'max-sm:h-11')} disabled={blocked} onClick={() => move(primaryStep[0])}>
           {pendingLabel(primaryStep[0], primaryStep[1])}
         </Button>
       ) : lead.status === 'lost' && available[0] ? (
-        <Button type="button" variant="ghost" size="sm" className={cn(pillClass, 'max-sm:h-9')} disabled={blocked} onClick={() => move(available[0][0])}>
+        <Button type="button" variant="ghost" size="sm" className={cn(pillClass, 'max-sm:h-11')} disabled={blocked} onClick={() => move(available[0][0])}>
           {pendingLabel(available[0][0], available[0][1])}
         </Button>
       ) : null}
 
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button type="button" variant="ghost" size="icon" aria-label={`More actions for ${lead.name}`} className="size-8 rounded-[6px] border border-transparent text-muted-foreground shadow-none hover:border-border hover:text-foreground active:scale-[0.97] data-[state=open]:border-border max-sm:size-9">
+          <Button type="button" variant="ghost" size="icon" aria-label={`More actions for ${lead.name}`} className="size-8 rounded-[6px] border border-transparent text-muted-foreground shadow-none hover:border-border hover:text-foreground active:scale-[0.97] data-[state=open]:border-border max-sm:size-11">
             <MoreHorizontal aria-hidden className="size-4" />
           </Button>
         </DropdownMenuTrigger>

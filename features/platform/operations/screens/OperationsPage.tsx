@@ -243,7 +243,7 @@ function OffersSection({ workspace }: { workspace: OperationsWorkspace }) {
           return (
             <Row key={offer.id}>
               <Td>
-                <p className="max-w-[16rem] truncate font-medium text-foreground">{offer.property?.title || offer.deal?.title || 'Offer'}</p>
+                <p className="font-medium text-foreground md:max-w-[16rem] md:truncate">{offer.property?.title || offer.deal?.title || 'Offer'}</p>
                 <p className="text-xs text-muted-foreground">{offer.offerNumber} · v{offer.version}{offer.parentOffer ? ` · counter to ${offer.parentOffer.offerNumber}` : ''}</p>
                 <p className="text-xs text-muted-foreground md:hidden">{humanize(offer.financingType)} · {offer.assignedAgent?.name || 'Unassigned'}</p>
                 {offer.status === 'draft' || live ? <div className="mt-2.5 flex flex-wrap gap-1.5 md:hidden">{actions}</div> : null}

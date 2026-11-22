@@ -50,13 +50,13 @@ export function DealRowActions({ deal, editInMenu = true, className }: { deal: D
   return (
     <div className={cn('flex items-center justify-end gap-1.5', className)}>
       {open && primary ? (
-        <Button type="button" variant="ghost" size="sm" className={cn(pillPrimaryClass, 'max-sm:h-9')} disabled={pending} onClick={() => move(primary)}>
+        <Button type="button" variant="ghost" size="sm" className={cn(pillPrimaryClass, 'max-sm:h-11')} disabled={pending} onClick={() => move(primary)}>
           {pending && target === primary ? 'Moving…' : moveLabel(primary)}
         </Button>
       ) : null}
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button type="button" variant="ghost" size="icon" aria-label={`More actions for ${deal.title}`} className="size-8 rounded-[6px] border border-transparent text-muted-foreground shadow-none hover:border-border hover:text-foreground active:scale-[0.97] data-[state=open]:border-border max-sm:size-9">
+          <Button type="button" variant="ghost" size="icon" aria-label={`More actions for ${deal.title}`} className="size-8 rounded-[6px] border border-transparent text-muted-foreground shadow-none hover:border-border hover:text-foreground active:scale-[0.97] data-[state=open]:border-border max-sm:size-11">
             <MoreHorizontal aria-hidden className="size-4" />
           </Button>
         </DropdownMenuTrigger>

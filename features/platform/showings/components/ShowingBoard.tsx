@@ -37,10 +37,10 @@ function RowAction({ showing, version, href, now }: { showing: PlatformShowing; 
   if (showing.status === 'requested') {
     return version
       ? <ShowingStatusButton showingId={showing.id} leadId={showing.lead?.id} status="scheduled" label="Confirm" {...version} />
-      : <Link href={href} className={cn(trackItemClass(false), 'max-sm:h-9')}>Review</Link>
+      : <Link href={href} className={cn(trackItemClass(false), 'max-sm:h-11')}>Review</Link>
   }
   if (showing.status === 'scheduled' && Date.parse(showing.scheduledStart) <= now) {
-    return <Link href={href} className={cn(trackItemClass(false), 'max-sm:h-9')}>Record outcome</Link>
+    return <Link href={href} className={cn(trackItemClass(false), 'max-sm:h-11')}>Record outcome</Link>
   }
   return null
 }

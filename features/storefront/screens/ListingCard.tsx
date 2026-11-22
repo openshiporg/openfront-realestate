@@ -65,7 +65,9 @@ export function ListingCard({ listing, priority = false, save, layout = 'module'
               <span><span className="sf-card__agent-by">Listed by </span>{agent.name}</span>
             </span>
           ) : null}
-          <Link href={`${href}#showing`} className="sf-btn sf-btn--outline sf-card__book" aria-label={`Book a showing at ${listingAddress(listing)}`}>Book a showing</Link>
+          {listing.status === 'active'
+            ? <Link href={`${href}#showing`} className="sf-btn sf-btn--outline sf-card__book" aria-label={`Book a showing at ${listingAddress(listing)}`}>Book a showing</Link>
+            : <Link href={href} className="sf-btn sf-btn--outline sf-card__book" aria-label={`View ${listingAddress(listing)}`}>View home</Link>}
         </div>
       </div>
     </article>
