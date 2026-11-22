@@ -29,9 +29,8 @@ const sectionLabels: Array<[SectionKey, string]> = [
   ['agreements', 'Licenses & agreements'],
   ['documents', 'Document history'],
   ['market', 'Comparables'],
-  ['alerts', 'Search alerts'],
-  ['syndication', 'Syndication'],
-  ['imports', 'Imports'],
+  // Search alerts, Syndication and Imports are off for v1: nothing sends an alert, pushes a listing to a
+  // portal or runs an import yet, so their buttons would only record a wish. The records are kept.
   ['records', 'Records'],
 ]
 
@@ -170,7 +169,7 @@ function attentionRows(workspace: OperationsWorkspace, now: number, sectionHref:
     })
   }
 
-  for (const item of workspace.syndications) {
+  for (const item of [] as typeof workspace.syndications) {
     if (item.status !== 'error') continue
     rows.push({
       key: `syndication:${item.id}`, kind: 'Syndication', title: item.property?.title || 'Listing', context: `${String(item.channel || '').toUpperCase()}${item.errorMessage ? ` · ${item.errorMessage}` : ''}`, due: null, overdue: false,

@@ -14,7 +14,6 @@ import { getAgentOptions, getListingDetail } from '../lib/listingDetail'
 import { listingStatuses } from '../lib/listingStatus'
 
 const openHouseTones: Record<string, Tone> = { scheduled: 'sky', completed: 'emerald', cancelled: 'zinc' }
-const syndicationTones: Record<string, Tone> = { draft: 'zinc', published: 'emerald', error: 'rose', removed: 'zinc' }
 const typeLabels: Record<string, string> = { house: 'House', condo: 'Condo', townhome: 'Townhome', multi_family: 'Multi-family', land: 'Land', commercial: 'Commercial' }
 
 function mediaPreview(url: string, mediaType: string) {
@@ -28,7 +27,7 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
   if (!detail.listing) {
     return <PlatformPage crumbs={[{ label: 'Listings', href: '/platform/listings' }, { label: 'Listing' }]} title="Listing"><ErrorBanner>This listing could not be loaded. {detail.error}</ErrorBanner></PlatformPage>
   }
-  const { listing, media = [], openHouses = [], leads, showings, syndications = [] } = detail
+  const { listing, media = [], openHouses = [], leads, showings } = detail
   const status = listingStatuses.find(entry => entry.value === listing.status)
   const rental = listing.listingType === 'rent'
   // Showings and open houses happen at this property: use its zone (from its state), else the viewer's.
@@ -140,19 +139,6 @@ export async function ListingDetailPage({ params }: { params: Promise<{ id: stri
             ) : <p className="text-sm text-muted-foreground">No showings</p>}
           </Panel>
 
-          <Panel title="Syndication">
-            {syndications.length ? (
-              <ul className="space-y-2">
-                {syndications.map(row => (
-                  <li key={row.id}>
-                    <TitleLine as="h3" tone={syndicationTones[row.status] || 'zinc'} status={row.status} headingClassName="text-sm">{row.channel.toUpperCase()}</TitleLine>
-                    {row.errorMessage ? <p className="text-xs text-destructive">{row.errorMessage}</p> : null}
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="text-sm text-muted-foreground">Not syndicated</p>}
-            <Link href="/dashboard/platform/operations?section=syndication" className="mt-3 inline-block text-xs font-medium text-muted-foreground hover:text-foreground">Manage in Operations</Link>
-          </Panel>
         </aside>
       </div>
     </PlatformPage>
