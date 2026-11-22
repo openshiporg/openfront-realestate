@@ -412,3 +412,34 @@ async function applyInTransaction(tx: Context, paymentId: string, result: Parame
     request: { source: eventKey }, before: { status: payment.status }, after: { status: next.status, amountMinor: payment.amountMinor, currency: payment.currency, purpose: payment.purpose },
   })
 }
+
+const SWEEP_WINDOW_MS = 3 * 24 * 60 * 60_000
+
+/**
+ * The shared Stripe test account has no webhook slot left for this site, so a payer who pays and
+ * closes the tab before the return page loads would leave the payment open. This asks the provider
+ * about every recent open payment through the same reconcile the return page uses; each answer is
+ * applied under a row lock and only once.
+ */
+export async function reconcileOpenPayments(context: Context) {
+  const sudo = context.sudo()
+  const rows = await sudo.query.Payment.findMany({
+    where: {
+      status: { in: ['pending', 'authorized'] },
+      providerPaymentId: { not: { equals: null } },
+      paymentProvider: { isInstalled: { equals: true } },
+      createdAt: { gte: new Date(Date.now() - SWEEP_WINDOW_MS).toISOString() },
+    },
+    orderBy: [{ createdAt: 'desc' }],
+    take: 50,
+    query: PAYMENT_QUERY,
+  })
+  let changed = 0
+  for (const row of rows) {
+    const payment = asPayment(row)
+    if (!payment.providerPaymentId) continue
+    const after = await reconcile(sudo, payment, `sweep:${Date.now()}`)
+    if (after.status !== payment.status) changed++
+  }
+  return { checked: rows.length, changed }
+}
