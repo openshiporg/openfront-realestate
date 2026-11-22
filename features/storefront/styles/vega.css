@@ -721,7 +721,7 @@
   .sf-mortgage__inputs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.75rem; }
   .sf-mortgage__inputs label { display: grid; gap: 0.25rem; }
   .sf-mortgage__inputs label > span { font-size: 0.8125rem; font-weight: 600; color: var(--sf-ink-2); }
-  .sf-mortgage__inputs .sf-field { min-height: 2.5rem; font-size: 0.875rem; }
+  .sf-mortgage__inputs .sf-field { min-height: 2.75rem; font-size: 0.875rem; }
   .sf-mortgage__note { font-size: 0.8125rem; color: var(--sf-muted); line-height: 1.4; }
   @media (max-width: 29.99rem) { .sf-mortgage__body { grid-template-columns: minmax(0, 1fr); justify-items: center; } .sf-mortgage__lines { width: 100%; } }
 
