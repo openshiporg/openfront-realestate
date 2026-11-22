@@ -1,5 +1,7 @@
 import crypto from 'node:crypto'
 import { Readable } from 'node:stream'
+// @ts-ignore graphql-upload ships CommonJS without types for this path
+import Upload from 'graphql-upload/Upload.js'
 import type { Context } from '.keystone/types'
 
 import { boundedIdempotencyKey, boundedReason, isSha256, requirePractitionerLicense } from '../lib/authorityEvidence'
@@ -21,7 +23,10 @@ function effectiveRange(fromValue: unknown, throughValue: unknown) {
 /** Hands stored bytes back to Keystone's file field as a fresh upload stream. */
 function pdfUpload(bytes: Buffer, filename: string) {
   const safe = filename.replace(/[^A-Za-z0-9._-]+/g, '-').slice(-120) || 'agreement.pdf'
-  return Promise.resolve({ filename: safe, mimetype: 'application/pdf', encoding: '7bit', createReadStream: () => Readable.from([bytes]) })
+  // The Upload scalar checks `instanceof Upload` from this same module.
+  const upload = new Upload()
+  upload.resolve({ filename: safe, mimetype: 'application/pdf', encoding: '7bit', createReadStream: () => Readable.from([bytes]) })
+  return upload
 }
 function suffix(key: string) { return crypto.createHash('sha256').update(key).digest('hex').slice(0, 12).toUpperCase() }
 
