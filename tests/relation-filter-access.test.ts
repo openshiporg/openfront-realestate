@@ -62,6 +62,7 @@ const probes: Array<[string, string, string, string, string]> = [
   ['SavedProperty', 'property: ', 'title', 'Secret', 'zzz'],
   ['SavedProperty', 'user: ', 'name', 'Zed', 'zzz'],
   ['SavedSearch', 'user: ', 'name', 'Zed', 'zzz'],
+  ['AgentTask', 'assignedAgent: ', 'name', 'Zed', 'zzz'],
   ['Showing', 'lead: ', 'email', 'alice', 'zzz'],
   ['Showing', 'customer: ', 'name', 'Zed', 'zzz'],
   ['Deal', 'lead: ', 'email', 'alice', 'zzz'],
@@ -93,4 +94,21 @@ test('admin keeps its real filters', async () => {
   const miss = await count('admin', probes[0], 'zzz')
   assert.equal(hit, '1'); assert.equal(miss, '0')
   assert.equal(await count('admin', ['Lead', '', 'email', '', ''], 'alice'), '1')
+})
+
+// The "mine" pages filter by owner id; the read-gated default refused them for every role.
+test('my leads, my tasks and my saved searches can be filtered by owner', async () => {
+  for (const who of ['admin', 'agent']) {
+    const leads = await ctx.withSession(sessions[who]).graphql.raw({ query: `query { platformContacts(status: "all", q: "") { stats { total } } }` })
+    assert.equal(leads.errors, undefined, `${who} leads workspace`)
+    const res = await ctx.withSession(sessions[who]).graphql.raw({ query: `query { agentTasksCount(where: { assignedAgent: { id: { equals: "${ids[who]}" } } }) }` })
+    assert.equal(res.errors, undefined, `${who} tasks`)
+  }
+  for (const who of ['admin', 'agent', 'analyst']) {
+    const res = await ctx.withSession(sessions[who]).graphql.raw({ query: `query { savedSearchesCount(where: { user: { id: { equals: "${ids[who]}" } } }) }` })
+    assert.equal(res.errors, undefined, `${who} saved searches`)
+  }
+  const customer = { itemId: ids.analyst, listKey: 'User', data: { name: 'c', role: null, activeBrokerage: null, brokerageMemberships: [] } }
+  const res = await ctx.withSession(customer).graphql.raw({ query: `query { savedSearchesCount(where: { user: { id: { equals: "${ids.analyst}" } } }) }` })
+  assert.equal(res.errors, undefined, 'customer saved searches')
 })

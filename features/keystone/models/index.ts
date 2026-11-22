@@ -119,6 +119,29 @@ function rowFilterIsBrokerageWide(listKey: string, args: any) {
   return keys.length === 1 && (keys[0] === 'brokerage' || keys[0] === 'id' && listKey === 'Brokerage');
 }
 
+// "Mine" filters (my leads, my tasks, my saved searches) point at User, whose row filter is never
+// brokerage-only, so the rule above refused them for every role and the agent's Leads page, My tasks
+// and the customer's saved searches failed. Two cases leak nothing: the session may see every member
+// of its brokerage and manages them (it reads every brokerage row anyway), or its rows on this list are
+// already pinned to itself through this same field.
+function pinsFieldToSession(rule: unknown, fieldKey: string, itemId: string): boolean {
+  if (!rule || typeof rule !== 'object') return false;
+  const where = rule as Record<string, any>;
+  if (where[fieldKey]?.id?.equals === itemId) return true;
+  return Array.isArray(where.AND) && where.AND.some(part => pinsFieldToSession(part, fieldKey, itemId));
+}
+
+function userFilterIsSafe(args: any) {
+  const session = args.session;
+  if (!session?.itemId) return false;
+  if (session.data?.role?.canSeeOtherPeople && session.data?.role?.canManagePeople) return true;
+  const access = (models as Record<string, any>)[args.listKey]?.access;
+  const filter = typeof access === 'function' ? undefined : access?.filter;
+  const query = typeof filter === 'function' ? undefined : filter?.query;
+  const rule = typeof query === 'function' ? query({ ...args, operation: 'query' }) : query;
+  return pinsFieldToSession(rule, args.fieldKey, session.itemId);
+}
+
 function readGatedFilters(field: FieldTypeFunc<BaseListTypeInfo>): FieldTypeFunc<BaseListTypeInfo> {
   return meta => {
     const config: any = field(meta);
@@ -133,7 +156,9 @@ function readGatedFilters(field: FieldTypeFunc<BaseListTypeInfo>): FieldTypeFunc
     const allowed = (args: any) => {
       try {
         if (read !== undefined && !(typeof read === 'function' ? read({ ...args, operation: 'query' }) : read)) return false;
-        return target ? Boolean(operationQuery(target)({ ...args, operation: 'query', listKey: target })) && rowFilterIsBrokerageWide(target, args) : true;
+        if (!target) return true;
+        if (!operationQuery(target)({ ...args, operation: 'query', listKey: target })) return false;
+        return rowFilterIsBrokerageWide(target, args) || (target === 'User' && userFilterIsSafe(args));
       } catch {
         return false;
       }
