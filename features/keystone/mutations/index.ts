@@ -28,7 +28,7 @@ import {
   savePropertyForCurrentUser,
   saveSearchForCurrentUser,
 } from './savedDiscovery'
-import { submitListingInquiry } from './submitListingInquiry'
+import { submitListingInquiry, submitSellerInquiry } from './submitListingInquiry'
 import {
   addLeadActivityCommand,
   completeShowingWithFeedback,
@@ -277,6 +277,16 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         intent: String
         message: String
         preferredTime: String
+      }
+
+      input SubmitSellerInquiryInput {
+        brokerageSlug: String!
+        name: String!
+        email: String
+        phone: String
+        address: String!
+        timeline: String
+        message: String
       }
 
       type SubmitListingInquiryResult {
@@ -577,6 +587,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         reconcilePaymentCommand(paymentId: ID!): PaymentCommandResult!
         refundPaymentCommand(paymentId: ID!): PaymentCommandResult!
         submitListingInquiry(data: SubmitListingInquiryInput!): SubmitListingInquiryResult!
+        submitSellerInquiry(data: SubmitSellerInquiryInput!): SubmitListingInquiryResult!
         requestPropertyShowing(data: RequestPropertyShowingInput!): RequestPropertyShowingResult!
         transitionLeadStatus(data: OperatorTransitionInput!): OperatorTransitionResult!
         transitionPropertyStatus(data: OperatorTransitionInput!): OperatorTransitionResult!
@@ -665,6 +676,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         reconcilePaymentCommand,
         refundPaymentCommand,
         submitListingInquiry,
+        submitSellerInquiry,
         requestPropertyShowing,
         transitionLeadStatus,
         transitionPropertyStatus,

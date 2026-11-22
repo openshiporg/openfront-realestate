@@ -7187,6 +7187,7 @@ type Mutation {
   reconcilePaymentCommand(paymentId: ID!): PaymentCommandResult!
   refundPaymentCommand(paymentId: ID!): PaymentCommandResult!
   submitListingInquiry(data: SubmitListingInquiryInput!): SubmitListingInquiryResult!
+  submitSellerInquiry(data: SubmitSellerInquiryInput!): SubmitListingInquiryResult!
   requestPropertyShowing(data: RequestPropertyShowingInput!): RequestPropertyShowingResult!
   transitionLeadStatus(data: OperatorTransitionInput!): OperatorTransitionResult!
   transitionPropertyStatus(data: OperatorTransitionInput!): OperatorTransitionResult!
@@ -8481,6 +8482,16 @@ input SubmitListingInquiryInput {
   intent: String
   message: String
   preferredTime: String
+}
+
+input SubmitSellerInquiryInput {
+  brokerageSlug: String!
+  name: String!
+  email: String
+  phone: String
+  address: String!
+  timeline: String
+  message: String
 }
 
 type SubmitListingInquiryResult {

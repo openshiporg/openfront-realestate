@@ -4,7 +4,7 @@ import { requireListingAuthority } from '../lib/authorityEvidence'
 import { lockBrokerageCommand } from '../lib/commandContext'
 import { lockPropertyForDecision } from '../lib/propertyLock'
 import { enqueueDomainEvent } from '../lib/domainEvents'
-import { capturePublicLead, firstActiveBrokerageAgent } from './leadCapture'
+import { capturePublicLead, firstActiveBrokerageAgent, leadIdentityKey } from './leadCapture'
 
 type SubmitListingInquiryInput = {
   brokerageSlug: string;
@@ -176,5 +176,81 @@ export async function submitListingInquiry(
       message: 'Inquiry sent. An agent will follow up with next steps shortly.',
       leadId: null,
     };
+  }, { timeout: 30_000 })
+}
+
+type SubmitSellerInquiryInput = {
+  brokerageSlug: string
+  name: string
+  email?: string | null
+  phone?: string | null
+  address?: string | null
+  timeline?: string | null
+  message?: string | null
+}
+
+/**
+ * "List your home" from the public site: a seller lead with no listing yet,
+ * routed by the brokerage's sell rules (or its fallback) like any website lead.
+ */
+export async function submitSellerInquiry(_root: any, { data }: { data: SubmitSellerInquiryInput }, context: Context) {
+  const brokerageSlug = clean(data.brokerageSlug).toLowerCase()
+  const name = clean(data.name), email = clean(data.email).toLowerCase(), phone = clean(data.phone)
+  const address = clean(data.address), timeline = clean(data.timeline), message = clean(data.message)
+  if (brokerageSlug.length > 80 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(brokerageSlug)) return { ok: false, message: 'We could not send your request. Please try again.', leadId: null }
+  if (!name || name.length > 120 || !address || address.length > 300 || timeline.length > 200 || message.length > 5000 || !validContact(email, phone)) {
+    return { ok: false, message: 'Add your name, the home\'s address, and an email or phone number.', leadId: null }
+  }
+  const brokerages = await context.sudo().query.Brokerage.findMany({ where: { slug: { equals: brokerageSlug }, status: { equals: 'active' } }, take: 1, query: 'id' })
+  const brokerageId = brokerages[0]?.id
+  if (!brokerageId) return { ok: false, message: 'We could not send your request. Please try again.', leadId: null }
+
+  return context.transaction(async scoped => {
+    await lockBrokerageCommand(scoped, brokerageId)
+    const sudo = scoped.sudo()
+    const identityKey = leadIdentityKey(email, phone)!
+    const recent = await sudo.query.LeadActivity.findMany({
+      where: { lead: { identityKey: { equals: identityKey }, brokerage: { id: { equals: brokerageId } } }, activityType: { equals: 'inquiry' }, occurredAt: { gte: new Date(Date.now() - 60 * 60_000).toISOString() } },
+      take: 5, query: 'id',
+    })
+    if (recent.length >= 5) return { ok: false, message: 'Unable to accept this request. Please contact the brokerage directly.', leadId: null }
+
+    const rules = await sudo.query.LeadRoutingRule.findMany({
+      where: { status: { equals: 'active' }, brokerage: { id: { equals: brokerageId } } },
+      orderBy: [{ priority: 'asc' }], take: 50, query: 'id intent source isFallback assignedAgent { id }',
+    })
+    const sellRule = rules.find((rule: any) => rule.assignedAgent?.id && (rule.intent === 'sell') && (!rule.source || rule.source === 'any' || rule.source === 'website'))
+    const fallback = rules.find((rule: any) => rule.isFallback && rule.assignedAgent?.id)
+    const assignedAgentId = await firstActiveBrokerageAgent(scoped, brokerageId, [sellRule?.assignedAgent?.id, fallback?.assignedAgent?.id])
+
+    const body = [`Home to sell: ${address}`, timeline ? `Timeline: ${timeline}` : '', message].filter(Boolean).join('\n\n')
+    const existing = await sudo.query.Lead.findMany({
+      where: { identityKey: { equals: identityKey }, brokerage: { id: { equals: brokerageId } }, property: null, intent: { equals: 'sell' }, status: { notIn: ['closed', 'lost'] } },
+      take: 1, query: 'id',
+    })
+    const lead = existing[0] || await sudo.query.Lead.createOne({
+      data: {
+        identityKey, name, email, phone, intent: 'sell', source: 'website', status: 'new', message: body,
+        preferredLocation: address, timeline,
+        brokerage: { connect: { id: brokerageId } },
+        ...(assignedAgentId ? { assignedAgent: { connect: { id: assignedAgentId } } } : {}),
+      },
+      query: 'id',
+    })
+    const activity = await sudo.query.LeadActivity.createOne({
+      data: {
+        lead: { connect: { id: lead.id } },
+        activityType: 'inquiry', direction: 'inbound', channel: 'website',
+        subject: existing[0] ? 'Repeat request to list a home' : 'Request to list a home',
+        body, occurredAt: new Date().toISOString(),
+      },
+      query: 'id',
+    })
+    await enqueueDomainEvent(sudo, {
+      eventKey: `public-seller-inquiry:${activity.id}`, eventType: 'lead.inquiry_captured', brokerageId,
+      aggregateType: 'lead', aggregateId: lead.id, action: 'capture_seller_inquiry',
+      request: { intent: 'sell', identityKey }, before: null, after: { leadId: lead.id, activityId: activity.id, reused: Boolean(existing[0]) },
+    })
+    return { ok: true, message: 'Request sent. An agent will contact you about pricing and listing your home.', leadId: null }
   }, { timeout: 30_000 })
 }

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Bookmark, Heart, House, Map as MapIcon, Menu, MessageCircle, Search, UserRound, X } from 'lucide-react'
+import { Heart, House, Menu, Search, Tag, UserRound, X } from 'lucide-react'
 import type { BrokerageSettings } from '@/features/storefront/lib/data/settings'
 import { customerSignOut } from '@/features/storefront/lib/data/account'
 import { emailHref } from '@/features/storefront/lib/format'
@@ -24,10 +24,9 @@ function intentHref(pathname: string, current: URLSearchParams, value: string) {
   return query ? `/listings?${query}` : '/listings'
 }
 
-/** "List your home" opens a message to the office with the subject filled in. */
-function listHomeHref(settings: BrokerageSettings) {
-  const email = emailHref(settings.publicEmail)
-  return email ? `${email}?subject=${encodeURIComponent('Listing my home with ' + settings.businessName)}` : null
+/** "List your home" opens the seller form, which lands as a sell lead in the dashboard. */
+function listHomeHref(_settings: BrokerageSettings) {
+  return '/sell'
 }
 
 export function StorefrontNavBar({ settings, sections = { neighborhoods: true, advisors: true }, customerName, savedCount = 0, search }: { settings: BrokerageSettings; sections?: StorefrontSections; customerName: string | null; savedCount?: number; search?: ReactNode }) {
@@ -66,7 +65,7 @@ export function StorefrontNavBar({ settings, sections = { neighborhoods: true, a
             <Suspense fallback={INTENTS.map(([value, label]) => <Link key={value} href={`/listings?type=${value}`}>{label}</Link>)}>
               <IntentLinks onNavigate={close} />
             </Suspense>
-            {listHome ? <a href={listHome}>Sell</a> : null}
+            {listHome ? <Link href={listHome}>Sell</Link> : null}
             {sections.advisors ? <Link href="/#agents">Agents</Link> : null}
             {sections.neighborhoods ? <Link href="/#neighborhoods">Neighborhoods</Link> : null}
           </nav>
@@ -77,7 +76,7 @@ export function StorefrontNavBar({ settings, sections = { neighborhoods: true, a
               <Heart aria-hidden />{signedIn && savedCount ? <b className="sf-num">{savedCount}</b> : null}
             </Link>
             <Link href="/account" className={search ? 'sf-header__account' : 'sf-btn sf-btn--primary sf-btn--pill sf-header__account'} title={customerName || undefined}><span>{customerName || 'Sign In'}</span></Link>
-            {search && listHome ? <a href={listHome} className="sf-btn sf-btn--primary sf-header__cta">List Your Home</a> : null}
+            {search && listHome ? <Link href={listHome} className="sf-btn sf-btn--primary sf-header__cta">List Your Home</Link> : null}
           </div>
 
           <button
@@ -112,7 +111,7 @@ export function StorefrontNavBar({ settings, sections = { neighborhoods: true, a
                 {INTENTS.map(([value, label]) => <Link key={value} href={`/listings?type=${value}`} onClick={close}>{label === 'Buy' ? 'Homes for sale' : 'Homes for rent'}</Link>)}
                 {sections.advisors ? <Link href="/#agents" onClick={close}>Agents</Link> : null}
                 {sections.neighborhoods ? <Link href="/#neighborhoods" onClick={close}>Neighborhoods</Link> : null}
-                {listHome ? <a href={listHome} onClick={close}>List your home</a> : null}
+                {listHome ? <Link href={listHome} onClick={close}>List your home</Link> : null}
                 {contact ? <a href={contact} onClick={close}>Contact</a> : null}
               </nav>
               {signedIn ? (
@@ -141,13 +140,12 @@ export function StorefrontNavBar({ settings, sections = { neighborhoods: true, a
 
 /** Phone tab bar: the app-style way around the storefront. */
 function TabBar({ pathname, signedIn, savedHref }: { pathname: string; signedIn: boolean; savedHref: string }) {
-  const gate = (path: string) => signedIn ? path : `/account?from=${encodeURIComponent(path)}`
+  // Home already is the map and list, so there is no separate Map tab; a visitor sees "Sign in", not tabs that only lead to it.
   const tabs: Array<[string, string, ReactNode, boolean]> = [
-    ['/', 'Home', <House key="i" aria-hidden />, pathname === '/'],
-    ['/listings', 'Map', <MapIcon key="i" aria-hidden />, pathname === '/listings'],
-    [savedHref, 'Saved', <Bookmark key="i" aria-hidden />, pathname === '/account/saved'],
-    [gate('/account/questions'), 'Messages', <MessageCircle key="i" aria-hidden />, pathname === '/account/questions'],
-    [signedIn ? '/account/profile' : '/account', 'Profile', <UserRound key="i" aria-hidden />, pathname === '/account/profile' || (!signedIn && pathname === '/account')],
+    ['/', 'Home', <House key="i" aria-hidden />, pathname === '/' || pathname === '/listings'],
+    [savedHref, 'Saved', <Heart key="i" aria-hidden />, pathname === '/account/saved'],
+    ['/sell', 'Sell', <Tag key="i" aria-hidden />, pathname === '/sell'],
+    ['/account', signedIn ? 'Account' : 'Sign in', <UserRound key="i" aria-hidden />, pathname === '/account' || (signedIn && pathname.startsWith('/account/') && pathname !== '/account/saved')],
   ]
   return (
     <nav className="sf-tabbar" aria-label="Sections">

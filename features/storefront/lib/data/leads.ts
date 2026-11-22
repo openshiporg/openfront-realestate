@@ -66,3 +66,18 @@ export async function createListingInquiry(_prevState: InquiryState, formData: F
 
     return { ok: true, message: 'Message sent. An advisor will be in touch.' }
 }
+
+export async function createSellerInquiry(_prevState: InquiryState, formData: FormData): Promise<InquiryState> {
+  const name = required(formData.get('name'))
+  const email = required(formData.get('email'))
+  const phone = required(formData.get('phone'))
+  const address = required(formData.get('address'))
+  if (!name || !address || (!email && !phone)) return { ok: false, message: 'Add your name, the home\'s address, and an email or phone number.' }
+  const brokerageSlug = await getStorefrontBrokerageSlug()
+  if (!brokerageSlug) return { ok: false, message: 'We could not send your request. Please try again.' }
+  const response = await keystoneClient<{ submitSellerInquiry: InquiryState }>(`
+    mutation SubmitSellerInquiry($data: SubmitSellerInquiryInput!) { submitSellerInquiry(data: $data) { ok message } }
+  `, { data: { brokerageSlug, name, email, phone, address, timeline: required(formData.get('timeline')), message: required(formData.get('message')) } }, { cache: 'no-store' })
+  if (!response.success) return { ok: false, message: 'We could not send your request. Please try again.' }
+  return response.data.submitSellerInquiry
+}

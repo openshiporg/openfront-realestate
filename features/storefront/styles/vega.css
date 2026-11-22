@@ -40,7 +40,7 @@
     --sf-shadow: 0 1px 2px oklch(20% 0.01 160 / 0.05), 0 6px 18px -10px oklch(20% 0.01 160 / 0.18);
   }
   .storefront-root:has(.sf-header[data-search]) { --sf-head: 7rem; }
-  @media (max-width: 39.99rem) { .storefront-root { --sf-head: 3.3125rem; } .storefront-root:has(.sf-header[data-search]) { --sf-head: 6.75rem; } }
+  @media (max-width: 39.99rem) { .storefront-root { --sf-head: 3.3125rem; } .storefront-root:has(.sf-header[data-search]) { --sf-head: 6.625rem; } }
   @media (min-width: 64rem) {
     .storefront-root { --sf-head: 4.5rem; }
     .storefront-root:has(.sf-header[data-search]) { --sf-head: 9.125rem; }
@@ -106,7 +106,7 @@
   .sf-track--block { display: flex; width: 100%; }
   .sf-track--block > * { flex: 1 1 0; }
   .sf-track label { display: flex; position: relative; }
-  .sf-track__item { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; width: 100%; min-height: 2.5rem; padding: 0 0.875rem; border: 0; border-radius: 0.4375rem; background: transparent; color: var(--sf-ink-2); font-weight: 600; font-size: 0.9375rem; white-space: nowrap; cursor: pointer; transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease; }
+  .sf-track__item { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; width: 100%; min-height: 2.75rem; padding: 0 0.875rem; border: 0; border-radius: 0.4375rem; background: transparent; color: var(--sf-ink-2); font-weight: 600; font-size: 0.9375rem; white-space: nowrap; cursor: pointer; transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease; }
   .sf-track__item:hover { color: var(--sf-ink); }
   .sf-track__item[aria-current="page"], .sf-track__item[aria-selected="true"], .sf-track input:checked + .sf-track__item { background: var(--sf-paper); color: var(--sf-green); box-shadow: 0 1px 2px oklch(20% 0.01 160 / 0.12); }
   .sf-track input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
@@ -213,6 +213,15 @@
   .sf-search__filters-btn svg.lucide { width: 1.125rem; height: 1.125rem; }
   .sf-search__filters-btn b, .sf-search__more b { position: absolute; top: -0.125rem; right: -0.125rem; min-width: 1.125rem; height: 1.125rem; border-radius: 999px; background: var(--sf-paper); color: var(--sf-green); font-size: 0.75rem; line-height: 1.125rem; box-shadow: 0 0 0 1px var(--sf-green); }
   .sf-search__filters-btn[aria-expanded="true"] { background: var(--sf-green-deep); }
+  /* Phones: search and Filters are one slim 44px row that reads as part of the header, not a second band above the map. */
+  @media (max-width: 39.99rem) {
+    .sf-header__search { padding-bottom: 0.5rem; }
+    .sf-search__pill { min-height: 2.75rem; padding-left: 0.875rem; }
+    .sf-search__area input { min-height: 2.625rem; }
+    .sf-search__area svg.lucide { width: 1.125rem; height: 1.125rem; }
+    .sf-search__filters-btn { width: 2.75rem; height: 2.75rem; margin-block: 0; }
+    .sf-search__filters-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  }
 
   .sf-search__panel { position: absolute; top: calc(100% + 0.5rem); right: 0; left: 0; z-index: 45; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; padding: 1rem; border: 1px solid var(--sf-line); border-radius: var(--sf-radius-lg); background: var(--sf-paper); box-shadow: 0 18px 40px -16px oklch(20% 0.01 160 / 0.35); }
   .sf-search__panel[hidden] { display: none; }
@@ -336,6 +345,9 @@
   .sf-map__canvas, .sf-map__canvas.maplibregl-map { position: absolute; inset: 0; width: 100%; height: 100%; }
   .sf-map__note { position: absolute; left: 1rem; bottom: 1rem; padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: var(--sf-paper); color: var(--sf-muted); font-size: 0.875rem; box-shadow: var(--sf-shadow); }
   .sf-map .maplibregl-ctrl-attrib { font-size: 0.75rem; }
+  /* The attribution toggle is a real button: give it a full 44px tap area without enlarging the glyph. */
+  .sf-map .maplibregl-ctrl-attrib.maplibregl-compact { min-height: 2.75rem; min-width: 2.75rem; }
+  .sf-map .maplibregl-ctrl-attrib-button { width: 2.75rem; height: 2.75rem; background-position: center; }
   .sf-map__controls { position: absolute; right: 1rem; bottom: 1.5rem; display: grid; border-radius: 0.625rem; background: var(--sf-paper); box-shadow: var(--sf-shadow); overflow: hidden; }
   .sf-map__controls button { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border: 0; background: transparent; color: var(--sf-ink); cursor: pointer; }
   .sf-map__controls button + button { border-top: 1px solid var(--sf-line); }
@@ -724,12 +736,14 @@
   @media (min-width: 64rem) { .sf-stickybar { display: none; } }
 
   /* ---------- Phone tab bar ---------- */
-  .sf-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); height: calc(var(--sf-tabbar) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: oklch(99% 0.002 150 / 0.96); border-top: 1px solid var(--sf-line); backdrop-filter: blur(10px); }
+  .sf-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); height: calc(var(--sf-tabbar) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: oklch(99% 0.002 150 / 0.96); border-top: 1px solid var(--sf-line); backdrop-filter: blur(10px); }
   .sf-tabbar__item { display: grid; place-content: center; justify-items: center; gap: 0.1875rem; min-width: 0; color: var(--sf-ink-2); font-size: 0.75rem; font-weight: 500; }
   .sf-tabbar__item svg.lucide { width: 1.5rem; height: 1.5rem; stroke-width: 1.5; }
   .sf-tabbar__item[aria-current="page"] { color: var(--sf-green); font-weight: 700; }
   .sf-tabbar__item[aria-current="page"] svg.lucide { fill: var(--sf-green); stroke: var(--sf-green); }
   @media (min-width: 64rem) { .sf-tabbar { display: none; } }
+  /* On phones the tab bar carries Saved; the header heart would repeat it. */
+  @media (max-width: 63.99rem) { .sf-header__saved { display: none; } }
 
   /* ---------- Account ---------- */
   .sf-account { padding-bottom: 1rem; }
@@ -744,6 +758,8 @@
   .sf-account__who { display: flex; align-items: center; gap: 1rem; padding-block: 0.5rem; font-size: 0.875rem; color: var(--sf-muted); min-width: 0; }
   .sf-account__who > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 16rem; }
   .sf-account__who .sf-link { min-height: 2.75rem; }
+  /* Phones: who is signed in sits on one quiet line above the tabs, not as a loose row under them. */
+  @media (max-width: 39.99rem) { .sf-account__bar { flex-direction: column-reverse; align-items: stretch; gap: 0; } .sf-account__who { justify-content: space-between; padding-block: 0; border-bottom: 1px solid var(--sf-line); } .sf-tabs { width: 100%; } }
   .sf-account__head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; padding-block: 1.5rem 1.25rem; }
   .sf-account__head h1 { font-family: var(--sf-serif); font-weight: 500; font-size: clamp(2rem, 3.4vw, 2.75rem); line-height: 1.02; letter-spacing: -0.015em; }
   .sf-account__section { display: grid; gap: 1rem; }
