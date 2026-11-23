@@ -146,6 +146,8 @@ export async function beginPaymentCheckout(_root: unknown, { token }: { token: s
     assertAmountAndCurrency(settled, created.amount, created.currency)
     if (!created.id || !created.url) throw new Error('Provider did not return a checkout')
     await context.sudo().query.Payment.updateOne({ where: { id: settled.id }, data: { providerPaymentId: String(created.id), checkoutUrl: String(created.url), status: 'pending' }, query: 'id' })
+    // Keep the payment sweep (lib/paymentSweep.ts) running for the next 30 minutes.
+    ;(globalThis as { __paymentSweepArm?: () => void }).__paymentSweepArm?.()
     return { ok: true, message: 'Continue to secure checkout.', url: String(created.url) as string, token: settled.accessToken }
   } catch (error) {
     // A session at the wrong amount is parked for staff. Any other error leaves the payment payable:
