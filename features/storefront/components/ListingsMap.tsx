@@ -364,7 +364,8 @@ function ListingsLayer({ pins, activeId, area = null, searchable = false, signed
       setHere(spot)
       setLocated('found')
       // A move the shopper asked for: it offers "Search this area" like a drag would.
-      map.flyTo({ center: spot, zoom: Math.max(map.getZoom(), 13), duration: reducedMotion() ? 0 : 900 })
+      // Centred in the part of the map the phone sheet leaves visible, not under the sheet.
+      map.flyTo({ center: spot, zoom: Math.max(map.getZoom(), 13), offset: [0, -Math.round(sheetCover(box()) / 2)], duration: reducedMotion() ? 0 : 900 })
     }, error => setLocated(error.code === error.PERMISSION_DENIED ? 'denied' : 'unavailable'), { timeout: 10000, maximumAge: 60000 })
   }
   useEffect(() => {
