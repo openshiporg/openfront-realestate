@@ -342,26 +342,35 @@
   .sf-map .maplibregl-ctrl-top-right .maplibregl-ctrl-attrib { margin: 0.75rem; }
 
   .sf-map { position: relative; width: 100%; height: 100%; overflow: hidden; background: #f4f6f1; }
-  .sf-map__canvas, .sf-map__canvas.maplibregl-map { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .sf-map__canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .sf-map .maplibregl-canvas:focus-visible { outline: 2px solid var(--sf-green); outline-offset: -2px; }
+  .sf-map .maplibregl-ctrl-attrib { background: color-mix(in oklch, var(--sf-paper) 92%, transparent) !important; border-color: var(--sf-line) !important; color: var(--sf-muted) !important; border-radius: 0.5rem !important; box-shadow: none !important; }
+  .sf-map .maplibregl-ctrl-bottom-left .maplibregl-ctrl-attrib { margin: 0 0 0.75rem 0.75rem; }
+  .sf-pin-host { cursor: default; }
   .sf-map__note { position: absolute; left: 1rem; bottom: 1rem; padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: var(--sf-paper); color: var(--sf-muted); font-size: 0.875rem; box-shadow: var(--sf-shadow); }
   .sf-map .maplibregl-ctrl-attrib { font-size: 0.75rem; }
-  .sf-map__controls { position: absolute; right: 1rem; bottom: 1.5rem; display: grid; border-radius: 0.625rem; background: var(--sf-paper); box-shadow: var(--sf-shadow); overflow: hidden; }
-  .sf-map__controls button { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border: 0; background: transparent; color: var(--sf-ink); cursor: pointer; }
-  .sf-map__controls button + button { border-top: 1px solid var(--sf-line); }
-  .sf-map__controls button:hover { background: var(--sf-paper-3); }
+  /* mapcn controls: two quiet floating groups (zoom; near me and show all), finger-sized. */
+  .sf-map__controls { position: absolute; z-index: 3; right: 1rem; bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .sf-map__controls .sf-map__zoomgroup { gap: 0.5rem; }
+  .sf-map__controls .sf-map__zoomgroup > div, .sf-map__group { display: flex; flex-direction: column; border: 1px solid var(--sf-line) !important; border-radius: 0.75rem !important; background: color-mix(in oklch, var(--sf-paper) 94%, transparent) !important; backdrop-filter: blur(8px); box-shadow: 0 1px 2px oklch(20% 0.02 160 / 0.06), 0 8px 22px -10px oklch(20% 0.02 160 / 0.3); overflow: hidden; }
+  .sf-map__controls button { display: grid; place-items: center; width: 2.75rem !important; height: 2.75rem !important; padding: 0; border: 0; border-radius: 0 !important; background: transparent; color: var(--sf-ink); cursor: pointer; transition: background-color 140ms var(--sf-ease), color 140ms var(--sf-ease); }
+  .sf-map__controls button + button { border-top: 1px solid var(--sf-line) !important; }
+  .sf-map__controls button:hover { background: var(--sf-paper-3); color: var(--sf-green); }
+  .sf-map__controls button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--sf-green); }
   .sf-map__controls svg.lucide { width: 1.25rem; height: 1.25rem; stroke-width: 2; }
-  .sf-split[data-variant="detail"] .sf-map__controls { right: auto; left: 1.75rem; bottom: 2.5rem; }
+  .sf-split[data-variant="detail"] .sf-map__controls { right: 1rem; left: auto; bottom: 1.5rem; }
   .sf-map__controls button[aria-busy="true"] svg { animation: sf-spin 900ms linear infinite; }
   .sf-map__controls button[data-on] { color: var(--sf-verified, #2563eb); }
   @keyframes sf-spin { to { transform: rotate(360deg); } }
   @media (max-width: 63.99rem) {
     .sf-map__controls { right: auto; left: 0.75rem; bottom: 1rem; }
     /* Fingers pinch to zoom, so a phone keeps only "near me" and "show all". */
-    .sf-map__controls .sf-map__zoom { display: none; }
-    .sf-map__controls { border-radius: 1.375rem; }
+    .sf-map__controls .sf-map__zoomgroup { display: none; }
+    .sf-map__controls .sf-map__group { border-radius: 1.375rem !important; }
   }
 
   /* While the first tiles load: a soft street-grid wash and a quiet note, under the pins. */
+  .sf-map__canvas > div > .absolute.inset-0 { background: repeating-linear-gradient(90deg, transparent 0 46px, oklch(92% 0.006 150) 46px 48px), repeating-linear-gradient(0deg, transparent 0 46px, oklch(92% 0.006 150) 46px 48px), #f4f6f1 !important; }
   .sf-map[data-loading] .sf-map__canvas { background: repeating-linear-gradient(90deg, transparent 0 46px, oklch(92% 0.006 150) 46px 48px), repeating-linear-gradient(0deg, transparent 0 46px, oklch(92% 0.006 150) 46px 48px), #f4f6f1; }
   .sf-map__loading { position: absolute; left: 50%; top: 40%; z-index: 1; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 0.5rem; margin: 0; padding: 0.5rem 0.875rem; border-radius: 999px; background: var(--sf-paper); color: var(--sf-muted); font-size: 0.875rem; font-weight: 600; box-shadow: var(--sf-shadow); pointer-events: none; }
   .sf-map__spinner { width: 0.875rem; height: 0.875rem; border-radius: 50%; border: 2px solid var(--sf-line-strong); border-top-color: var(--sf-green); animation: sf-spin 800ms linear infinite; }
@@ -394,7 +403,20 @@
   .sf-preview__close { position: absolute; top: 0.375rem; right: 0.375rem; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--sf-ink-2); cursor: pointer; }
   .sf-preview__close:hover { background: var(--sf-paper-3); }
   .sf-preview__close svg.lucide, .sf-preview__save svg.lucide { width: 1.25rem; height: 1.25rem; }
+  /* On a wide map the chosen home opens beside its pin as a photo-led card (mapcn popup). */
+  .sf-preview[data-floating] { position: relative; left: auto; bottom: auto; width: 17.5rem; transform: none; border-radius: 1rem; box-shadow: 0 24px 48px -18px oklch(20% 0.02 160 / 0.5), 0 0 0 1px oklch(20% 0.02 160 / 0.08); animation: sf-popup-in 200ms var(--sf-ease); }
+  @keyframes sf-popup-in { from { opacity: 0; transform: translateY(0.5rem) scale(0.98); } }
+  .sf-preview[data-floating] .sf-preview__link { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .sf-preview[data-floating] .sf-preview__photo { aspect-ratio: 16 / 10; }
+  .sf-preview[data-floating] .sf-preview__text { padding: 0.875rem 3.25rem 1rem 1rem; gap: 0.1875rem; }
+  .sf-preview[data-floating] .sf-preview__price { font-size: 1.375rem; }
+  .sf-preview[data-floating] .sf-preview__save { bottom: 0.625rem; right: 0.5rem; }
+  .sf-preview[data-floating] .sf-preview__close { top: 0.5rem; right: 0.5rem; width: 2.25rem; height: 2.25rem; background: color-mix(in oklch, var(--sf-paper) 92%, transparent); box-shadow: var(--sf-shadow); }
+  .sf-preview[data-floating] .sf-preview__close::before { content: ""; position: absolute; inset: -0.25rem; }
+  .maplibregl-popup:has(.sf-preview) { z-index: 5; }
+  @media (prefers-reduced-motion: reduce) { .sf-preview[data-floating] { animation: none; } }
   .sf-map[data-previewing] .sf-map__controls { visibility: hidden; }
+  @media (min-width: 64rem) { .sf-split[data-variant="results"] .sf-map[data-previewing] .sf-map__controls { visibility: visible; } }
   /* On a short landscape map the chosen pin can end up under "Search this area"; the card has the floor. */
   @media (max-height: 32rem) { .sf-map[data-previewing] .sf-map__search { visibility: hidden; } }
   @media (prefers-reduced-motion: reduce) { .sf-preview { animation: none; } }
@@ -412,13 +434,12 @@
 
   /* Price pins: a deep green marker with its price; the hovered or current home lifts. */
   .sf-pin { position: relative; display: block; padding: 0 0 calc(0.5rem + var(--sf-pin-lift, 0px)); border: 0; background: none; cursor: pointer; transform-origin: 50% 100%; transition: transform 160ms var(--sf-ease); filter: drop-shadow(0 3px 4px oklch(20% 0.02 160 / 0.3)); }
-  .sf-pin__label { display: block; min-width: 3.5rem; padding: 0.4375rem 0.625rem; border-radius: 999px; background: var(--sf-green); color: var(--sf-green-ink); font-family: var(--sf-sans); font-weight: 700; font-size: 0.875rem; line-height: 1.1; text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 1.5px var(--sf-paper); }
+  .sf-pin__label { display: block; min-width: 3.5rem; padding: 0.4375rem 0.6875rem; border-radius: 999px; background: var(--sf-green); color: var(--sf-green-ink); font-family: var(--sf-sans); font-weight: 700; font-size: 0.875rem; letter-spacing: -0.005em; line-height: 1.1; text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 2px var(--sf-paper); transition: background-color 140ms var(--sf-ease), color 140ms var(--sf-ease), box-shadow 140ms var(--sf-ease); }
   /* A lifted pin keeps a thin stem down to its home. */
   .sf-pin::before { content: ""; position: absolute; left: 50%; bottom: 0; width: 2px; height: var(--sf-pin-lift, 0px); transform: translateX(-50%); background: var(--sf-green); }
   .sf-pin::after { content: ""; position: absolute; left: 50%; bottom: var(--sf-pin-lift, 0px); width: 0.875rem; height: 0.75rem; transform: translateX(-50%); background: var(--sf-green); clip-path: polygon(0 0, 100% 0, 50% 100%); }
-  .sf-pin:hover, .sf-pin[data-active] { transform: scale(1.14); }
+  .sf-pin:hover, .sf-pin[data-active] { transform: scale(1.1); }
   .sf-pin[data-active] .sf-pin__label { box-shadow: 0 0 0 3px var(--sf-paper), 0 0 0 5px var(--sf-green); }
-  .sf-pin[hidden] { display: none; }
   .sf-pin--cluster .sf-pin__label { background: var(--sf-paper); color: var(--sf-green); box-shadow: 0 0 0 1.5px var(--sf-green); }
   .sf-pin--cluster .sf-pin__label b { font-weight: 700; }
   .sf-pin--cluster .sf-pin__label span { font-weight: 600; color: var(--sf-ink-2); }
@@ -919,3 +940,7 @@
    The attribution toggle is a real button, so it gets a full 44px tap area. */
 .sf-map .maplibregl-ctrl-attrib.maplibregl-compact { min-height: 2.75rem; min-width: 2.75rem; }
 .sf-map .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button { width: 2.75rem; height: 2.75rem; background-position: center; background-repeat: no-repeat; border-radius: 999px; }
+/* The closed credits are a quiet round "i" (44px target); open, a soft strip in the storefront's paper. */
+.sf-map .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) { width: 2.75rem; height: 2.75rem; min-height: 0; padding: 0; border-radius: 999px !important; background: color-mix(in oklch, var(--sf-paper) 94%, transparent) !important; box-shadow: 0 1px 2px oklch(20% 0.02 160 / 0.06), 0 8px 22px -10px oklch(20% 0.02 160 / 0.3) !important; }
+.sf-map .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button { background-color: transparent; background-size: 1.125rem; opacity: 0.72; }
+.sf-map .maplibregl-ctrl-attrib.maplibregl-compact-show { min-height: 2.75rem; display: flex; align-items: center; border-radius: 1.375rem !important; }
